@@ -1,0 +1,8 @@
+# this is the main config file
+defaults:
+  - hydra/launcher: basic  # use ray launcher to run things in parallel
+
+  # default config files
+  - data: synth # `configs/data/synth.yaml`
+  - model: basic  # `configs/model/basic.yaml`
+  - training: simple # `configs/training/simple.yaml`

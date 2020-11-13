@@ -1,0 +1,5 @@
+# @package _group_
+alpha: 0.5
+gamma: 2.0
+num_samples: 10_000
+seed: 0

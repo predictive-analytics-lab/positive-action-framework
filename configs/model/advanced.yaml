@@ -1,0 +1,4 @@
+# @package _group_
+blocks: 0
+epochs: 4
+latent_dims: 1
