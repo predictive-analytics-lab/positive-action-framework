@@ -1,22 +1,25 @@
-from typing import Tuple, List, Dict
+"""Encoder model."""
+from typing import Dict, List, Tuple
 
 import torch
-import wandb
 from ethicml import implements
 from pytorch_lightning import LightningModule
-from torch import nn, Tensor, no_grad
-from torch.nn.functional import l1_loss, binary_cross_entropy_with_logits
+from torch import Tensor, nn, no_grad
+from torch.nn.functional import binary_cross_entropy_with_logits, l1_loss
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 
+import wandb
 from src.config_classes.dataclasses import ModelConfig
 from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
-from src.model.model_utils import index_by_s, grad_reverse
+from src.model.model_utils import grad_reverse, index_by_s
 from src.utils import make_plot
 
 
 class BaseModel(nn.Module):
+    """Base AE Model."""
+
     def __init__(self, *, in_size: int, hid_size: int, out_size: int, blocks: int):
         super().__init__()
         if blocks == 0:
@@ -37,7 +40,8 @@ class BaseModel(nn.Module):
 
 
 class Encoder(BaseModel):
-    @implements(BaseModel)
+    """AE Shared Encoder."""
+
     def __init__(self, *, in_size: int, latent_dim: int, blocks: int, hid_multiplier: int):
         super().__init__(
             in_size=in_size,
@@ -48,7 +52,8 @@ class Encoder(BaseModel):
 
 
 class Adversary(BaseModel):
-    @implements(BaseModel)
+    """AE Adversary head."""
+
     def __init__(self, *, latent_dim: int, out_size: int, blocks: int, hid_multiplier: int):
         super().__init__(
             in_size=latent_dim,
@@ -57,14 +62,17 @@ class Adversary(BaseModel):
             blocks=blocks,
         )
 
+    @implements(nn.Module)
     def forward(self, z: Tensor) -> Tensor:
         z_rev = grad_reverse(z)
         return super().forward(z_rev)
 
 
 class Decoder(BaseModel):
-    @implements(nn.Module)
+    """Decoder."""
+
     def __init__(self, *, latent_dim: int, in_size: int, blocks: int, hid_multiplier: int) -> None:
+        """Init."""
         super().__init__(
             in_size=latent_dim,
             hid_size=latent_dim * hid_multiplier,
@@ -74,7 +82,10 @@ class Decoder(BaseModel):
 
 
 class AE(LightningModule):
+    """Main Autoencoder."""
+
     def __init__(self, cfg: ModelConfig, num_s: int, data_dim: int, s_dim: int):
+        """Init."""
         super().__init__()
         self.enc = Encoder(
             in_size=data_dim + s_dim if cfg.s_as_input else data_dim,
@@ -104,6 +115,7 @@ class AE(LightningModule):
         self.lr = cfg.lr
         self.s_input = cfg.s_as_input
 
+    @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_input else x
         z = self.enc(_x)
@@ -111,6 +123,7 @@ class AE(LightningModule):
         recons = [dec(z) for dec in self.decoders]
         return z, s_pred, recons
 
+    @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
         x, s, y, cf_x, cf_s, cf_y = batch
         z, s_pred, recons = self(x, s)
@@ -142,6 +155,7 @@ class AE(LightningModule):
             )
         return loss
 
+    @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
         x, s, y, cf_x, cf_s, cf_y = batch
         z, _, recons = self(x, s)
@@ -156,6 +170,7 @@ class AE(LightningModule):
             "recons_1": recons[1],
         }
 
+    @implements(LightningModule)
     def test_epoch_end(self, output_results: List[Dict[str, Tensor]]) -> None:
         all_x = torch.cat([_r["x"] for _r in output_results], 0)
         all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
@@ -174,7 +189,8 @@ class AE(LightningModule):
         make_plot(x=recon_1, s=all_s, logger=self.logger, name="recons_all_s1")
         make_plot(x=all_z, s=all_s, logger=self.logger, name="z")
 
-    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], ...]:
+    @implements(LightningModule)
+    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
         optimizer = Adam(self.parameters(), lr=self.lr)
         scheduler = ExponentialLR(optimizer, gamma=0.99)
         return [optimizer], [scheduler]

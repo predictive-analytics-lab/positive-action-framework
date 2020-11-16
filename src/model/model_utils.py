@@ -1,6 +1,7 @@
-from typing import List, Tuple, Optional
+"""Model related utiltiy functions."""
+from typing import List, Optional, Tuple
 
-from torch import nn, Tensor, cat, gather, autograd
+from torch import Tensor, autograd, cat, gather, nn
 
 
 def init_weights(m: nn.Module) -> None:

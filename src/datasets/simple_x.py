@@ -27,7 +27,7 @@ def make_x(x_bar: np.ndarray, s: np.ndarray, gamma: float, binary_s: bool) -> np
     if binary_s:
         return np.add(x_bar[:, : x_bar.shape[1]], (gamma * ((s[:, np.newaxis] * 2) - 1)))
     else:
-        return np.add(x_bar[:, : x_bar.shape[1]], (gamma * ((s[:, np.newaxis]))))
+        return np.add(x_bar[:, : x_bar.shape[1]], (gamma * (s[:, np.newaxis])))
 
 
 def simple_x_data(

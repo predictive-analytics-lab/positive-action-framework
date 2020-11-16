@@ -1,21 +1,19 @@
+"""Utility functions."""
 import warnings
-from pathlib import Path
-from typing import List
 
-import pandas as pd
-import wandb
-from ethicml import DataTuple
-import seaborn as sns
-import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 from pytorch_lightning.loggers import WandbLogger
 from torch import Tensor
+
+import wandb
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str) -> None:
-
+    """Make plots for logging."""
     x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
     x_df["s"] = s.detach().cpu().numpy()
 

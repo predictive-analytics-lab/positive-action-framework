@@ -1,4 +1,6 @@
-from ethicml import DataTuple
+"""Data Module for simple data."""
+import numpy as np
+from ethicml import DataTuple, implements
 from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
@@ -6,10 +8,11 @@ from torch.utils.data import DataLoader
 from src.config_classes.dataclasses import DataConfig
 from src.data_modules.dataset_utils import DataTupleDataset
 from src.datasets.simple_x import simple_x_data
-import numpy as np
 
 
 class SimpleXDataModule(LightningDataModule):
+    """Simple 1d, configurable, data."""
+
     def __init__(self, cfg: DataConfig):
         super().__init__()
         self.alpha = cfg.alpha
@@ -28,7 +31,7 @@ class SimpleXDataModule(LightningDataModule):
         return self._x_dim
 
     @data_dim.setter
-    def data_dim(self, dim: int):
+    def data_dim(self, dim: int) -> None:
         self._x_dim = dim
 
     @property
@@ -36,7 +39,7 @@ class SimpleXDataModule(LightningDataModule):
         return self._num_s
 
     @num_s.setter
-    def num_s(self, dim: int):
+    def num_s(self, dim: int) -> None:
         self._num_s = dim
 
     @property
@@ -44,9 +47,10 @@ class SimpleXDataModule(LightningDataModule):
         return self._s_dim
 
     @s_dim.setter
-    def s_dim(self, dim: int):
+    def s_dim(self, dim: int) -> None:
         self._s_dim = dim
 
+    @implements(LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
         dataset, true_data, cf_data = simple_x_data(
@@ -112,6 +116,7 @@ class SimpleXDataModule(LightningDataModule):
         self.cf_train = counterfactual_train
         self.cf_test = counterfactual_test
 
+    @implements(LightningDataModule)
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
@@ -125,6 +130,7 @@ class SimpleXDataModule(LightningDataModule):
             shuffle=True,
         )
 
+    @implements(LightningDataModule)
     def test_dataloader(self) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
