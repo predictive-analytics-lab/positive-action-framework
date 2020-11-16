@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "facct-21"
+name = "src"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
@@ -28,6 +28,9 @@ pre-commit = "^2.7.1"
 [build-system]
 requires = ["poetry-core>=1.0.0a5"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+run = "src.main:encoder"
 
 [tool.black]
 line-length = 100

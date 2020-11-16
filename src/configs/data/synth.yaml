@@ -1,5 +1,7 @@
 # @package _group_
 alpha: 0.5
+batch_size: 64
 gamma: 2.0
 num_samples: 10_000
+num_workers: 0
 seed: 0

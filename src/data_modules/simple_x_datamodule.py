@@ -3,9 +3,9 @@ from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
-from config_classes.dataclasses import DataConfig
-from dataset_utils import DataTupleDataset
-from simple_x import simple_x_data
+from src.config_classes.dataclasses import DataConfig
+from src.data_modules.dataset_utils import DataTupleDataset
+from src.datasets.simple_x import simple_x_data
 import numpy as np
 
 
@@ -17,9 +17,37 @@ class SimpleXDataModule(LightningDataModule):
         self.seed = cfg.seed
         self.num_samples = cfg.num_samples
         self.train_dims = None
-        self.num_s = 2
+        self._num_s = -1
+        self._x_dim = -1
+        self._s_dim = -1
+        self.num_workers = cfg.num_workers
+        self.batch_size = cfg.batch_size
 
-    def prepare_data(self):
+    @property
+    def data_dim(self) -> int:
+        return self._x_dim
+
+    @data_dim.setter
+    def data_dim(self, dim: int):
+        self._x_dim = dim
+
+    @property
+    def num_s(self) -> int:
+        return self._num_s
+
+    @num_s.setter
+    def num_s(self, dim: int):
+        self._num_s = dim
+
+    @property
+    def s_dim(self) -> int:
+        return self._s_dim
+
+    @s_dim.setter
+    def s_dim(self, dim: int):
+        self._s_dim = dim
+
+    def prepare_data(self) -> None:
         # called only on 1 GPU
         dataset, true_data, cf_data = simple_x_data(
             seed=self.seed,
@@ -32,7 +60,9 @@ class SimpleXDataModule(LightningDataModule):
         self.dataset = dataset
         self.true_data = true_data
         self.cf_data = cf_data
-        self.num_s = true_data.s.nunique()
+        self.num_s = true_data.s.nunique().values[0]
+        self.data_dim = true_data.x.shape[1]
+        self.s_dim = true_data.s.shape[1]
 
         num_train = int(self.true_data.x.shape[0] * 0.8)
         rng = np.random.RandomState(self.seed)
@@ -82,7 +112,7 @@ class SimpleXDataModule(LightningDataModule):
         self.cf_train = counterfactual_train
         self.cf_test = counterfactual_test
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
                 self.train_data,
@@ -90,12 +120,12 @@ class SimpleXDataModule(LightningDataModule):
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.cont_features,
             ),
-            batch_size=64,
-            num_workers=0,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
             shuffle=True,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
                 self.test_data,
@@ -103,7 +133,7 @@ class SimpleXDataModule(LightningDataModule):
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.cont_features,
             ),
-            batch_size=64,
-            num_workers=0,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
             shuffle=False,
         )

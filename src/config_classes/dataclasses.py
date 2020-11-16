@@ -6,8 +6,10 @@ from omegaconf import MISSING
 @dataclass
 class DataConfig:
     alpha: float = MISSING
+    batch_size: int = MISSING
     gamma: float = MISSING
     num_samples: int = MISSING
+    num_workers: int = MISSING
     seed: int = MISSING
 
 
@@ -19,6 +21,7 @@ class ModelConfig:
     lr: float = MISSING
     recon_weight: float = MISSING
     reg_weight: float = MISSING  # another commmernt
+    s_as_input: bool = MISSING
 
 
 @dataclass

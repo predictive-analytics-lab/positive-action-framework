@@ -1,0 +1,8 @@
+# @package _group_
+blocks: 0
+latent_dims: 1
+latent_multiplier: 1
+lr: 1e-3
+recon_weight: 1.0
+reg_weight: 1e-3
+s_as_input: true
