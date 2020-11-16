@@ -72,7 +72,6 @@ class Decoder(BaseModel):
     """Decoder."""
 
     def __init__(self, *, latent_dim: int, in_size: int, blocks: int, hid_multiplier: int) -> None:
-        """Init."""
         super().__init__(
             in_size=latent_dim,
             hid_size=latent_dim * hid_multiplier,
@@ -85,7 +84,6 @@ class AE(LightningModule):
     """Main Autoencoder."""
 
     def __init__(self, cfg: ModelConfig, num_s: int, data_dim: int, s_dim: int):
-        """Init."""
         super().__init__()
         self.enc = Encoder(
             in_size=data_dim + s_dim if cfg.s_as_input else data_dim,
