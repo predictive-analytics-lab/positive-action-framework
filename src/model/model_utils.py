@@ -1,7 +1,7 @@
 """Model related utiltiy functions."""
 from typing import List, Optional, Tuple
 
-from torch import Tensor, autograd, cat, gather, nn
+from torch import Tensor, arange, autograd, nn, stack
 
 
 def init_weights(m: nn.Module) -> None:
@@ -12,8 +12,8 @@ def init_weights(m: nn.Module) -> None:
 
 def index_by_s(recons: List[Tensor], s: Tensor) -> Tensor:
     """Get recon by the index of S."""
-    _recons = cat(recons, dim=1)
-    return gather(_recons, 1, s.unsqueeze(-1).long())
+    _recons = stack(recons, dim=1)
+    return _recons[arange(_recons.shape[0]), s.long()]
 
 
 class GradReverse(autograd.Function):

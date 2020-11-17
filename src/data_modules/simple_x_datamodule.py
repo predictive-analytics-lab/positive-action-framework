@@ -5,17 +5,19 @@ from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
-from src.config_classes.dataclasses import DataConfig
-from src.data_modules.dataset_utils import DataTupleDataset
+from src.config_classes.dataclasses import SimpleXConfig
+from src.data_modules.base_module import BaseDataModule
+from src.data_modules.dataset_utils import CFDataTupleDataset
 from src.datasets.simple_x import simple_x_data
 
 
-class SimpleXDataModule(LightningDataModule):
+class SimpleXDataModule(BaseDataModule):
     """Simple 1d, configurable, data."""
 
-    def __init__(self, cfg: DataConfig):
+    def __init__(self, cfg: SimpleXConfig):
         super().__init__()
         self.alpha = cfg.alpha
+        self._cf_available = True
         self.gamma = cfg.gamma
         self.seed = cfg.seed
         self.num_samples = cfg.num_samples
@@ -25,30 +27,6 @@ class SimpleXDataModule(LightningDataModule):
         self._s_dim = -1
         self.num_workers = cfg.num_workers
         self.batch_size = cfg.batch_size
-
-    @property
-    def data_dim(self) -> int:
-        return self._x_dim
-
-    @data_dim.setter
-    def data_dim(self, dim: int) -> None:
-        self._x_dim = dim
-
-    @property
-    def num_s(self) -> int:
-        return self._num_s
-
-    @num_s.setter
-    def num_s(self, dim: int) -> None:
-        self._num_s = dim
-
-    @property
-    def s_dim(self) -> int:
-        return self._s_dim
-
-    @s_dim.setter
-    def s_dim(self, dim: int) -> None:
-        self._s_dim = dim
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
@@ -119,9 +97,9 @@ class SimpleXDataModule(LightningDataModule):
     @implements(LightningDataModule)
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
-            DataTupleDataset(
+            CFDataTupleDataset(
                 self.train_data,
-                self.cf_train,
+                cf_dataset=self.cf_train,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.cont_features,
             ),
@@ -133,9 +111,9 @@ class SimpleXDataModule(LightningDataModule):
     @implements(LightningDataModule)
     def test_dataloader(self) -> DataLoader:
         return DataLoader(
-            DataTupleDataset(
+            CFDataTupleDataset(
                 self.test_data,
-                self.cf_test,
+                cf_dataset=self.cf_test,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.cont_features,
             ),

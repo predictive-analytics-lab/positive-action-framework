@@ -43,7 +43,6 @@ class DataTupleDataset:
     def __init__(
         self,
         dataset: DataTuple,
-        cf_dataset: DataTuple,
         disc_features: List[str],
         cont_features: List[str],
     ):
@@ -58,14 +57,9 @@ class DataTupleDataset:
         self.x_disc = dataset.x[self.disc_features].to_numpy(dtype=np.float32)
         self.x_cont = dataset.x[self.cont_features].to_numpy(dtype=np.float32)
 
-        self.cf_x_disc = cf_dataset.x[self.disc_features].to_numpy(dtype=np.float32)
-        self.cf_x_cont = cf_dataset.x[self.cont_features].to_numpy(dtype=np.float32)
-
         _, self.s, self.num, self.xdim, self.sdim, self.x_names, self.s_names = _get_info(dataset)
-        _, self.cf_s, _, _, _, _, _ = _get_info(cf_dataset)
 
         self.y = dataset.y.to_numpy(dtype=np.float32)
-        self.cf_y = cf_dataset.y.to_numpy(dtype=np.float32)
 
         self.ydim = dataset.y.shape[1]
         self.y_names = dataset.y.columns
@@ -73,33 +67,71 @@ class DataTupleDataset:
     def __len__(self) -> int:
         return self.s.shape[0]
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
-
+    def _x(self, index: int) -> Tensor:
         x_disc = self.x_disc[index]
         x_cont = self.x_cont[index]
-
-        cf_x_disc = self.cf_x_disc[index]
-        cf_x_cont = self.cf_x_cont[index]
-
-        s = self.s[index]
-        cf_s = self.cf_s[index]
-
-        y = self.y[index]
-        cf_y = self.cf_y[index]
-
         x = np.concatenate([x_disc, x_cont], axis=0)
         x = torch.from_numpy(x)
-        cf_x = np.concatenate([cf_x_disc, cf_x_cont], axis=0)
-        cf_x = torch.from_numpy(cf_x)
-
         if x.shape == 1:
             x = x.squeeze(0)
+        return x
+
+    def _s(self, index: int) -> Tensor:
+        s = self.s[index]
+        return torch.from_numpy(s).squeeze()
+
+    def _y(self, index: int) -> Tensor:
+        y = self.y[index]
+        return torch.from_numpy(y).squeeze()
+
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
+        return (
+            self._x(index),
+            self._s(index),
+            self._y(index),
+        )
+
+
+class CFDataTupleDataset(DataTupleDataset):
+    """Wrapper for EthicML datasets."""
+
+    def __init__(
+        self,
+        dataset: DataTuple,
+        cf_dataset: DataTuple,
+        disc_features: List[str],
+        cont_features: List[str],
+    ):
+        """Create DataTupleDataset."""
+        super().__init__(dataset, disc_features, cont_features)
+        self.cf_x_disc = cf_dataset.x[self.disc_features].to_numpy(dtype=np.float32)
+        self.cf_x_cont = cf_dataset.x[self.cont_features].to_numpy(dtype=np.float32)
+        _, self.cf_s, _, _, _, _, _ = _get_info(cf_dataset)
+        self.cf_y = cf_dataset.y.to_numpy(dtype=np.float32)
+
+    def _cf_x(self, index: int) -> Tensor:
+        cf_x_disc = self.cf_x_disc[index]
+        cf_x_cont = self.cf_x_cont[index]
+        cf_x = np.concatenate([cf_x_disc, cf_x_cont], axis=0)
+        cf_x = torch.from_numpy(cf_x)
+        if cf_x.shape == 1:
             cf_x = cf_x.squeeze(0)
+        return cf_x
 
-        s = torch.from_numpy(s).squeeze()
-        cf_s = torch.from_numpy(cf_s).squeeze()
+    def _cf_s(self, index: int) -> Tensor:
+        cf_s = self.cf_s[index]
+        return torch.from_numpy(cf_s).squeeze()
 
-        y = torch.from_numpy(y).squeeze()
-        cf_y = torch.from_numpy(cf_y).squeeze()
+    def _cf_y(self, index: int) -> Tensor:
+        cf_y = self.cf_y[index]
+        return torch.from_numpy(cf_y).squeeze()
 
-        return x, s, y, cf_x, cf_s, cf_y
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+        return (
+            super()._x(index),
+            super()._s(index),
+            super()._y(index),
+            self._cf_x(index),
+            self._cf_s(index),
+            self._cf_y(index),
+        )

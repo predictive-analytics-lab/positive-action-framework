@@ -83,7 +83,15 @@ class Decoder(BaseModel):
 class AE(LightningModule):
     """Main Autoencoder."""
 
-    def __init__(self, cfg: ModelConfig, num_s: int, data_dim: int, s_dim: int):
+    def __init__(
+        self,
+        cfg: ModelConfig,
+        num_s: int,
+        data_dim: int,
+        s_dim: int,
+        cf_available: bool,
+        feature_groups,
+    ):
         super().__init__()
         self.enc = Encoder(
             in_size=data_dim + s_dim if cfg.s_as_input else data_dim,
@@ -101,17 +109,19 @@ class AE(LightningModule):
             [
                 Decoder(
                     latent_dim=cfg.latent_dims,
-                    in_size=1,
+                    in_size=data_dim,
                     blocks=cfg.blocks,
                     hid_multiplier=cfg.latent_multiplier,
                 )
                 for _ in range(num_s)
             ]
         )
+        self.feature_groups = feature_groups
         self.reg_weight = cfg.reg_weight
         self.recon_weight = cfg.recon_weight
         self.lr = cfg.lr
         self.s_input = cfg.s_as_input
+        self.cf_model = cf_available
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
@@ -123,7 +133,10 @@ class AE(LightningModule):
 
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        x, s, y, cf_x, cf_s, cf_y = batch
+        if self.cf_model:
+            x, s, y, cf_x, cf_s, cf_y = batch
+        else:
+            x, s, y = batch
         z, s_pred, recons = self(x, s)
         recon_loss = l1_loss(index_by_s(recons, s), x, reduction="mean")
         adv_loss = (
@@ -132,60 +145,81 @@ class AE(LightningModule):
         ) / 2
         loss = self.recon_weight * recon_loss + adv_loss
 
-        with no_grad():
-            cf_z, _, cf_recons = self(cf_x, cf_s)
-            cf_recon_loss = l1_loss(index_by_s(cf_recons, cf_s), cf_x, reduction="mean")
-            cf_loss = cf_recon_loss - 1e-6
+        to_log = {
+            "training/loss": loss,
+            "training/recon_loss": recon_loss,
+            "training/adv_loss": adv_loss,
+            "training/z_norm": z.detach().norm(dim=1).mean(),
+            "training/z_dim_0": wandb.Histogram(z.detach().cpu().numpy()[:, 0]),
+            "training/z_dim_0_s0": wandb.Histogram(z[s <= 0].detach().cpu().numpy()[:, 0]),
+            "training/z_dim_0_s1": wandb.Histogram(z[s > 0].detach().cpu().numpy()[:, 0]),
+            "training/z_mean_abs_diff": (z[s <= 0].mean() - z[s > 0].mean()).abs(),
+        }
 
-            self.logger.experiment.log(
-                {
-                    "training/loss": loss,
-                    "training/recon_loss": recon_loss,
-                    "training/adv_loss": adv_loss,
-                    "training/cf_loss": cf_loss,
-                    "training/cf_recon_loss": cf_recon_loss,
-                    "training/z_norm": z.norm(dim=1).mean(),
-                    "training/z_dim_0": wandb.Histogram(z.cpu().numpy()[:, 0]),
-                    "training/z_dim_0_s0": wandb.Histogram(z[s <= 0].cpu().numpy()[:, 0]),
-                    "training/z_dim_0_s1": wandb.Histogram(z[s > 0].cpu().numpy()[:, 0]),
-                    "training/z_mean_abs_diff": (z[s <= 0].mean() - z[s > 0].mean()).abs(),
-                }
-            )
+        if self.cf_model:
+            with no_grad():
+                cf_z, _, cf_recons = self(cf_x, cf_s)
+                cf_recon_loss = l1_loss(index_by_s(cf_recons, cf_s), cf_x, reduction="mean")
+                cf_loss = cf_recon_loss - 1e-6
+                to_log["training/cf_loss"] = cf_loss
+                to_log["training/cf_recon_loss"] = cf_recon_loss
+
+        self.logger.experiment.log(to_log)
         return loss
+
+    @torch.no_grad()
+    def invert(self, *, z: Tensor) -> Tensor:
+        """Go from soft to discrete features."""
+        if self.feature_groups["discrete"]:
+            for group_slice in self.feature_groups["discrete"]:
+                one_hot = self.to_discrete(inputs=z[:, group_slice])
+                z[:, group_slice] = one_hot
+
+        return z
 
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
-        x, s, y, cf_x, cf_s, cf_y = batch
+        if self.cf_model:
+            x, s, y, cf_x, cf_s, cf_y = batch
+        else:
+            x, s, y = batch
         z, _, recons = self(x, s)
-        return {
+
+        to_return = {
             "x": x,
-            "cf_x": cf_x,
             "z": z,
             "s": s,
             "recon": index_by_s(recons, s),
-            "cf_recon": index_by_s(recons, cf_s),
             "recons_0": recons[0],
             "recons_1": recons[1],
         }
 
+        if self.cf_model:
+            to_return["cf_x"] = cf_x
+            to_return["cf_recon"] = index_by_s(recons, cf_s)
+
+        return to_return
+
     @implements(LightningModule)
     def test_epoch_end(self, output_results: List[Dict[str, Tensor]]) -> None:
         all_x = torch.cat([_r["x"] for _r in output_results], 0)
-        all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
         all_z = torch.cat([_r["z"] for _r in output_results], 0)
         all_s = torch.cat([_r["s"] for _r in output_results], 0)
         all_recon = torch.cat([_r["recon"] for _r in output_results], 0)
-        cf_recon = torch.cat([_r["cf_recon"] for _r in output_results], 0)
         recon_0 = torch.cat([_r["recons_0"] for _r in output_results], 0)
         recon_1 = torch.cat([_r["recons_1"] for _r in output_results], 0)
 
         make_plot(x=all_x, s=all_s, logger=self.logger, name="true_data")
-        make_plot(x=all_cf_x, s=all_s, logger=self.logger, name="true_counterfactual")
         make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons")
-        make_plot(x=cf_recon, s=all_s, logger=self.logger, name="cf_recons")
         make_plot(x=recon_0, s=all_s, logger=self.logger, name="recons_all_s0")
         make_plot(x=recon_1, s=all_s, logger=self.logger, name="recons_all_s1")
         make_plot(x=all_z, s=all_s, logger=self.logger, name="z")
+
+        if self.cf_model:
+            all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
+            cf_recon = torch.cat([_r["cf_recon"] for _r in output_results], 0)
+            make_plot(x=all_cf_x, s=all_s, logger=self.logger, name="true_counterfactual")
+            make_plot(x=cf_recon, s=all_s, logger=self.logger, name="cf_recons")
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
