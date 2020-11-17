@@ -6,11 +6,7 @@ from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import AdultConfig
 from src.data_modules.base_module import BaseDataModule
-from src.data_modules.dataset_utils import (
-    CFDataTupleDataset,
-    DataTupleDataset,
-    grouped_features_indexes,
-)
+from src.data_modules.dataset_utils import DataTupleDataset
 from src.datasets.adult_dataset import adult_data
 
 
