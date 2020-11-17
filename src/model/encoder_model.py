@@ -13,7 +13,7 @@ import wandb
 from src.config_classes.dataclasses import ModelConfig
 from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
-from src.model.model_utils import grad_reverse, index_by_s
+from src.model.model_utils import grad_reverse, index_by_s, to_discrete
 from src.utils import make_plot
 
 
@@ -91,6 +91,7 @@ class AE(LightningModule):
         s_dim: int,
         cf_available: bool,
         feature_groups,
+        column_names: List[str],
     ):
         super().__init__()
         self.enc = Encoder(
@@ -122,6 +123,8 @@ class AE(LightningModule):
         self.lr = cfg.lr
         self.s_input = cfg.s_as_input
         self.cf_model = cf_available
+        self.data_cols = column_names
+        self.ld = cfg.latent_dims
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
@@ -168,11 +171,11 @@ class AE(LightningModule):
         return loss
 
     @torch.no_grad()
-    def invert(self, *, z: Tensor) -> Tensor:
+    def invert(self, z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
         if self.feature_groups["discrete"]:
             for group_slice in self.feature_groups["discrete"]:
-                one_hot = self.to_discrete(inputs=z[:, group_slice])
+                one_hot = to_discrete(inputs=z[:, group_slice])
                 z[:, group_slice] = one_hot
 
         return z
@@ -189,14 +192,14 @@ class AE(LightningModule):
             "x": x,
             "z": z,
             "s": s,
-            "recon": index_by_s(recons, s),
-            "recons_0": recons[0],
-            "recons_1": recons[1],
+            "recon": self.invert(index_by_s(recons, s)),
+            "recons_0": self.invert(recons[0]),
+            "recons_1": self.invert(recons[1]),
         }
 
         if self.cf_model:
             to_return["cf_x"] = cf_x
-            to_return["cf_recon"] = index_by_s(recons, cf_s)
+            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s))
 
         return to_return
 
@@ -206,20 +209,29 @@ class AE(LightningModule):
         all_z = torch.cat([_r["z"] for _r in output_results], 0)
         all_s = torch.cat([_r["s"] for _r in output_results], 0)
         all_recon = torch.cat([_r["recon"] for _r in output_results], 0)
-        recon_0 = torch.cat([_r["recons_0"] for _r in output_results], 0)
-        recon_1 = torch.cat([_r["recons_1"] for _r in output_results], 0)
+        torch.cat([_r["recons_0"] for _r in output_results], 0)
+        torch.cat([_r["recons_1"] for _r in output_results], 0)
 
-        make_plot(x=all_x, s=all_s, logger=self.logger, name="true_data")
-        make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons")
-        make_plot(x=recon_0, s=all_s, logger=self.logger, name="recons_all_s0")
-        make_plot(x=recon_1, s=all_s, logger=self.logger, name="recons_all_s1")
-        make_plot(x=all_z, s=all_s, logger=self.logger, name="z")
+        print(self.data_cols)
+        make_plot(x=all_x, s=all_s, logger=self.logger, name="true_data", cols=self.data_cols)
+        make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons", cols=self.data_cols)
+        # make_plot(x=recon_0, s=all_s, logger=self.logger, name="recons_all_s0", cols=self.data_cols)
+        # make_plot(x=recon_1, s=all_s, logger=self.logger, name="recons_all_s1", cols=self.data_cols)
+        make_plot(x=all_z, s=all_s, logger=self.logger, name="z", cols=list(range(self.ld)))
 
         if self.cf_model:
             all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
             cf_recon = torch.cat([_r["cf_recon"] for _r in output_results], 0)
-            make_plot(x=all_cf_x, s=all_s, logger=self.logger, name="true_counterfactual")
-            make_plot(x=cf_recon, s=all_s, logger=self.logger, name="cf_recons")
+            make_plot(
+                x=all_cf_x,
+                s=all_s,
+                logger=self.logger,
+                name="true_counterfactual",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=cf_recon, s=all_s, logger=self.logger, name="cf_recons", cols=self.data_cols
+            )
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:

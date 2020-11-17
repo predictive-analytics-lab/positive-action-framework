@@ -24,8 +24,13 @@ def run_encoder(cfg: Config) -> None:
         s_dim=data.s_dim,
         cf_available=data.cf_available,
         feature_groups=data.feature_groups,
+        column_names=data.column_names,
     )
-    wandb_logger = WandbLogger(tags=cfg.training.tags.split("/")[:-1])
+    wandb_logger = WandbLogger(
+        entity="predictive-analytics-lab",
+        project="aies",
+        tags=cfg.training.tags.split("/")[:-1],
+    )
     trainer = Trainer(max_epochs=cfg.training.epochs, logger=wandb_logger, deterministic=True)
     trainer.fit(model, datamodule=data)
     trainer.test(ckpt_path=None, datamodule=data)

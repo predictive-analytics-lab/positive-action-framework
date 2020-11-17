@@ -1,5 +1,6 @@
 """Utility functions."""
 import warnings
+from typing import List
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -12,21 +13,22 @@ import wandb
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str) -> None:
+def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: List[str]) -> None:
     """Make plots for logging."""
     x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
     x_df["s"] = s.detach().cpu().numpy()
 
-    sns.histplot(x_df[x_df["s"] > 0][0], kde=True, color='b')
-    sns.histplot(x_df[x_df["s"] <= 0][0], kde=True, color='g')
-    logger.experiment.log({f"histplot_image/{name}": wandb.Image(plt)})
-    logger.experiment.log({f"histplot_plot/{name}": wandb.Plotly(plt)})
-    plt.clf()
+    for idx, col in enumerate(cols):
+        sns.histplot(x_df[x_df["s"] > 0][idx], kde=True, color='b')
+        sns.histplot(x_df[x_df["s"] <= 0][idx], kde=True, color='g')
+        logger.experiment.log({f"histplot_image_{name}/{col}": wandb.Image(plt)})
+        logger.experiment.log({f"histplot_plot_{name}/{col}": wandb.Plotly(plt)})
+        plt.clf()
 
-    sns.distplot(x_df[x_df["s"] > 0][0], color='b')
-    sns.distplot(x_df[x_df["s"] <= 0][0], color='g')
-    logger.experiment.log({f"distplot_image/{name}": wandb.Image(plt)})
-    plt.clf()
+        sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
+        sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
+        logger.experiment.log({f"distplot_image_{name}/{col}": wandb.Image(plt)})
+        plt.clf()
 
 
 import collections

@@ -1,6 +1,7 @@
 """Model related utiltiy functions."""
 from typing import List, Optional, Tuple
 
+import torch.nn.functional as F
 from torch import Tensor, arange, autograd, nn, stack
 
 
@@ -14,6 +15,14 @@ def index_by_s(recons: List[Tensor], s: Tensor) -> Tensor:
     """Get recon by the index of S."""
     _recons = stack(recons, dim=1)
     return _recons[arange(_recons.shape[0]), s.long()]
+
+
+def to_discrete(*, inputs: Tensor) -> Tensor:
+    """Discretize the data."""
+    if inputs.dim() <= 1 or inputs.size(1) <= 1:
+        return inputs.round()
+    argmax = inputs.argmax(dim=1)
+    return F.one_hot(argmax, num_classes=inputs.size(1))
 
 
 class GradReverse(autograd.Function):

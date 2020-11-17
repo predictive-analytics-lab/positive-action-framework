@@ -1,4 +1,6 @@
 """Base Data Module."""
+from typing import List
+
 from ethicml import Dataset, DataTuple
 from pytorch_lightning import LightningDataModule
 
@@ -11,6 +13,14 @@ class BaseDataModule(LightningDataModule):
     def __init__(self) -> None:
         super().__init__()
         self.feature_groups = None
+
+    @property
+    def column_names(self) -> List[str]:
+        return self._columns
+
+    @column_names.setter
+    def column_names(self, col_names) -> None:
+        self._columns = [f"{col}" for col in col_names]
 
     @property
     def cf_available(self) -> bool:

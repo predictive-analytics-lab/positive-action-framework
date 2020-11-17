@@ -19,6 +19,7 @@ class SimpleAdultDataModule(BaseDataModule):
         self._num_s = -1
         self._s_dim = -1
         self._x_dim = -1
+        self._columns = None
         self.batch_size = cfg.batch_size
         self.bin_nat = cfg.bin_nationality
         self.seed = cfg.seed
@@ -31,6 +32,7 @@ class SimpleAdultDataModule(BaseDataModule):
         self.num_s = true_data.s.nunique().values[0]
         self.data_dim = true_data.x.shape[1]
         self.s_dim = true_data.s.shape[1]
+        self.column_names = true_data.x.columns
 
         train, test = train_test_split(true_data, 0.8, self.seed)
 
