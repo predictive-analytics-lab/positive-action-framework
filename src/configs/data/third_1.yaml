@@ -1,0 +1,9 @@
+# @package _group_
+batch_size: 64
+dataset: ThirdWay
+num_workers: 0
+seed: 0
+
+alpha: 0.5
+gamma: 2.0
+num_samples: 10_000

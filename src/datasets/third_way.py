@@ -4,6 +4,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from ethicml import Dataset, DataTuple
+from sklearn import preprocessing
 
 
 def make_x_bar(num_features: int, n: int, random_state: np.random.Generator) -> np.ndarray:
@@ -22,7 +23,7 @@ def make_s(alpha: float, n: int, random_state: np.random.Generator, binary_s: bo
         return random_state.uniform(-1, 1, n)
 
 
-def make_x(x_bar: np.ndarray, s: np.ndarray, gamma: float, binary_s: bool) -> np.ndarray:
+def make_dx(x_bar: np.ndarray, s: np.ndarray, gamma: float, binary_s: bool) -> np.ndarray:
     """Skew the data replicating life experience."""
     if binary_s:
         return np.add(x_bar[:, : x_bar.shape[1]], (gamma * ((s[:, np.newaxis] * 2) - 1)))
@@ -30,8 +31,37 @@ def make_x(x_bar: np.ndarray, s: np.ndarray, gamma: float, binary_s: bool) -> np
         return np.add(x_bar[:, : x_bar.shape[1]], (gamma * (s[:, np.newaxis])))
 
 
-def simple_x_data(
-    *, seed: int, num_samples: int, alpha: float, gamma: float, random_shift: int, binary_s: int
+def make_x(dx: np.ndarray, s: np.ndarray, xi: float, n: int) -> np.ndarray:
+    """Make observations of the data."""
+    return np.around(
+        np.add(
+            dx[:, :n],
+            (xi * ((s[:, np.newaxis] * 2) - 1)) + np.random.normal(0, 0.05, dx[:, :n].shape),
+        ),
+        2,
+    )
+
+
+def make_y(y_bar: np.ndarray, s: pd.DataFrame, beta: float) -> pd.DataFrame:
+    """Go from y_bar to Y."""
+    y_bar = y_bar + beta * (s.values * 2 - 1)
+
+    threshold = y_bar.quantile([0.75]).values[0][0]
+    print(threshold)
+    return (y_bar > threshold).astype(int).rename(columns={"y_bar": "y"})
+
+
+def third_way_data(
+    *,
+    seed: int,
+    num_samples: int,
+    alpha: float,
+    gamma: float,
+    random_shift: int,
+    binary_s: int,
+    beta: float = 0.2,
+    xi: float = 0.1,
+    n_bins: int = 5,
 ) -> Tuple[Dataset, DataTuple, DataTuple]:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
@@ -54,16 +84,46 @@ def simple_x_data(
             np.ones_like(temp_s) - temp_s if binary_s == 1 else np.zeros_like(temp_s) - temp_s
         )
 
-    x = make_x(x_bar=x_bar, s=temp_s, gamma=gamma, binary_s=binary_s == 1)
-    counterfactual_x = make_x(x_bar, tmp_cf_s, gamma=gamma, binary_s=binary_s == 1)
+    dx = make_dx(x_bar=x_bar, s=temp_s, gamma=gamma, binary_s=binary_s == 1)
+    counterfactual_dx = make_dx(x_bar, tmp_cf_s, gamma=gamma, binary_s=binary_s == 1)
+    dx_df = pd.DataFrame(dx, columns=[f"dx_{i}" for i in range(dx.shape[1])])
+    counterfactual_dx_df = pd.DataFrame(
+        counterfactual_dx, columns=[f"dx_{i}" for i in range(dx.shape[1])]
+    )
+
+    x = make_x(dx, s, xi=xi, n=n_bins)
+    counterfactual_x = make_x(counterfactual_dx, counterfactual_s, xi=xi, n=n_bins)
     x_df = pd.DataFrame(x, columns=[f"x_{i}" for i in range(x.shape[1])])
     counterfactual_x_df = pd.DataFrame(
         counterfactual_x, columns=[f"x_{i}" for i in range(x.shape[1])]
     )
 
-    data = pd.concat([x_df, s_df, outcome_placeholder], axis=1).sort_index()
+    w = np.ones(dx.shape[1]) / dx.shape[1]  # np.random.normal(0, 1, dx.shape[1])
+
+    min_max_scaler = preprocessing.StandardScaler()
+
+    y_true_bar = pd.DataFrame(
+        [np.dot(w, _x) for _x in min_max_scaler.fit_transform(dx)],
+        columns=["y_true"],
+    )
+    counterfactual_y_true_bar = pd.DataFrame(
+        [np.dot(w, _x) for _x in min_max_scaler.fit_transform(counterfactual_dx)],
+        columns=["y_true"],
+    )
+    y_true_threshold = y_true_bar.quantile([0.75]).values[0][0]
+
+    (y_true_bar > y_true_threshold).astype(int)
+    (counterfactual_y_true_bar > y_true_threshold).astype(int)
+
+    y_bar = pd.DataFrame(x_df.mean(axis=1), columns=["y_bar"])
+    counterfactual_y_bar = pd.DataFrame(counterfactual_x_df.mean(axis=1), columns=["y_bar"])
+
+    y = make_y(y_bar, s_df, beta=beta)
+    counterfactual_y = make_y(counterfactual_y_bar, counterfactual_s_df, beta=beta)
+
+    data = pd.concat([x_df, s_df, y], axis=1).sort_index()
     counterfactual_data = pd.concat(
-        [counterfactual_x_df, counterfactual_s_df, outcome_placeholder],
+        [counterfactual_x_df, counterfactual_s_df, counterfactual_y],
         axis=1,
     ).sort_index()
 

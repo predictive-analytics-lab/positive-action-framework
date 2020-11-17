@@ -1,25 +1,24 @@
 """Main script."""
 import logging
+from typing import Final
 
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
 
-from src.config_classes.dataclasses import AdultConfig, Config, SimpleXConfig
+from src.config_classes.dataclasses import AdultConfig, Config, SimpleXConfig, ThirdWayConfig
 from src.run_enc import run_encoder
 from src.utils import flatten
 
 cs = ConfigStore.instance()
 cs.store(name="hydra", node=Config)  # General Schema
 
-# More specific schemas
-cs.store(
-    name="synth",  # name:SchemaName
-    node=SimpleXConfig,  # Dataclass
-    package="data",  # package:dir_within_config_path
-    group="data/schema",  # group
-)
-cs.store(name="adult", node=AdultConfig, package="data", group="data/schema")
+# More specific Schemas, each has a name and a deifnition (node)
+data_package: Final[str] = "data"  # package:dir_within_config_path
+data_group: Final[str] = "data/schema"  # group
+cs.store(name="adult", node=AdultConfig, package=data_package, group=data_group)
+cs.store(name="synth", node=SimpleXConfig, package=data_package, group=data_group)
+cs.store(name="third", node=ThirdWayConfig, package=data_package, group=data_group)
 
 log = logging.getLogger(__name__)
 

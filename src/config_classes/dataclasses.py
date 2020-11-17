@@ -24,6 +24,15 @@ class SimpleXConfig(DataConfig):
 
 
 @dataclass
+class ThirdWayConfig(DataConfig):
+    """Third Way dataset config schema."""
+
+    alpha: float = MISSING
+    gamma: float = MISSING
+    num_samples: int = MISSING
+
+
+@dataclass
 class AdultConfig(DataConfig):
     """Adult Dataset config schema."""
 
