@@ -77,7 +77,7 @@ def lrcv_results(
 
 def produce_baselines(*, encoder: AE, dm: BaseDataModule, logger: LightningLoggerBase) -> None:
     """Produce baselines for predictiveness."""
-    latent_train = encoder.get_latent(dm.train_dataloader())
+    latent_train = encoder.get_latent(dm.train_dataloader(shuffle=False, drop_last=False))
     latent_test = encoder.get_latent(dm.test_dataloader())
     lrcv_results(latent_train, latent_test, dm, logger, "Enc-Z")
 
@@ -85,6 +85,6 @@ def produce_baselines(*, encoder: AE, dm: BaseDataModule, logger: LightningLogge
     test = dm.test_data.x.to_numpy()
     lrcv_results(train, test, dm, logger, "Og-Data")
 
-    train_recon = encoder.get_recon(dm.train_dataloader())
+    train_recon = encoder.get_recon(dm.train_dataloader(shuffle=False, drop_last=False))
     test_recon = encoder.get_recon(dm.test_dataloader())
     lrcv_results(train_recon, test_recon, dm, logger, "Recon-Data")
