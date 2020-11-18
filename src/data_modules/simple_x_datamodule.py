@@ -22,9 +22,6 @@ class SimpleXDataModule(BaseDataModule):
         self.seed = cfg.seed
         self.num_samples = cfg.num_samples
         self.train_dims = None
-        self._num_s = -1
-        self._x_dim = -1
-        self._s_dim = -1
         self.num_workers = cfg.num_workers
         self.batch_size = cfg.batch_size
 
@@ -45,6 +42,7 @@ class SimpleXDataModule(BaseDataModule):
         self.num_s = true_data.s.nunique().values[0]
         self.data_dim = true_data.x.shape[1]
         self.s_dim = true_data.s.shape[1]
+        self.column_names = true_data.x.columns
 
         num_train = int(self.true_data.x.shape[0] * 0.8)
         rng = np.random.RandomState(self.seed)
@@ -70,6 +68,7 @@ class SimpleXDataModule(BaseDataModule):
 
         self.train_data = train
         self.test_data = test
+        self.make_feature_groups(dataset, true_data)
 
         counterfactual_train = DataTuple(
             x=self.cf_data.x.iloc[train_indices].reset_index(drop=True),

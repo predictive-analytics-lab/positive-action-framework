@@ -12,10 +12,16 @@ class BaseDataModule(LightningDataModule):
 
     def __init__(self) -> None:
         super().__init__()
+        self._columns = None
+        self._cf_available = None
+        self._x_dim = None
+        self._num_s = None
+        self._s_dim = None
         self.feature_groups = None
 
     @property
     def column_names(self) -> List[str]:
+        assert self._columns is not None
         return self._columns
 
     @column_names.setter
@@ -24,10 +30,16 @@ class BaseDataModule(LightningDataModule):
 
     @property
     def cf_available(self) -> bool:
+        assert self._cf_available is not None
         return self._cf_available
+
+    @cf_available.setter
+    def cf_available(self, true_cf_available: bool):
+        self._cf_available = true_cf_available
 
     @property
     def data_dim(self) -> int:
+        assert self._x_dim is not None
         return self._x_dim
 
     @data_dim.setter
@@ -36,6 +48,7 @@ class BaseDataModule(LightningDataModule):
 
     @property
     def num_s(self) -> int:
+        assert self._num_s is not None
         return self._num_s
 
     @num_s.setter
@@ -44,6 +57,7 @@ class BaseDataModule(LightningDataModule):
 
     @property
     def s_dim(self) -> int:
+        assert self._s_dim is not None
         return self._s_dim
 
     @s_dim.setter

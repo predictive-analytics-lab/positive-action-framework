@@ -16,10 +16,6 @@ class SimpleAdultDataModule(BaseDataModule):
     def __init__(self, cfg: AdultConfig):
         super().__init__()
         self._cf_available = False
-        self._num_s = -1
-        self._s_dim = -1
-        self._x_dim = -1
-        self._columns = None
         self.batch_size = cfg.batch_size
         self.bin_nat = cfg.bin_nationality
         self.seed = cfg.seed
