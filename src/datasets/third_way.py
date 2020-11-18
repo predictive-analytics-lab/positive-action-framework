@@ -121,9 +121,12 @@ def third_way_data(
     y = make_y(y_bar, s_df, beta=beta)
     counterfactual_y = make_y(counterfactual_y_bar, counterfactual_s_df, beta=beta)
 
-    data = pd.concat([x_df, s_df, y], axis=1).sort_index()
+    y_df = pd.DataFrame(y, columns=["outcome"])
+    cf_y_df = pd.DataFrame(counterfactual_y, columns=["outcome"])
+
+    data = pd.concat([x_df, s_df, y_df], axis=1).sort_index()
     counterfactual_data = pd.concat(
-        [counterfactual_x_df, counterfactual_s_df, counterfactual_y],
+        [counterfactual_x_df, counterfactual_s_df, cf_y_df],
         axis=1,
     ).sort_index()
 
@@ -147,10 +150,10 @@ def third_way_data(
 
     return (
         dataset,
-        DataTuple(x=data[x_df.columns], s=data[s_df.columns], y=data[outcome_placeholder.columns]),
+        DataTuple(x=data[x_df.columns], s=data[s_df.columns], y=data[y_df.columns]),
         DataTuple(
             x=counterfactual_data[x_df.columns],
             s=counterfactual_data[s_df.columns],
-            y=counterfactual_data[outcome_placeholder.columns],
+            y=counterfactual_data[y_df.columns],
         ),
     )
