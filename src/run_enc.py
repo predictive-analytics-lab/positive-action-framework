@@ -49,7 +49,7 @@ def lrcv_results(
     dm: BaseDataModule,
     logger: LightningLoggerBase,
     component: str,
-):
+) -> None:
     """Run an LRCV over some train set and apply to some test set."""
     random_state = np.random.RandomState(88888)
     folder = KFold(n_splits=5, shuffle=True, random_state=random_state)

@@ -92,7 +92,7 @@ class AE(LightningModule):
         data_dim: int,
         s_dim: int,
         cf_available: bool,
-        feature_groups,
+        feature_groups: Dict[str, List[slice]],
         column_names: List[str],
     ):
         super().__init__()
@@ -222,7 +222,9 @@ class AE(LightningModule):
         make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons", cols=self.data_cols)
         # make_plot(x=recon_0, s=all_s, logger=self.logger, name="recons_all_s0", cols=self.data_cols)
         # make_plot(x=recon_1, s=all_s, logger=self.logger, name="recons_all_s1", cols=self.data_cols)
-        make_plot(x=all_z, s=all_s, logger=self.logger, name="z", cols=list(range(self.ld)))
+        make_plot(
+            x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)]
+        )
 
         if self.cf_model:
             all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
@@ -250,6 +252,7 @@ class AE(LightningModule):
         for x, s, y, _, _, _ in dataloader:
             z, _, _ = self(x, s)
             latent = z if latent is None else cat([latent, z], dim=0)  # type: ignore[unreachable]
+        assert latent is not None
         return latent.detach().cpu().numpy()
 
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
@@ -259,4 +262,5 @@ class AE(LightningModule):
             _, _, _r = self(x, s)
             r = self.invert(index_by_s(_r, s))
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
+        assert recons is not None
         return recons.detach().cpu().numpy()
