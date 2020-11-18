@@ -1,4 +1,5 @@
 """Utility functions."""
+import collections
 import warnings
 from typing import List
 
@@ -29,9 +30,6 @@ def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: Lis
         sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
         logger.experiment.log({f"distplot_image_{name}/{col}": wandb.Image(plt)})
         plt.clf()
-
-
-import collections
 
 
 def flatten(d: dict, parent_key: str = "", sep: str = ".") -> dict:

@@ -47,6 +47,7 @@ class ModelConfig:
     latent_dims: int = MISSING
     latent_multiplier: int = MISSING
     lr: float = MISSING
+    adv_weight: float = MISSING
     recon_weight: float = MISSING
     reg_weight: float = MISSING  # another commmernt
     s_as_input: bool = MISSING

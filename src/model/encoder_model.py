@@ -118,6 +118,7 @@ class AE(LightningModule):
             ]
         )
         self.feature_groups = feature_groups
+        self.adv_weight = cfg.adv_weight
         self.reg_weight = cfg.reg_weight
         self.recon_weight = cfg.recon_weight
         self.lr = cfg.lr
@@ -145,8 +146,9 @@ class AE(LightningModule):
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel="rbf")
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
+            # + z.norm(dim=1).mean()
         ) / 2
-        loss = self.recon_weight * recon_loss + adv_loss
+        loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
 
         to_log = {
             "training/loss": loss,

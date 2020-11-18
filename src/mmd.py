@@ -1,10 +1,13 @@
 """MMD functions."""
+import logging
 from typing import Any, Literal, Optional, Sequence, Tuple
 
 import torch
 from torch import Tensor
 
 __all__ = ["mmd2"]
+
+log = logging.getLogger(__name__)
 
 
 def _dot_kernel(x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor, float]:
@@ -44,7 +47,7 @@ def _mix_rq_kernel(
 
     xx_sqnorm = torch.max(-2 * xx_gm + pad_second(x_sqnorms) + pad_first(x_sqnorms), dim=0)[0]
     xy_sqnorm = torch.max(-2 * xy_gm + pad_second(x_sqnorms) + pad_first(y_sqnorms), dim=0)[0]
-    yy_sqnorm = torch.max(-2 * yy_gm + pad_second(x_sqnorms) + pad_first(x_sqnorms), dim=0)[0]
+    yy_sqnorm = torch.max(-2 * yy_gm + pad_second(y_sqnorms) + pad_first(y_sqnorms), dim=0)[0]
 
     k_xx, k_xy, k_yy = (
         x.new_zeros(xx_sqnorm.shape),
@@ -143,6 +146,12 @@ def mmd2(
     **kwargs: Any,
 ) -> Tensor:
     """MMD."""
+    if x.shape[0] < 2 or y.shape[0] < 2:
+        log.warning(
+            "Not enough samples in one group to perform MMD. "
+            "Returning 0 to not crash, but you should increase the batch size."
+        )
+        return 0
     if kernel == "linear":
         kernel_out = _dot_kernel(x, y)
     elif kernel == "rbf":
