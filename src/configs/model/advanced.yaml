@@ -7,3 +7,4 @@ adv_weight: 1.0
 recon_weight: 1.0
 reg_weight: 1e-3
 s_as_input: true
+mmd_kernel: "rbf"

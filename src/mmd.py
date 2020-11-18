@@ -1,11 +1,13 @@
 """MMD functions."""
 import logging
-from typing import Any, Literal, Optional, Sequence, Tuple
+from typing import Any, Optional, Sequence, Tuple
 
 import torch
 from torch import Tensor
 
 __all__ = ["mmd2"]
+
+from src.config_classes.dataclasses import KernelType
 
 log = logging.getLogger(__name__)
 
@@ -141,7 +143,7 @@ def _mmd2(
 def mmd2(
     x: Tensor,
     y: Tensor,
-    kernel: Literal["linear", "rbf", "rq"] = "rq",
+    kernel: KernelType = "rq",
     biased: bool = False,
     **kwargs: Any,
 ) -> Tensor:
@@ -152,10 +154,12 @@ def mmd2(
             "Returning 0 to not crash, but you should increase the batch size."
         )
         return 0
-    if kernel == "linear":
+    if kernel.value == "linear":
         kernel_out = _dot_kernel(x, y)
-    elif kernel == "rbf":
+    elif kernel.value == "rbf":
         kernel_out = _mix_rbf_kernel(x, y, **kwargs)
-    else:
+    elif kernel.value == "rq":
         kernel_out = _mix_rq_kernel(x, y, **kwargs)
+    else:
+        raise NotImplementedError("Only RBF, Linear and RQ kernels implemented.")
     return _mmd2(*kernel_out, biased)

@@ -1,5 +1,6 @@
 """Schemas."""
 from dataclasses import dataclass
+from enum import Enum
 
 from omegaconf import MISSING
 
@@ -39,6 +40,13 @@ class AdultConfig(DataConfig):
     bin_nationality: bool = MISSING
 
 
+class KernelType(Enum):
+    """MMD Kernel Types."""
+
+    linear = "linear"
+    rbf = "rbf"
+
+
 @dataclass
 class ModelConfig:
     """Model Config Schema."""
@@ -51,6 +59,7 @@ class ModelConfig:
     recon_weight: float = MISSING
     reg_weight: float = MISSING  # another commmernt
     s_as_input: bool = MISSING
+    mmd_kernel: KernelType = MISSING
 
 
 @dataclass

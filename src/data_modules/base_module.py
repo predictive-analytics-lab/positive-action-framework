@@ -12,11 +12,13 @@ class BaseDataModule(LightningDataModule):
 
     def __init__(self) -> None:
         super().__init__()
-        self._columns = None
         self._cf_available = None
-        self._x_dim = None
+        self._columns = None
         self._num_s = None
         self._s_dim = None
+        self._test_tuple = None
+        self._train_tuple = None
+        self._x_dim = None
         self.feature_groups = None
 
     @property
@@ -72,3 +74,21 @@ class BaseDataModule(LightningDataModule):
         cont_features = [feat for feat in dataset.cont_features if feat in data.x.columns]
         self.cont_features = cont_features
         self.feature_groups = dict(discrete=grouped_features_indexes(self.disc_features))
+
+    @property
+    def train_data(self) -> DataTuple:
+        assert self._train_tuple is not None
+        return self._train_tuple
+
+    @train_data.setter
+    def train_data(self, datatuple: DataTuple) -> None:
+        self._train_tuple = datatuple
+
+    @property
+    def test_data(self) -> DataTuple:
+        assert self._test_tuple is not None
+        return self._test_tuple
+
+    @test_data.setter
+    def test_data(self, datatuple: DataTuple) -> None:
+        self._test_tuple = datatuple

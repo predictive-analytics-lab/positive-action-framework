@@ -1,13 +1,15 @@
 """Encoder model."""
 from typing import Dict, List, Tuple
 
+import numpy as np
 import torch
 from ethicml import implements
 from pytorch_lightning import LightningModule
-from torch import Tensor, nn, no_grad
+from torch import Tensor, cat, nn, no_grad
 from torch.nn.functional import binary_cross_entropy_with_logits, l1_loss
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
+from torch.utils.data import DataLoader
 
 import wandb
 from src.config_classes.dataclasses import ModelConfig
@@ -126,6 +128,7 @@ class AE(LightningModule):
         self.cf_model = cf_available
         self.data_cols = column_names
         self.ld = cfg.latent_dims
+        self.mmd_kernel = cfg.mmd_kernel
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
@@ -144,7 +147,7 @@ class AE(LightningModule):
         z, s_pred, recons = self(x, s)
         recon_loss = l1_loss(index_by_s(recons, s), x, reduction="mean")
         adv_loss = (
-            mmd2(z[s == 0], z[s == 1], kernel="rbf")
+            mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
             # + z.norm(dim=1).mean()
         ) / 2
@@ -240,3 +243,20 @@ class AE(LightningModule):
         optimizer = Adam(self.parameters(), lr=self.lr)
         scheduler = ExponentialLR(optimizer, gamma=0.99)
         return [optimizer], [scheduler]
+
+    def get_latent(self, dataloader: DataLoader) -> np.ndarray:
+        """Get Latents to be used post train/test."""
+        latent = None
+        for x, s, y, _, _, _ in dataloader:
+            z, _, _ = self(x, s)
+            latent = z if latent is None else cat([latent, z], dim=0)  # type: ignore[unreachable]
+        return latent.detach().cpu().numpy()
+
+    def get_recon(self, dataloader: DataLoader) -> np.ndarray:
+        """Get Reconstructions to be used post train/test."""
+        recons = None
+        for x, s, y, _, _, _ in dataloader:
+            _, _, _r = self(x, s)
+            r = self.invert(index_by_s(_r, s))
+            recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
+        return recons.detach().cpu().numpy()
