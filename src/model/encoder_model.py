@@ -132,6 +132,7 @@ class AE(LightningModule):
         self.data_cols = column_names
         self.ld = cfg.latent_dims
         self.mmd_kernel = cfg.mmd_kernel
+        self.scheduler_rate = cfg.scheduler_rate
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
@@ -261,7 +262,7 @@ class AE(LightningModule):
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
         optimizer = Adam(self.parameters(), lr=self.lr)
-        scheduler = ExponentialLR(optimizer, gamma=0.99)
+        scheduler = ExponentialLR(optimizer, gamma=self.scheduler_rate)
         return [optimizer], [scheduler]
 
     def get_latent(self, dataloader: DataLoader) -> np.ndarray:

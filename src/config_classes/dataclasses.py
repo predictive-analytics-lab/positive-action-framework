@@ -64,6 +64,7 @@ class ModelConfig:
     reg_weight: float = MISSING  # another commmernt
     s_as_input: bool = MISSING
     mmd_kernel: KernelType = MISSING
+    scheduler_rate: float = MISSING
 
 
 @dataclass
