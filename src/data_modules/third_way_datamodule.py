@@ -24,6 +24,7 @@ class ThirdWayDataModule(BaseDataModule):
         self.train_dims = None
         self.num_workers = cfg.num_workers
         self.batch_size = cfg.batch_size
+        self.num_features = cfg.num_features
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
@@ -35,6 +36,7 @@ class ThirdWayDataModule(BaseDataModule):
             gamma=self.gamma,
             random_shift=0,
             binary_s=1,
+            num_features=self.num_features,
         )
         self.dataset = dataset
         self.true_data = true_data
@@ -43,6 +45,7 @@ class ThirdWayDataModule(BaseDataModule):
         self.data_dim = true_data.x.shape[1]
         self.s_dim = true_data.s.shape[1]
         self.column_names = true_data.x.columns
+        self.outcome_columns = true_data.y.columns
 
         num_train = int(self.true_data.x.shape[0] * 0.8)
         rng = np.random.RandomState(self.seed)
@@ -94,7 +97,7 @@ class ThirdWayDataModule(BaseDataModule):
         self.cf_test = counterfactual_test
 
     @implements(LightningDataModule)
-    def train_dataloader(self) -> DataLoader:
+    def train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.train_data,
@@ -104,11 +107,12 @@ class ThirdWayDataModule(BaseDataModule):
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=True,
+            shuffle=shuffle,
+            drop_last=drop_last,
         )
 
     @implements(LightningDataModule)
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.test_data,
@@ -118,5 +122,6 @@ class ThirdWayDataModule(BaseDataModule):
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=False,
+            shuffle=shuffle,
+            drop_last=drop_last,
         )

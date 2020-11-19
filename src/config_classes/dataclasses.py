@@ -31,6 +31,7 @@ class ThirdWayConfig(DataConfig):
     alpha: float = MISSING
     gamma: float = MISSING
     num_samples: int = MISSING
+    num_features: int = MISSING
 
 
 @dataclass

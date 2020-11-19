@@ -16,11 +16,22 @@ class BaseDataModule(LightningDataModule):
         self._cf_available: Optional[bool] = None
         self._columns: Optional[List[str]] = None
         self._num_s: Optional[int] = None
+        self._out_cols: Optional[List[str]] = None
         self._s_dim: Optional[int] = None
+        self._y_dim: Optional[int] = None
         self._test_tuple: Optional[DataTuple] = None
         self._train_tuple: Optional[DataTuple] = None
         self._x_dim: Optional[int] = None
         self._feature_groups: Optional[Dict[str, List[slice]]] = None
+
+    @property
+    def outcome_columns(self) -> List[str]:
+        assert self._out_cols is not None
+        return self._out_cols
+
+    @outcome_columns.setter
+    def outcome_columns(self, out_cols: pd.Index) -> None:
+        self._out_cols = [f"{col}" for col in out_cols]
 
     @property
     def feature_groups(self) -> Dict[str, List[slice]]:
@@ -75,6 +86,15 @@ class BaseDataModule(LightningDataModule):
     @s_dim.setter
     def s_dim(self, dim: int) -> None:
         self._s_dim = dim
+
+    @property
+    def y_dim(self) -> int:
+        assert self._y_dim is not None
+        return self._y_dim  # type: ignore[unreachable]
+
+    @y_dim.setter
+    def y_dim(self, dim: int) -> None:
+        self._y_dim = dim
 
     def make_feature_groups(self, dataset: Dataset, data: DataTuple) -> None:
         """Make feature groups for reconstruction."""

@@ -54,6 +54,7 @@ def make_y(y_bar: np.ndarray, s: pd.DataFrame, beta: float) -> pd.DataFrame:
 def third_way_data(
     *,
     seed: int,
+    num_features: int,
     num_samples: int,
     alpha: float,
     gamma: float,
@@ -61,19 +62,16 @@ def third_way_data(
     binary_s: int,
     beta: float = 0.2,
     xi: float = 0.1,
-    n_bins: int = 5,
 ) -> Tuple[Dataset, DataTuple, DataTuple]:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
-    x_bar = make_x_bar(num_features=1, n=num_samples, random_state=num_gen)
+    x_bar = make_x_bar(num_features=num_features * 3, n=num_samples, random_state=num_gen)
 
     s = make_s(alpha=alpha, n=num_samples, random_state=num_gen, binary_s=binary_s == 1)
     s_df = pd.DataFrame(s, columns=["sens"])
 
     counterfactual_s = np.ones_like(s) - s if binary_s == 1 else np.zeros_like(s) - s
     counterfactual_s_df = pd.DataFrame(counterfactual_s, columns=["sens"])
-
-    outcome_placeholder = pd.DataFrame(np.ones_like(s), columns=["outcome"])
 
     if random_shift == 0:
         temp_s = s
@@ -91,8 +89,8 @@ def third_way_data(
         counterfactual_dx, columns=[f"dx_{i}" for i in range(dx.shape[1])]
     )
 
-    x = make_x(dx, s, xi=xi, n=n_bins)
-    counterfactual_x = make_x(counterfactual_dx, counterfactual_s, xi=xi, n=n_bins)
+    x = make_x(dx, s, xi=xi, n=num_features)
+    counterfactual_x = make_x(counterfactual_dx, counterfactual_s, xi=xi, n=num_features)
     x_df = pd.DataFrame(x, columns=[f"x_{i}" for i in range(x.shape[1])])
     counterfactual_x_df = pd.DataFrame(
         counterfactual_x, columns=[f"x_{i}" for i in range(x.shape[1])]
@@ -139,8 +137,8 @@ def third_way_data(
         name=f"SimpleX",
         num_samples=num_samples,
         filename_or_path="none",
-        features=[f"x_{i}" for i in range(1)] + ["sens"],
-        cont_features=[f"x_{i}" for i in range(1)],
+        features=[f"x_{i}" for i in range(num_features)] + ["sens"],
+        cont_features=[f"x_{i}" for i in range(num_features)],
         sens_attr_spec="sens",
         s_prefix="sens",
         class_label_spec=f"outcome",

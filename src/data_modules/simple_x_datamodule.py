@@ -43,6 +43,7 @@ class SimpleXDataModule(BaseDataModule):
         self.data_dim = true_data.x.shape[1]
         self.s_dim = true_data.s.shape[1]
         self.column_names = true_data.x.columns
+        self.outcome_columns = true_data.y.columns
 
         num_train = int(self.true_data.x.shape[0] * 0.8)
         rng = np.random.RandomState(self.seed)

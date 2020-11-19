@@ -28,7 +28,8 @@ class SimpleAdultDataModule(BaseDataModule):
         self.num_s = true_data.s.nunique().values[0]
         self.data_dim = true_data.x.shape[1]
         self.s_dim = true_data.s.shape[1]
-        self.column_names = true_data.x.columns
+        self.column_names = dataset.discrete_features + dataset.cont_features
+        self.outcome_columns = true_data.y.columns
 
         train, test = train_test_split(true_data, 0.8, self.seed)
 
@@ -42,7 +43,7 @@ class SimpleAdultDataModule(BaseDataModule):
         self.make_feature_groups(dataset, true_data)
 
     @implements(LightningDataModule)
-    def train_dataloader(self) -> DataLoader:
+    def train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
                 self.train_data,
@@ -51,12 +52,12 @@ class SimpleAdultDataModule(BaseDataModule):
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=True,
-            drop_last=True,
+            shuffle=shuffle,
+            drop_last=drop_last,
         )
 
     @implements(LightningDataModule)
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
                 self.test_data,
@@ -65,5 +66,6 @@ class SimpleAdultDataModule(BaseDataModule):
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=False,
+            shuffle=shuffle,
+            drop_last=drop_last,
         )
