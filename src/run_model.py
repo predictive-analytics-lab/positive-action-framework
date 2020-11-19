@@ -60,6 +60,8 @@ def run_aies(cfg: Config) -> None:
     # model.do_run(data)
     produce_baselines(encoder=encoder, dm=data, logger=wandb_logger)
 
+    wandb_logger.experiment.finish()
+
 
 def lrcv_results(
     train: np.ndarray,
