@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 from ethicml import Accuracy, Prediction
+from omegaconf import OmegaConf
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
 from sklearn.linear_model import LogisticRegressionCV
@@ -15,6 +16,7 @@ from src.data_modules.create import create_data_module
 from src.model.aies_model import AiesModel
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
+from src.utils import flatten
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +40,7 @@ def run_aies(cfg: Config) -> None:
         entity="predictive-analytics-lab",
         project="aies",
         tags=cfg.training.tags.split("/")[:-1],
+        config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
     )
     enc_trainer = Trainer(max_epochs=cfg.training.epochs, logger=wandb_logger, deterministic=True)
     enc_trainer.fit(encoder, datamodule=data)

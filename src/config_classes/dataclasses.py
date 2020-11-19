@@ -29,9 +29,12 @@ class ThirdWayConfig(DataConfig):
     """Third Way dataset config schema."""
 
     alpha: float = MISSING
+    beta: float = MISSING
     gamma: float = MISSING
     num_samples: int = MISSING
     num_features: int = MISSING
+    xi: float = MISSING
+    num_hidden_features: int = MISSING
 
 
 @dataclass

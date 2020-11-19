@@ -54,18 +54,19 @@ def make_y(y_bar: np.ndarray, s: pd.DataFrame, beta: float) -> pd.DataFrame:
 def third_way_data(
     *,
     seed: int,
+    num_hidden_features: int,
     num_features: int,
     num_samples: int,
     alpha: float,
     gamma: float,
     random_shift: int,
     binary_s: int,
-    beta: float = 0.2,
-    xi: float = 0.1,
+    beta: float,
+    xi: float,
 ) -> Tuple[Dataset, DataTuple, DataTuple]:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
-    x_bar = make_x_bar(num_features=num_features * 3, n=num_samples, random_state=num_gen)
+    x_bar = make_x_bar(num_features=num_hidden_features, n=num_samples, random_state=num_gen)
 
     s = make_s(alpha=alpha, n=num_samples, random_state=num_gen, binary_s=binary_s == 1)
     s_df = pd.DataFrame(s, columns=["sens"])

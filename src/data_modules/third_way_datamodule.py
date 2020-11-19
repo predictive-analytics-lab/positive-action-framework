@@ -17,6 +17,7 @@ class ThirdWayDataModule(BaseDataModule):
     def __init__(self, cfg: ThirdWayConfig):
         super().__init__()
         self.alpha = cfg.alpha
+        self.beta = cfg.beta
         self._cf_available = True
         self.gamma = cfg.gamma
         self.seed = cfg.seed
@@ -25,6 +26,8 @@ class ThirdWayDataModule(BaseDataModule):
         self.num_workers = cfg.num_workers
         self.batch_size = cfg.batch_size
         self.num_features = cfg.num_features
+        self.xi = cfg.xi
+        self.num_hidden_features = cfg.num_hidden_features
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
@@ -37,6 +40,9 @@ class ThirdWayDataModule(BaseDataModule):
             random_shift=0,
             binary_s=1,
             num_features=self.num_features,
+            beta=self.beta,
+            xi=self.xi,
+            num_hidden_features=self.num_hidden_features,
         )
         self.dataset = dataset
         self.true_data = true_data
