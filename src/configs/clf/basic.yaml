@@ -2,9 +2,9 @@
 blocks: 0
 latent_dims: 1
 latent_multiplier: 1
-lr: 1e-3
+lr: 1e-2
 adv_weight: 1.0
-recon_weight: 1.0
+target_weight: 1.0
 reg_weight: 1e-3
 s_as_input: true
 mmd_kernel: "linear"

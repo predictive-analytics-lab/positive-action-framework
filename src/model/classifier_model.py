@@ -6,7 +6,7 @@ import torch
 from ethicml import implements
 from pytorch_lightning import LightningModule
 from torch import Tensor, cat, nn, no_grad
-from torch.nn.functional import binary_cross_entropy_with_logits, l1_loss
+from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
@@ -15,6 +15,7 @@ import wandb
 from src.config_classes.dataclasses import ModelConfig
 from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
+from src.model.common_model import CommonModel
 from src.model.model_utils import grad_reverse, index_by_s
 from src.utils import make_plot
 
@@ -82,7 +83,7 @@ class Decoder(BaseModel):
         )
 
 
-class Clf(LightningModule):
+class Clf(CommonModel):
     """Main Autoencoder."""
 
     def __init__(
@@ -120,7 +121,7 @@ class Clf(LightningModule):
         )
         self.adv_weight = cfg.adv_weight
         self.reg_weight = cfg.reg_weight
-        self.recon_weight = cfg.recon_weight
+        self.pred_weight = cfg.target_weight
         self.lr = cfg.lr
         self.s_input = cfg.s_as_input
         self.cf_model = cf_available
@@ -143,18 +144,20 @@ class Clf(LightningModule):
             x, s, y, cf_x, cf_s, cf_y = batch
         else:
             x, s, y = batch
-        z, s_pred, recons = self(x, s)
-        recon_loss = l1_loss(index_by_s(recons, s), x, reduction="mean")
+        z, s_pred, preds = self(x, s)
+        pred_loss = binary_cross_entropy_with_logits(
+            index_by_s(preds, s).squeeze(-1), y, reduction="mean"
+        )
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
             # + z.norm(dim=1).mean()
         ) / 2
-        loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
+        loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
 
         to_log = {
             "training_clf/loss": loss,
-            "training_clf/recon_loss": recon_loss,
+            "training_clf/pred_loss": pred_loss,
             "training_clf/adv_loss": adv_loss,
             "training_clf/z_norm": z.detach().norm(dim=1).mean(),
             "training_clf/z_dim_0": wandb.Histogram(z.detach().cpu().numpy()[:, 0]),
@@ -165,11 +168,13 @@ class Clf(LightningModule):
 
         if self.cf_model:
             with no_grad():
-                cf_z, _, cf_recons = self(cf_x, cf_s)
-                cf_recon_loss = l1_loss(index_by_s(cf_recons, cf_s), cf_x, reduction="mean")
-                cf_loss = cf_recon_loss - 1e-6
+                cf_z, _, cf_preds = self(cf_x, cf_s)
+                cf_pred_loss = binary_cross_entropy_with_logits(
+                    index_by_s(cf_preds, cf_s).squeeze(-1), cf_y, reduction="mean"
+                )
+                cf_loss = cf_pred_loss - 1e-6
                 to_log["training_clf/cf_loss"] = cf_loss
-                to_log["training_clf/cf_recon_loss"] = cf_recon_loss
+                to_log["training_clf/cf_pred_loss"] = cf_pred_loss
 
         self.logger.experiment.log(to_log)
         return loss
@@ -245,17 +250,8 @@ class Clf(LightningModule):
         scheduler = ExponentialLR(optimizer, gamma=self.scheduler_rate)
         return [optimizer], [scheduler]
 
-    def get_latent(self, dataloader: DataLoader) -> np.ndarray:
-        """Get Latents to be used post train/test."""
-        latent = None
-        for x, s, y, _, _, _ in dataloader:
-            z, _, _ = self(x, s)
-            latent = z if latent is None else cat([latent, z], dim=0)  # type: ignore[unreachable]
-        assert latent is not None
-        return latent.detach().cpu().numpy()
-
-    def get_preds(self, dataloader: DataLoader) -> np.ndarray:
-        """Get Reconstructions to be used post train/test."""
+    @implements(CommonModel)
+    def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         recons = None
         for x, s, y, _, _, _ in dataloader:
             _, _, _r = self(x, s)
@@ -267,8 +263,9 @@ class Clf(LightningModule):
     def from_recons(self, recons: List[Tensor]):
         """Given recons, give all possible predictions."""
         preds_dict = {}
+
         for i, rec in enumerate(recons):
+            z, s_pred, preds = self(rec, torch.ones_like(rec[:, 0]) * i)
             for _s in range(2):
-                z, s_pred, preds = self(rec, torch.ones_like(rec[:, 0]) * _s)
                 preds_dict[f"{i}_{_s}"] = (z, s_pred, preds[_s])
         return preds_dict

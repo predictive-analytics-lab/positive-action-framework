@@ -99,34 +99,96 @@ class CFDataTupleDataset(DataTupleDataset):
         self,
         dataset: DataTuple,
         cf_dataset: DataTuple,
+        # s1_0_s2_0_dataset: DataTuple,
+        # s1_0_s2_1_dataset: DataTuple,
+        # s1_1_s2_0_dataset: DataTuple,
+        # s1_1_s2_1_dataset: DataTuple,
         disc_features: List[str],
         cont_features: List[str],
     ):
         """Create DataTupleDataset."""
         super().__init__(dataset, disc_features, cont_features)
-        self.cf_x_disc = cf_dataset.x[self.disc_features].to_numpy(dtype=np.float32)
-        self.cf_x_cont = cf_dataset.x[self.cont_features].to_numpy(dtype=np.float32)
-        _, self.cf_s, _, _, _, _, _ = _get_info(cf_dataset)
-        self.cf_y = cf_dataset.y.to_numpy(dtype=np.float32)
+        self.cf_x_disc, self.cf_x_cont, self.cf_s, self.cf_y = self.split_tuple(cf_dataset)
+        # self.s10s20_x_disc, self.s10s20_x_cont, self.s10s20_s, self.s10s20_y = self.split_tuple(
+        #     s1_0_s2_0_dataset
+        # )
+        # self.s10s21_x_disc, self.s10s21_x_cont, self.s10s21_s, self.s10s21_y = self.split_tuple(
+        #     s1_0_s2_1_dataset
+        # )
+        # self.s11s20_x_disc, self.s11s20_x_cont, self.s11s20_s, self.s11s20_y = self.split_tuple(
+        #     s1_1_s2_0_dataset
+        # )
+        # self.s11s21_x_disc, self.s11s21_x_cont, self.s11s21_s, self.s11s21_y = self.split_tuple(
+        #     s1_1_s2_1_dataset
+        # )
+
+    def split_tuple(self, datatuple):
+        """Split a datatuple to components."""
+        x_disc = datatuple.x[self.disc_features].to_numpy(dtype=np.float32)
+        x_cont = datatuple.x[self.cont_features].to_numpy(dtype=np.float32)
+        s = datatuple.s.to_numpy(dtype=np.float32)
+        y = datatuple.y.to_numpy(dtype=np.float32)
+        return x_disc, x_cont, s, y
+
+    def _make_from_arr(self, np_array, index):
+        np_a = np_array[index]
+        return torch.from_numpy(np_a).squeeze()
+
+    def _make_x(self, disc, cont, index):
+        x_disc = disc[index]
+        x_cont = cont[index]
+        x = np.concatenate([x_disc, x_cont], axis=0)
+        x = torch.from_numpy(x)
+        if x.shape == 1:
+            x = x.squeeze(0)
+        return x
 
     def _cf_x(self, index: int) -> Tensor:
-        cf_x_disc = self.cf_x_disc[index]
-        cf_x_cont = self.cf_x_cont[index]
-        cf_x = np.concatenate([cf_x_disc, cf_x_cont], axis=0)
-        cf_x = torch.from_numpy(cf_x)
-        if cf_x.shape == 1:
-            cf_x = cf_x.squeeze(0)
-        return cf_x
+        return self._make_x(self.cf_x_disc, self.cf_x_cont, index)
 
     def _cf_s(self, index: int) -> Tensor:
-        cf_s = self.cf_s[index]
-        return torch.from_numpy(cf_s).squeeze()
+        return self._make_from_arr(self.cf_s, index)
 
     def _cf_y(self, index: int) -> Tensor:
-        cf_y = self.cf_y[index]
-        return torch.from_numpy(cf_y).squeeze()
+        return self._make_from_arr(self.cf_y, index)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+    # def _s1_0_s2_0_x(self, index):
+    #     return self._make_x(self.s10s20_x_disc, self.s10s20_x_cont, index)
+    #
+    # def _s1_0_s2_0_s(self, index):
+    #     return self._make_from_arr(self.s10s20_s, index)
+    #
+    # def _s1_0_s2_0_y(self, index):
+    #     return self._make_from_arr(self.s10s20_y, index)
+    #
+    # def _s1_0_s2_1_x(self, index):
+    #     return self._make_x(self.s10s21_x_disc, self.s10s21_x_cont, index)
+    #
+    # def _s1_0_s2_1_s(self, index):
+    #     return self._make_from_arr(self.s10s21_s, index)
+    #
+    # def _s1_0_s2_1_y(self, index):
+    #     return self._make_from_arr(self.s10s21_y, index)
+    #
+    # def _s1_1_s2_0_x(self, index):
+    #     return self._make_x(self.s11s20_x_disc, self.s11s20_x_cont, index)
+    #
+    # def _s1_1_s2_0_s(self, index):
+    #     return self._make_from_arr(self.s11s20_s, index)
+    #
+    # def _s1_1_s2_0_y(self, index):
+    #     return self._make_from_arr(self.s11s20_y, index)
+    #
+    # def _s1_1_s2_1_x(self, index):
+    #     return self._make_x(self.s11s21_x_disc, self.s11s21_x_cont, index)
+    #
+    # def _s1_1_s2_1_s(self, index):
+    #     return self._make_from_arr(self.s11s21_s, index)
+    #
+    # def _s1_1_s2_1_y(self, index):
+    #     return self._make_from_arr(self.s11s21_y, index)
+
+    def __getitem__(self, index: int) -> Tuple[Tensor, ...]:
         return (
             super()._x(index),
             super()._s(index),
@@ -134,4 +196,16 @@ class CFDataTupleDataset(DataTupleDataset):
             self._cf_x(index),
             self._cf_s(index),
             self._cf_y(index),
+            # self._s1_0_s2_0_x(index),
+            # self._s1_0_s2_0_s(index),
+            # self._s1_0_s2_0_y(index),
+            # self._s1_0_s2_1_x(index),
+            # self._s1_0_s2_1_s(index),
+            # self._s1_0_s2_1_y(index),
+            # self._s1_1_s2_0_x(index),
+            # self._s1_1_s2_0_s(index),
+            # self._s1_1_s2_0_y(index),
+            # self._s1_1_s2_1_x(index),
+            # self._s1_1_s2_1_s(index),
+            # self._s1_1_s2_1_y(index),
         )

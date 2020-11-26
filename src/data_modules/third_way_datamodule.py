@@ -1,6 +1,9 @@
 """Data Module for simple data."""
+import logging
+
 import numpy as np
-from ethicml import DataTuple, implements
+import pandas as pd
+from ethicml import DataTuple, Prediction, implements
 from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
@@ -9,6 +12,9 @@ from src.config_classes.dataclasses import ThirdWayConfig
 from src.data_modules.base_module import BaseDataModule
 from src.data_modules.dataset_utils import CFDataTupleDataset
 from src.datasets.third_way import third_way_data
+from src.utils import facct_mapper, selection_rules
+
+log = logging.getLogger(__name__)
 
 
 class ThirdWayDataModule(BaseDataModule):
@@ -32,7 +38,15 @@ class ThirdWayDataModule(BaseDataModule):
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
-        dataset, true_data, cf_data = third_way_data(
+        (
+            dataset,
+            true_data,
+            cf_data,
+            s1_0_s2_0_data,
+            s1_0_s2_1_data,
+            s1_1_s2_0_data,
+            s1_1_s2_1_data,
+        ) = third_way_data(
             seed=self.seed,
             num_samples=self.num_samples,
             alpha=self.alpha,
@@ -47,6 +61,10 @@ class ThirdWayDataModule(BaseDataModule):
         self.dataset = dataset
         self.true_data = true_data
         self.cf_data = cf_data
+        self.s1_0_s2_0_data = s1_0_s2_0_data
+        self.s1_0_s2_1_data = s1_0_s2_1_data
+        self.s1_1_s2_0_data = s1_1_s2_0_data
+        self.s1_1_s2_1_data = s1_1_s2_1_data
         self.num_s = true_data.s.nunique().values[0]
         self.data_dim = true_data.x.shape[1]
         self.s_dim = true_data.s.shape[1]
@@ -59,48 +77,63 @@ class ThirdWayDataModule(BaseDataModule):
         train_indices = idx[:num_train]
         test_indices = idx[num_train:]
 
+        self.make_feature_groups(dataset, true_data)
+
+        self.train_data, self.test_data = self.scale_and_split(
+            self.true_data, dataset, train_indices, test_indices
+        )
+        self.cf_train, self.cf_test = self.scale_and_split(
+            self.cf_data, dataset, train_indices, test_indices
+        )
+        self.s1_0_s2_0_train, self.s1_0_s2_0_test = self.scale_and_split(
+            self.s1_0_s2_0_data, dataset, train_indices, test_indices
+        )
+        self.s1_0_s2_1_train, self.s1_0_s2_1_test = self.scale_and_split(
+            self.s1_0_s2_1_data, dataset, train_indices, test_indices
+        )
+        self.s1_1_s2_0_train, self.s1_1_s2_0_test = self.scale_and_split(
+            self.s1_1_s2_0_data, dataset, train_indices, test_indices
+        )
+        self.s1_1_s2_1_train, self.s1_1_s2_1_test = self.scale_and_split(
+            self.s1_1_s2_1_data, dataset, train_indices, test_indices
+        )
+
+        pd_results = pd.concat(
+            [
+                self.s1_0_s2_0_test.y.rename(columns={"outcome": "s1_0_s2_0"}),
+                self.s1_0_s2_1_test.y.rename(columns={"outcome": "s1_0_s2_1"}),
+                self.s1_1_s2_0_test.y.rename(columns={"outcome": "s1_1_s2_0"}),
+                self.s1_1_s2_1_test.y.rename(columns={"outcome": "s1_1_s2_1"}),
+                self.test_data.s.rename(columns={"sens": "true_s"}),
+                self.test_data.y.rename(columns={"outcome": "actual"}),
+            ],
+            axis=1,
+        )
+        log.info(pd_results.info)
+
+        pd_results["decision"] = selection_rules(pd_results)
+        log.info(pd_results["decision"].value_counts())
+        asdfasdf = facct_mapper(Prediction(hard=pd_results["decision"]))
+        log.info(asdfasdf.info)
+
+    def scale_and_split(self, datatuple, dataset, train_indices, test_indices):
+        """Scale a datatuple and split to train/test."""
         train = DataTuple(
-            x=self.true_data.x.iloc[train_indices].reset_index(drop=True),
-            s=self.true_data.s.iloc[train_indices].reset_index(drop=True),
-            y=self.true_data.y.iloc[train_indices].reset_index(drop=True),
+            x=datatuple.x.iloc[train_indices].reset_index(drop=True),
+            s=datatuple.s.iloc[train_indices].reset_index(drop=True),
+            y=datatuple.y.iloc[train_indices].reset_index(drop=True),
         )
         test = DataTuple(
-            x=self.true_data.x.iloc[test_indices].reset_index(drop=True),
-            s=self.true_data.s.iloc[test_indices].reset_index(drop=True),
-            y=self.true_data.y.iloc[test_indices].reset_index(drop=True),
+            x=datatuple.x.iloc[test_indices].reset_index(drop=True),
+            s=datatuple.s.iloc[test_indices].reset_index(drop=True),
+            y=datatuple.y.iloc[test_indices].reset_index(drop=True),
         )
 
         scaler = MinMaxScaler()
         scaler = scaler.fit(train.x[dataset.cont_features])
         train.x[dataset.cont_features] = scaler.transform(train.x[dataset.cont_features])
         test.x[dataset.cont_features] = scaler.transform(test.x[dataset.cont_features])
-
-        self.train_data = train
-        self.test_data = test
-        self.make_feature_groups(dataset, true_data)
-
-        counterfactual_train = DataTuple(
-            x=self.cf_data.x.iloc[train_indices].reset_index(drop=True),
-            s=self.cf_data.s.iloc[train_indices].reset_index(drop=True),
-            y=self.cf_data.y.iloc[train_indices].reset_index(drop=True),
-        )
-        counterfactual_test = DataTuple(
-            x=self.cf_data.x.iloc[test_indices].reset_index(drop=True),
-            s=self.cf_data.s.iloc[test_indices].reset_index(drop=True),
-            y=self.cf_data.y.iloc[test_indices].reset_index(drop=True),
-        )
-
-        self.scaler_cf = MinMaxScaler()
-        self.scaler_cf = self.scaler_cf.fit(counterfactual_train.x[dataset.cont_features])
-        counterfactual_train.x[dataset.cont_features] = self.scaler_cf.transform(
-            counterfactual_train.x[dataset.cont_features]
-        )
-        counterfactual_test.x[dataset.cont_features] = self.scaler_cf.transform(
-            counterfactual_test.x[dataset.cont_features]
-        )
-
-        self.cf_train = counterfactual_train
-        self.cf_test = counterfactual_test
+        return train, test
 
     @implements(LightningDataModule)
     def train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
@@ -108,6 +141,10 @@ class ThirdWayDataModule(BaseDataModule):
             CFDataTupleDataset(
                 self.train_data,
                 cf_dataset=self.cf_train,
+                # s1_0_s2_0_dataset=self.s1_0_s2_0_data,
+                # s1_0_s2_1_dataset=self.s1_0_s2_1_data,
+                # s1_1_s2_0_dataset=self.s1_1_s2_0_data,
+                # s1_1_s2_1_dataset=self.s1_1_s2_1_data,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.cont_features,
             ),
@@ -123,6 +160,10 @@ class ThirdWayDataModule(BaseDataModule):
             CFDataTupleDataset(
                 self.test_data,
                 cf_dataset=self.cf_test,
+                # s1_0_s2_0_dataset=self.s1_0_s2_0_data,
+                # s1_0_s2_1_dataset=self.s1_0_s2_1_data,
+                # s1_1_s2_0_dataset=self.s1_1_s2_0_data,
+                # s1_1_s2_1_dataset=self.s1_1_s2_1_data,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.cont_features,
             ),

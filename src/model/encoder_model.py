@@ -16,6 +16,7 @@ import wandb
 from src.config_classes.dataclasses import ModelConfig
 from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
+from src.model.common_model import CommonModel
 from src.model.model_utils import grad_reverse, index_by_s, to_discrete
 from src.utils import make_plot
 
@@ -85,7 +86,7 @@ class Decoder(BaseModel):
         )
 
 
-class AE(LightningModule):
+class AE(CommonModel):
     """Main Autoencoder."""
 
     def __init__(
@@ -125,7 +126,7 @@ class AE(LightningModule):
         self.feature_groups = feature_groups
         self.adv_weight = cfg.adv_weight
         self.reg_weight = cfg.reg_weight
-        self.recon_weight = cfg.recon_weight
+        self.recon_weight = cfg.target_weight
         self.lr = cfg.lr
         self.s_input = cfg.s_as_input
         self.cf_model = cf_available
@@ -265,19 +266,14 @@ class AE(LightningModule):
         scheduler = ExponentialLR(optimizer, gamma=self.scheduler_rate)
         return [optimizer], [scheduler]
 
-    def get_latent(self, dataloader: DataLoader) -> np.ndarray:
-        """Get Latents to be used post train/test."""
-        latent = None
-        for x, s, y, _, _, _ in dataloader:
-            z, _, _ = self(x, s)
-            latent = z if latent is None else cat([latent, z], dim=0)  # type: ignore[unreachable]
-        assert latent is not None
-        return latent.detach().cpu().numpy()
-
+    @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
-        """Get Reconstructions to be used post train/test."""
         recons = None
-        for x, s, y, _, _, _ in dataloader:
+        for batch in dataloader:
+            if self.cf_model:
+                x, s, y, cf_x, cf_s, cf_y = batch
+            else:
+                x, s, y = batch
             _, _, _r = self(x, s)
             r = self.invert(index_by_s(_r, s))
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]

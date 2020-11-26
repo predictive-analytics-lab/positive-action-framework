@@ -1,15 +1,21 @@
 """Utility functions."""
 import collections
+import logging
 import warnings
 from typing import List
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
+from ethicml import Prediction
 from pytorch_lightning.loggers import WandbLogger
 from torch import Tensor
 
 import wandb
+
+log = logging.getLogger(__name__)
+
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -43,3 +49,102 @@ def flatten(d: dict, parent_key: str = "", sep: str = ".") -> dict:
         else:
             items.append((new_key, v))
     return dict(items)
+
+
+def facct_mapper(facct_out: Prediction) -> Prediction:
+    """Map from groups to outcomes."""
+    lookup = {-1: 0, 1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 0}
+
+    preds = pd.Series([])
+    for decision in facct_out.hard:
+        preds = preds.append(pd.Series(lookup[decision])).reset_index(drop=True)
+
+    return Prediction(hard=preds, info=facct_out.info)
+
+
+def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
+    """Apply selection rules."""
+    conditions = [
+        (outcome_df["true_s"] == 0)  # Line 1
+        & (outcome_df["s1_0_s2_0"] == 1)
+        & (outcome_df["s1_0_s2_1"] == 1)
+        & (outcome_df["s1_1_s2_0"] == 1)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 1)  # Line 1
+        & (outcome_df["s1_0_s2_0"] == 1)
+        & (outcome_df["s1_0_s2_1"] == 1)
+        & (outcome_df["s1_1_s2_0"] == 1)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 0)  # Line 2
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 1)
+        & (outcome_df["s1_1_s2_0"] == 1)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 1)  # Line 2
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 1)
+        & (outcome_df["s1_1_s2_0"] == 1)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 1)  # Line 3
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 0)
+        & (outcome_df["s1_1_s2_0"] == 1)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 1)  # Line 4
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 0)
+        & (outcome_df["s1_1_s2_0"] == 0)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 1)  # Line 5
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 1)
+        & (outcome_df["s1_1_s2_0"] == 0)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 0)  # Line 6
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 0)
+        & (outcome_df["s1_1_s2_0"] == 1)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 0)  # Line 7
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 0)
+        & (outcome_df["s1_1_s2_0"] == 0)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 0)  # Line 8
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 1)
+        & (outcome_df["s1_1_s2_0"] == 0)
+        & (outcome_df["s1_1_s2_1"] == 1),
+        (outcome_df["true_s"] == 0)  # Line 9
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 0)
+        & (outcome_df["s1_1_s2_0"] == 0)
+        & (outcome_df["s1_1_s2_1"] == 0),
+        (outcome_df["true_s"] == 1)  # Line 9
+        & (outcome_df["s1_0_s2_0"] == 0)
+        & (outcome_df["s1_0_s2_1"] == 0)
+        & (outcome_df["s1_1_s2_0"] == 0)
+        & (outcome_df["s1_1_s2_1"] == 0),
+    ]
+    values = [
+        1,  # Line 1
+        2,  # Line 1
+        1,  # Line 2
+        2,  # Line 2
+        4,  # Line 3
+        4,  # Line 4
+        4,  # Line 5
+        3,  # Line 6
+        3,  # Line 7
+        1,  # Line 8
+        5,  # Line 9
+        6,  # Line 9
+    ]
+
+    return np.select(conditions, values, -1)
+
+
+def do_log(name, val, logger):
+    """Log to experiment tracker and also the logger."""
+    log.info(f"{name}: {val}")
+    logger.experiment.log({name: val})

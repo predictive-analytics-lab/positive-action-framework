@@ -5,5 +5,6 @@ defaults:
   # default config files
   - data/schema: synth
   - data: synthetic_1 # `configs/data/synthetic_1.yaml`
-  - model: basic  # `configs/model/basic.yaml`
+  - enc: basic  # `configs/model/basic.yaml`
+  - clf: basic  # `configs/model/basic.yaml`
   - training: simple # `configs/training/simple.yaml`

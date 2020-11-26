@@ -60,7 +60,7 @@ class ModelConfig:
     latent_multiplier: int = MISSING
     lr: float = MISSING
     adv_weight: float = MISSING
-    recon_weight: float = MISSING
+    target_weight: float = MISSING
     reg_weight: float = MISSING  # another commmernt
     s_as_input: bool = MISSING
     mmd_kernel: KernelType = MISSING
@@ -71,7 +71,9 @@ class ModelConfig:
 class TrainingConfig:
     """Training Config Schema."""
 
-    epochs: int = MISSING
+    all_baselines: bool = MISSING
+    enc_epochs: int = MISSING
+    clf_epochs: int = MISSING
     tags: str = MISSING
 
 
@@ -80,5 +82,6 @@ class Config:
     """Base Config Schema."""
 
     data: DataConfig = MISSING
-    model: ModelConfig = MISSING  # put config files for this into `conf/model/`
+    enc: ModelConfig = MISSING  # put config files for this into `conf/model/`
+    clf: ModelConfig = MISSING  # put config files for this into `conf/model/`
     training: TrainingConfig = MISSING
