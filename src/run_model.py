@@ -128,7 +128,7 @@ def run_aies(cfg: Config) -> None:
 def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: WandbLogger) -> None:
     """Get multiple metrics."""
     for metric in [Accuracy(), ProbPos(), TPR(), TNR()]:
-        general_str = f"Results-{name}-{metric.name}"
+        general_str = f"Results/{name}-{metric.name}"
         do_log(general_str, metric.score(preds, target), logger)
         per_group = metric_per_sensitive_attribute(preds, target, metric)
         for key, result in per_group.items():
@@ -137,8 +137,3 @@ def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: Wa
             do_log(f"{general_str}-Abs-Diff-{key}", result, logger)
         for key, result in ratio_per_sensitive_attribute(per_group).items():
             do_log(f"{general_str}-Ratio-{key}", result, logger)
-
-    for metric in [Accuracy(), ProbPos(), TPR(), TNR()]:
-        do_log(general_str, metric.score(preds, target), logger)
-        for k, v in metric_per_sensitive_attribute(preds, target, metric).items():
-            log.info(f"{metric.name}-{k}: {v}")
