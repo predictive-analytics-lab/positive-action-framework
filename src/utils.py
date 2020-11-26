@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from ethicml import Prediction
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
 from torch import Tensor
 
 import wandb
@@ -148,3 +148,24 @@ def do_log(name: str, val: float, logger: WandbLogger) -> None:
     """Log to experiment tracker and also the logger."""
     log.info(f"{name}: {val}")
     logger.experiment.log({name: val})
+
+
+def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase) -> Prediction:
+    """Follow Selection rules."""
+    outcomes_hist(outcomes, logger)
+    outcomes["decision"] = selection_rules(outcomes)
+    for idx, val in outcomes["decision"].value_counts().iteritems():
+        do_log(f"Table3/selection_rule_group_{idx}", val, logger)
+    return facct_mapper(Prediction(hard=outcomes["decision"]))
+
+
+def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
+    """Produce a distribution of the outcomes."""
+    val_counts = (
+        outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
+    )
+    sns.barplot(val_counts.index, val_counts.values)
+    logger.experiment.log({"Debugging2/Outcomes": wandb.Plotly(plt)})
+    for idx, val in val_counts.iteritems():
+        do_log(f"Debugging2/Outcomes-{idx}", val, logger)
+    plt.clf()
