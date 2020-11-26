@@ -92,12 +92,7 @@ def run_aies(cfg: Config) -> None:
 
     model = AiesModel(encoder=encoder, classifier=classifier)
     if cfg.training.gpus > 0:
-        model_trainer = Trainer(
-            gpus=cfg.training.gpus,
-            max_epochs=0,
-            deterministic=True,
-            logger=wandb_logger,
-        )
+        model_trainer = Trainer(gpus=cfg.training.gpus, max_epochs=0, deterministic=True, logger=wandb_logger)
     else:
         model_trainer = Trainer(max_epochs=0, deterministic=True, logger=wandb_logger)
     model_trainer.fit(model, datamodule=data)

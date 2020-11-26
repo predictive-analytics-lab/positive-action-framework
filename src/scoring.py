@@ -42,9 +42,7 @@ def lrcv_results(
         )
 
 
-def produce_baselines(
-    *, encoder: CommonModel, dm: BaseDataModule, logger: LightningLoggerBase
-) -> None:
+def produce_baselines(*, encoder: CommonModel, dm: BaseDataModule, logger: LightningLoggerBase) -> None:
     """Produce baselines for predictiveness."""
     latent_train = encoder.get_latent(dm.train_dataloader(shuffle=False, drop_last=False))
     latent_test = encoder.get_latent(dm.test_dataloader())

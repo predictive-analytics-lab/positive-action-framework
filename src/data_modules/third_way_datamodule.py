@@ -39,15 +39,7 @@ class ThirdWayDataModule(BaseDataModule):
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
-        (
-            dataset,
-            true_data,
-            cf_data,
-            s1_0_s2_0_data,
-            s1_0_s2_1_data,
-            s1_1_s2_0_data,
-            s1_1_s2_1_data,
-        ) = third_way_data(
+        (dataset, true_data, cf_data, s1_0_s2_0_data, s1_0_s2_1_data, s1_1_s2_0_data, s1_1_s2_1_data,) = third_way_data(
             seed=self.seed,
             num_samples=self.num_samples,
             alpha=self.alpha,
@@ -80,12 +72,8 @@ class ThirdWayDataModule(BaseDataModule):
 
         self.make_feature_groups(dataset, true_data)
 
-        self.train_data, self.test_data = self.scale_and_split(
-            self.true_data, dataset, train_indices, test_indices
-        )
-        self.cf_train, self.cf_test = self.scale_and_split(
-            self.cf_data, dataset, train_indices, test_indices
-        )
+        self.train_data, self.test_data = self.scale_and_split(self.true_data, dataset, train_indices, test_indices)
+        self.cf_train, self.cf_test = self.scale_and_split(self.cf_data, dataset, train_indices, test_indices)
         self.s1_0_s2_0_train, self.s1_0_s2_0_test = self.scale_and_split(
             self.s1_0_s2_0_data, dataset, train_indices, test_indices
         )
@@ -118,11 +106,7 @@ class ThirdWayDataModule(BaseDataModule):
         log.info(asdfasdf.info)
 
     def scale_and_split(
-        self,
-        datatuple: DataTuple,
-        dataset: Dataset,
-        train_indices: np.ndarray,
-        test_indices: np.ndarray,
+        self, datatuple: DataTuple, dataset: Dataset, train_indices: np.ndarray, test_indices: np.ndarray
     ) -> Tuple[DataTuple, DataTuple]:
         """Scale a datatuple and split to train/test."""
         train = DataTuple(

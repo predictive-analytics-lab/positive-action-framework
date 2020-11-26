@@ -161,9 +161,7 @@ def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase
 
 def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
     """Produce a distribution of the outcomes."""
-    val_counts = (
-        outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
-    )
+    val_counts = outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
     sns.barplot(val_counts.index, val_counts.values)
     logger.experiment.log({"Debugging2/Outcomes": wandb.Plotly(plt)})
     for idx, val in val_counts.iteritems():

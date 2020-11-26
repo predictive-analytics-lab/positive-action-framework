@@ -40,12 +40,7 @@ def grouped_features_indexes(disc_feats: List[str]) -> List[slice]:
 class DataTupleDatasetBase:
     """Wrapper for EthicML datasets."""
 
-    def __init__(
-        self,
-        dataset: DataTuple,
-        disc_features: List[str],
-        cont_features: List[str],
-    ):
+    def __init__(self, dataset: DataTuple, disc_features: List[str], cont_features: List[str]):
         """Create DataTupleDataset."""
         disc_features = [feat for feat in disc_features if feat in dataset.x.columns]
         self.disc_features = disc_features
@@ -88,55 +83,22 @@ class DataTupleDatasetBase:
 class DataTupleDataset(DataTupleDatasetBase):
     """Wrapper for EthicML datasets."""
 
-    def __init__(
-        self,
-        dataset: DataTuple,
-        disc_features: List[str],
-        cont_features: List[str],
-    ):
+    def __init__(self, dataset: DataTuple, disc_features: List[str], cont_features: List[str]):
         super().__init__(dataset, disc_features, cont_features)
 
     def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
-        return (
-            self._x(index),
-            self._s(index),
-            self._y(index),
-        )
+        return (self._x(index), self._s(index), self._y(index))
 
 
 class CFDataTupleDataset(DataTupleDatasetBase):
     """Wrapper for EthicML datasets."""
 
-    def __init__(
-        self,
-        dataset: DataTuple,
-        cf_dataset: DataTuple,
-        # s1_0_s2_0_dataset: DataTuple,
-        # s1_0_s2_1_dataset: DataTuple,
-        # s1_1_s2_0_dataset: DataTuple,
-        # s1_1_s2_1_dataset: DataTuple,
-        disc_features: List[str],
-        cont_features: List[str],
-    ):
+    def __init__(self, dataset: DataTuple, cf_dataset: DataTuple, disc_features: List[str], cont_features: List[str]):
         """Create DataTupleDataset."""
         super().__init__(dataset, disc_features, cont_features)
         self.cf_x_disc, self.cf_x_cont, self.cf_s, self.cf_y = self.split_tuple(cf_dataset)
-        # self.s10s20_x_disc, self.s10s20_x_cont, self.s10s20_s, self.s10s20_y = self.split_tuple(
-        #     s1_0_s2_0_dataset
-        # )
-        # self.s10s21_x_disc, self.s10s21_x_cont, self.s10s21_s, self.s10s21_y = self.split_tuple(
-        #     s1_0_s2_1_dataset
-        # )
-        # self.s11s20_x_disc, self.s11s20_x_cont, self.s11s20_s, self.s11s20_y = self.split_tuple(
-        #     s1_1_s2_0_dataset
-        # )
-        # self.s11s21_x_disc, self.s11s21_x_cont, self.s11s21_s, self.s11s21_y = self.split_tuple(
-        #     s1_1_s2_1_dataset
-        # )
 
-    def split_tuple(
-        self, datatuple: DataTuple
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def split_tuple(self, datatuple: DataTuple) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Split a datatuple to components."""
         x_disc = datatuple.x[self.disc_features].to_numpy(dtype=np.float32)
         x_cont = datatuple.x[self.cont_features].to_numpy(dtype=np.float32)
@@ -166,42 +128,6 @@ class CFDataTupleDataset(DataTupleDatasetBase):
     def _cf_y(self, index: int) -> Tensor:
         return self._make_from_arr(self.cf_y, index)
 
-    # def _s1_0_s2_0_x(self, index):
-    #     return self._make_x(self.s10s20_x_disc, self.s10s20_x_cont, index)
-    #
-    # def _s1_0_s2_0_s(self, index):
-    #     return self._make_from_arr(self.s10s20_s, index)
-    #
-    # def _s1_0_s2_0_y(self, index):
-    #     return self._make_from_arr(self.s10s20_y, index)
-    #
-    # def _s1_0_s2_1_x(self, index):
-    #     return self._make_x(self.s10s21_x_disc, self.s10s21_x_cont, index)
-    #
-    # def _s1_0_s2_1_s(self, index):
-    #     return self._make_from_arr(self.s10s21_s, index)
-    #
-    # def _s1_0_s2_1_y(self, index):
-    #     return self._make_from_arr(self.s10s21_y, index)
-    #
-    # def _s1_1_s2_0_x(self, index):
-    #     return self._make_x(self.s11s20_x_disc, self.s11s20_x_cont, index)
-    #
-    # def _s1_1_s2_0_s(self, index):
-    #     return self._make_from_arr(self.s11s20_s, index)
-    #
-    # def _s1_1_s2_0_y(self, index):
-    #     return self._make_from_arr(self.s11s20_y, index)
-    #
-    # def _s1_1_s2_1_x(self, index):
-    #     return self._make_x(self.s11s21_x_disc, self.s11s21_x_cont, index)
-    #
-    # def _s1_1_s2_1_s(self, index):
-    #     return self._make_from_arr(self.s11s21_s, index)
-    #
-    # def _s1_1_s2_1_y(self, index):
-    #     return self._make_from_arr(self.s11s21_y, index)
-
     def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         return (
             super()._x(index),
@@ -210,16 +136,4 @@ class CFDataTupleDataset(DataTupleDatasetBase):
             self._cf_x(index),
             self._cf_s(index),
             self._cf_y(index),
-            # self._s1_0_s2_0_x(index),
-            # self._s1_0_s2_0_s(index),
-            # self._s1_0_s2_0_y(index),
-            # self._s1_0_s2_1_x(index),
-            # self._s1_0_s2_1_s(index),
-            # self._s1_0_s2_1_y(index),
-            # self._s1_1_s2_0_x(index),
-            # self._s1_1_s2_0_s(index),
-            # self._s1_1_s2_0_y(index),
-            # self._s1_1_s2_1_x(index),
-            # self._s1_1_s2_1_s(index),
-            # self._s1_1_s2_1_y(index),
         )
