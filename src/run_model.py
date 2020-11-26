@@ -50,9 +50,19 @@ def run_aies(cfg: Config) -> None:
         tags=cfg.training.tags.split("/")[:-1],
         config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
     )
-    enc_trainer = Trainer(
-        max_epochs=cfg.training.enc_epochs, logger=wandb_logger, deterministic=True
-    )
+    if cfg.training.gpus > 0:
+        enc_trainer = Trainer(
+            gpus=cfg.training.gpus,
+            max_epochs=cfg.training.enc_epochs,
+            logger=wandb_logger,
+            deterministic=True,
+        )
+    else:
+        enc_trainer = Trainer(
+            max_epochs=cfg.training.enc_epochs,
+            logger=wandb_logger,
+            deterministic=True,
+        )
     enc_trainer.fit(encoder, datamodule=data)
     enc_trainer.test(ckpt_path=None, datamodule=data)
 
@@ -64,14 +74,32 @@ def run_aies(cfg: Config) -> None:
         cf_available=data.cf_available,
         outcome_cols=data.outcome_columns,
     )
-    clf_trainer = Trainer(
-        max_epochs=cfg.training.clf_epochs, logger=wandb_logger, deterministic=True
-    )
+    if cfg.training.gpus > 0:
+        clf_trainer = Trainer(
+            gpus=cfg.training.gpus,
+            max_epochs=cfg.training.clf_epochs,
+            logger=wandb_logger,
+            deterministic=True,
+        )
+    else:
+        clf_trainer = Trainer(
+            max_epochs=cfg.training.clf_epochs,
+            logger=wandb_logger,
+            deterministic=True,
+        )
     clf_trainer.fit(classifier, datamodule=data)
     clf_trainer.test(ckpt_path=None, datamodule=data)
 
     model = AiesModel(encoder=encoder, classifier=classifier)
-    model_trainer = Trainer(max_epochs=0, deterministic=True)
+    if cfg.training.gpus > 0:
+        model_trainer = Trainer(
+            gpus=cfg.training.gpus,
+            max_epochs=0,
+            deterministic=True,
+            logger=wandb_logger,
+        )
+    else:
+        model_trainer = Trainer(max_epochs=0, deterministic=True, logger=wandb_logger)
     model_trainer.fit(model, datamodule=data)
     model_trainer.test(ckpt_path=None, datamodule=data)
 

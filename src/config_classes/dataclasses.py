@@ -75,6 +75,7 @@ class TrainingConfig:
     enc_epochs: int = MISSING
     clf_epochs: int = MISSING
     tags: str = MISSING
+    gpus: int = MISSING
 
 
 @dataclass
