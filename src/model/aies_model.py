@@ -1,11 +1,11 @@
 """AIES Model."""
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import torch
 from ethicml import implements
-from pytorch_lightning import LightningDataModule, LightningModule
-from torch import Tensor, cat, nn
+from pytorch_lightning import LightningModule
+from torch import Tensor, nn
 from torch.optim.lr_scheduler import ExponentialLR
 
 from src.model.classifier_model import Clf
@@ -13,38 +13,108 @@ from src.model.encoder_model import AE
 from src.model.model_utils import index_by_s
 
 
-class AiesModel(LightningModule):
+class AiesProperties(LightningModule):
+    """Properties for the  AIES model."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.all_enc_z: Optional[Tensor] = None
+        self.all_enc_s_pred: Optional[Tensor] = None
+        self._all_s: Optional[Tensor] = None
+        self._all_x: Optional[Tensor] = None
+        self._all_y: Optional[Tensor] = None
+        self._all_recon: Optional[Tensor] = None
+        self._all_preds: Optional[Tensor] = None
+
+    @property
+    def all_preds(self) -> Tensor:
+        assert self._all_preds is not None
+        return self._all_preds
+
+    @all_preds.setter
+    def all_preds(self, all_preds: Tensor) -> None:
+        self._all_preds = all_preds
+
+    @property
+    def all_s(self) -> Tensor:
+        assert self._all_s is not None
+        return self._all_s
+
+    @all_s.setter
+    def all_s(self, all_s: Tensor) -> None:
+        self._all_s = all_s
+
+    @property
+    def all_x(self) -> Tensor:
+        assert self._all_x is not None
+        return self._all_x
+
+    @all_x.setter
+    def all_x(self, all_x: Tensor) -> None:
+        self._all_x = all_x
+
+    @property
+    def all_y(self) -> Tensor:
+        assert self._all_y is not None
+        return self._all_y
+
+    @all_y.setter
+    def all_y(self, all_y: Tensor) -> None:
+        self._all_y = all_y
+
+    @property
+    def all_recon(self) -> Tensor:
+        assert self._all_recon is not None
+        return self._all_recon
+
+    @all_recon.setter
+    def all_recon(self, all_recon: Tensor) -> None:
+        self._all_recon = all_recon
+
+    @property
+    def all_enc_z(self) -> Tensor:
+        assert self._all_enc_z is not None
+        return self._all_enc_z
+
+    @all_enc_z.setter
+    def all_enc_z(self, all_enc_z: Tensor) -> None:
+        self._all_enc_z = all_enc_z
+
+    @property
+    def all_enc_s_pred(self) -> Tensor:
+        assert self._all_enc_s_pred is not None
+        return self._all_enc_s_pred
+
+    @all_enc_s_pred.setter
+    def all_enc_s_pred(self, all_enc_s_pred: Tensor) -> None:
+        self._all_enc_s_pred = all_enc_s_pred
+
+
+class AiesModel(AiesProperties):
     """Model."""
 
     def __init__(self, encoder: AE, classifier: Clf):
         super().__init__()
         self.enc = encoder
         self.clf = classifier
-        self.all_enc_z = None
-        self.all_enc_s_pred = None
-        self.all_s = None
-        self.all_x = None
-        self.all_y = None
-        self.all_recon = None
-        self.all_preds = None
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor):
+    def forward(self, x: Tensor, s: Tensor) -> Dict[str, Tuple[Tensor, ...]]:
         enc_z, enc_s_pred, recons = self.enc(x, s)
         return self.clf.from_recons(recons)
 
-    def do_run(self, dm: LightningDataModule) -> pd.DataFrame:
-        """Run the enc and clf end-to-end."""
-        preds = {}
-        for x, s, y, _, _, _ in dm.test_dataloader():
-            asdf = self(x, s)
-            for k, v in asdf.items():
-                z, s_pred, y_pred = v
-                if k not in preds.keys():
-                    preds[k] = {"z": z, "s_pred": s_pred, "y_pred": y_pred}
-                else:
-                    preds[k] = {_k: cat([preds[k][_k], _v], dim=0) for _k, _v in preds[k].items()}
-        return preds
+    # def do_run(self, dm: LightningDataModule) -> pd.DataFrame:
+    #     """Run the enc and clf end-to-end."""
+    #     preds = {}
+    #     for x, s, y, _, _, _ in dm.test_dataloader():
+    #         asdf = self(x, s)
+    #         for k, v in asdf.items():
+    #             z, s_pred, y_pred = v
+    #             if k not in preds.keys():
+    #                 preds[k] = {"z": z, "s_pred": s_pred, "y_pred": y_pred}
+    #             else:
+    #                 preds[k] = {_k: cat([preds[k][_k], _v], dim=0) for _k, _v in preds[k].items()}
+    #     return preds
 
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:

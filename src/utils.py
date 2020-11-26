@@ -2,7 +2,7 @@
 import collections
 import logging
 import warnings
-from typing import List
+from typing import Any, Dict, List, MutableMapping
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,9 +39,9 @@ def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: Lis
         plt.clf()
 
 
-def flatten(d: dict, parent_key: str = "", sep: str = ".") -> dict:
+def flatten(d: MutableMapping[Any, Any], parent_key: str = "", sep: str = ".") -> Dict[Any, Any]:
     """Flatten a nested dictionary by separating the keys with `sep`."""
-    items = []
+    items: List[Any] = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
         if isinstance(v, collections.MutableMapping):
@@ -144,7 +144,7 @@ def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
     return np.select(conditions, values, -1)
 
 
-def do_log(name, val, logger):
+def do_log(name: str, val: float, logger: WandbLogger) -> None:
     """Log to experiment tracker and also the logger."""
     log.info(f"{name}: {val}")
     logger.experiment.log({name: val})

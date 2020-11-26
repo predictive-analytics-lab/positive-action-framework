@@ -18,7 +18,7 @@ from ethicml import (
     ratio_per_sensitive_attribute,
 )
 from omegaconf import OmegaConf
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import LightningDataModule, Trainer, seed_everything
 from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import KFold
@@ -105,7 +105,7 @@ def run_aies(cfg: Config) -> None:
     wandb_logger.experiment.finish()
 
 
-def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger):
+def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: WandbLogger) -> None:
     """Get multiple metrics."""
     for metric in [Accuracy(), ProbPos(), TPR(), TNR()]:
         general_str = f"Results-{name}-{metric.name}"
@@ -124,14 +124,16 @@ def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger):
             log.info(f"{metric.name}-{k}: {v}")
 
 
-def score_preds(preds, dm, logger, clf_name):
+def score_preds(
+    preds: Prediction, dm: LightningDataModule, logger: WandbLogger, clf_name: str
+) -> None:
     """Score the predictions."""
     res_name = f"Baselines/{clf_name}-Accuracy-Y-from-X"
     score = Accuracy().score(prediction=preds, actual=dm.test_data)
     do_log(res_name, score, logger)
 
 
-def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase):
+def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase) -> Prediction:
     """Follow Selection rules."""
     outcomes_hist(outcomes, logger)
     outcomes["decision"] = selection_rules(outcomes)
@@ -140,7 +142,7 @@ def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase
     return facct_mapper(Prediction(hard=outcomes["decision"]))
 
 
-def outcomes_hist(outcomes, logger):
+def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
     """Produce a distribution of the outcomes."""
     val_counts = (
         outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()

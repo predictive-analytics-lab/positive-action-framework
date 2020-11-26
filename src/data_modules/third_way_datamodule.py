@@ -1,9 +1,10 @@
 """Data Module for simple data."""
 import logging
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from ethicml import DataTuple, Prediction, implements
+from ethicml import Dataset, DataTuple, Prediction, implements
 from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
@@ -116,7 +117,13 @@ class ThirdWayDataModule(BaseDataModule):
         asdfasdf = facct_mapper(Prediction(hard=pd_results["decision"]))
         log.info(asdfasdf.info)
 
-    def scale_and_split(self, datatuple, dataset, train_indices, test_indices):
+    def scale_and_split(
+        self,
+        datatuple: DataTuple,
+        dataset: Dataset,
+        train_indices: np.ndarray,
+        test_indices: np.ndarray,
+    ) -> Tuple[DataTuple, DataTuple]:
         """Scale a datatuple and split to train/test."""
         train = DataTuple(
             x=datatuple.x.iloc[train_indices].reset_index(drop=True),

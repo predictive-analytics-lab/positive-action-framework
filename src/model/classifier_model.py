@@ -260,9 +260,9 @@ class Clf(CommonModel):
         assert recons is not None
         return recons.detach().cpu().numpy()
 
-    def from_recons(self, recons: List[Tensor]):
+    def from_recons(self, recons: List[Tensor]) -> Dict[str, Tuple[Tensor, ...]]:
         """Given recons, give all possible predictions."""
-        preds_dict = {}
+        preds_dict: Dict[str, Tuple[Tensor, ...]] = {}
 
         for i, rec in enumerate(recons):
             z, s_pred, preds = self(rec, torch.ones_like(rec[:, 0]) * i)

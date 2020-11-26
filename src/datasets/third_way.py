@@ -70,7 +70,7 @@ def third_way_data(
     binary_s: int,
     beta: float,
     xi: float,
-) -> Tuple[Dataset, DataTuple, DataTuple]:
+) -> Tuple[Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple]:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
     x_bar = make_x_bar(num_features=num_hidden_features, n=num_samples, random_state=num_gen)
