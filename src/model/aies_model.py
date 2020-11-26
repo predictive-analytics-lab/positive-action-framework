@@ -103,26 +103,13 @@ class AiesModel(AiesProperties):
         enc_z, enc_s_pred, recons = self.enc(x, s)
         return self.clf.from_recons(recons)
 
-    # def do_run(self, dm: LightningDataModule) -> pd.DataFrame:
-    #     """Run the enc and clf end-to-end."""
-    #     preds = {}
-    #     for x, s, y, _, _, _ in dm.test_dataloader():
-    #         asdf = self(x, s)
-    #         for k, v in asdf.items():
-    #             z, s_pred, y_pred = v
-    #             if k not in preds.keys():
-    #                 preds[k] = {"z": z, "s_pred": s_pred, "y_pred": y_pred}
-    #             else:
-    #                 preds[k] = {_k: cat([preds[k][_k], _v], dim=0) for _k, _v in preds[k].items()}
-    #     return preds
-
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        pass
+        """This is empty as we do not train the model end to end."""
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
-        pass
+        """This is empty as we do not train the model end to end."""
 
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
