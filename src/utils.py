@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from ethicml import Prediction
+from omegaconf import OmegaConf
+from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
 from torch import Tensor
 
@@ -167,3 +169,21 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
     for idx, val in val_counts.iteritems():
         do_log(f"Debugging2/Outcomes-{idx}", val, logger)
     plt.clf()
+
+
+def get_trainer(gpus, logger, max_epochs) -> Trainer:
+    """Get a trainer object set to the right device."""
+    if gpus > 0:
+        return Trainer(gpus=gpus, max_epochs=max_epochs, deterministic=True, logger=logger)
+    else:
+        return Trainer(max_epochs=max_epochs, deterministic=True, logger=logger)
+
+
+def get_wandb_logger(cfg):
+    """Get a wandb logger object."""
+    return WandbLogger(
+        entity="predictive-analytics-lab",
+        project="aies",
+        tags=cfg.training.tags.split("/")[:-1],
+        config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+    )

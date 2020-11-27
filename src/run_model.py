@@ -14,8 +14,7 @@ from ethicml import (
     metric_per_sensitive_attribute,
     ratio_per_sensitive_attribute,
 )
-from omegaconf import OmegaConf
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import WandbLogger
 
 from src.config_classes.dataclasses import Config
@@ -27,7 +26,7 @@ from src.model.aies_model import AiesModel
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
 from src.scoring import produce_baselines
-from src.utils import do_log, flatten, produce_selection_groups
+from src.utils import do_log, get_trainer, get_wandb_logger, produce_selection_groups
 
 log = logging.getLogger(__name__)
 
@@ -47,25 +46,9 @@ def run_aies(cfg: Config) -> None:
         feature_groups=data.feature_groups,
         column_names=data.column_names,
     )
-    wandb_logger = WandbLogger(
-        entity="predictive-analytics-lab",
-        project="aies",
-        tags=cfg.training.tags.split("/")[:-1],
-        config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
-    )
-    if cfg.training.gpus > 0:
-        enc_trainer = Trainer(
-            gpus=cfg.training.gpus,
-            max_epochs=cfg.training.enc_epochs,
-            logger=wandb_logger,
-            deterministic=True,
-        )
-    else:
-        enc_trainer = Trainer(
-            max_epochs=cfg.training.enc_epochs,
-            logger=wandb_logger,
-            deterministic=True,
-        )
+    wandb_logger = get_wandb_logger(cfg)
+
+    enc_trainer = get_trainer(cfg.training.gpus, wandb_logger, cfg.training.enc_epochs)
     enc_trainer.fit(encoder, datamodule=data)
     enc_trainer.test(ckpt_path=None, datamodule=data)
 
@@ -77,27 +60,12 @@ def run_aies(cfg: Config) -> None:
         cf_available=data.cf_available,
         outcome_cols=data.outcome_columns,
     )
-    if cfg.training.gpus > 0:
-        clf_trainer = Trainer(
-            gpus=cfg.training.gpus,
-            max_epochs=cfg.training.clf_epochs,
-            logger=wandb_logger,
-            deterministic=True,
-        )
-    else:
-        clf_trainer = Trainer(
-            max_epochs=cfg.training.clf_epochs,
-            logger=wandb_logger,
-            deterministic=True,
-        )
+    clf_trainer = get_trainer(cfg.training.gpus, wandb_logger, cfg.training.clf_epochs)
     clf_trainer.fit(classifier, datamodule=data)
     clf_trainer.test(ckpt_path=None, datamodule=data)
 
     model = AiesModel(encoder=encoder, classifier=classifier)
-    if cfg.training.gpus > 0:
-        model_trainer = Trainer(gpus=cfg.training.gpus, max_epochs=0, deterministic=True, logger=wandb_logger)
-    else:
-        model_trainer = Trainer(max_epochs=0, deterministic=True, logger=wandb_logger)
+    model_trainer = get_trainer(cfg.training.gpus, wandb_logger, 0)
     model_trainer.fit(model, datamodule=data)
     model_trainer.test(ckpt_path=None, datamodule=data)
 
