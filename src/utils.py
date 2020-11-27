@@ -15,6 +15,7 @@ from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
 from torch import Tensor
 
 import wandb
+from src.config_classes.dataclasses import Config
 
 log = logging.getLogger(__name__)
 
@@ -171,7 +172,7 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
     plt.clf()
 
 
-def get_trainer(gpus, logger, max_epochs) -> Trainer:
+def get_trainer(gpus: int, logger: LightningLoggerBase, max_epochs: int) -> Trainer:
     """Get a trainer object set to the right device."""
     if gpus > 0:
         return Trainer(gpus=gpus, max_epochs=max_epochs, deterministic=True, logger=logger)
@@ -179,7 +180,7 @@ def get_trainer(gpus, logger, max_epochs) -> Trainer:
         return Trainer(max_epochs=max_epochs, deterministic=True, logger=logger)
 
 
-def get_wandb_logger(cfg):
+def get_wandb_logger(cfg: Config) -> WandbLogger:
     """Get a wandb logger object."""
     return WandbLogger(
         entity="predictive-analytics-lab",

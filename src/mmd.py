@@ -116,28 +116,19 @@ def _mix_rbf_kernel(
     return k_xx, k_xy, k_yy, sum(wts)
 
 
-def _mmd2(
-    k_xx: Tensor, k_xy: Tensor, k_yy: Tensor, const_diagonal: float = 0.0, biased: bool = False
-) -> Tensor:
+def _mmd2(k_xx: Tensor, k_xy: Tensor, k_yy: Tensor, const_diagonal: float = 0.0, biased: bool = False) -> Tensor:
     m = k_xx.size(0)
     n = k_yy.size(0)
 
     if biased:
-        mmd2 = k_xx.sum() / (m * m) + k_yy.sum() / (n * n) - 2 * k_xy.sum() / (m * n)
+        return k_xx.sum() / (m * m) + k_yy.sum() / (n * n) - 2 * k_xy.sum() / (m * n)
+    if const_diagonal is not False:
+        trace_x = torch.tensor(m)
+        trace_y = torch.tensor(n)
     else:
-        if const_diagonal is not False:
-            trace_x = torch.tensor(m)
-            trace_y = torch.tensor(n)
-        else:
-            trace_x = k_xx.trace()
-            trace_y = k_yy.trace()
-        mmd2 = (
-            (k_xx.sum() - trace_x) / (m * (m - 1))
-            + (k_yy.sum() - trace_y) / (n * (n - 1))
-            - (2 * k_xy.sum() / (m * n))
-        )
-
-    return mmd2
+        trace_x = k_xx.trace()
+        trace_y = k_yy.trace()
+    return (k_xx.sum() - trace_x) / (m * (m - 1)) + (k_yy.sum() - trace_y) / (n * (n - 1)) - (2 * k_xy.sum() / (m * n))
 
 
 def mmd2(

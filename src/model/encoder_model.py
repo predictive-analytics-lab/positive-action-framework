@@ -32,9 +32,7 @@ class BaseModel(nn.Module):
             self.hid = nn.Identity()
             self.out = nn.Linear(in_size, out_size)
         else:
-            _blocks = [block(in_dim=in_size, out_dim=hid_size)] + mid_blocks(
-                latent_dim=hid_size, blocks=blocks
-            )
+            _blocks = [block(in_dim=in_size, out_dim=hid_size)] + mid_blocks(latent_dim=hid_size, blocks=blocks)
             self.hid = nn.Sequential(*_blocks)
             self.out = nn.Linear(hid_size, out_size)
         nn.init.xavier_normal_(self.out.weight)
@@ -146,7 +144,7 @@ class AE(CommonModel):
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
         if self.cf_model:
-            x, s, y, cf_x, cf_s, cf_y = batch
+            x, s, _, cf_x, cf_s, _ = batch
         else:
             x, s, y = batch
         z, s_pred, recons = self(x, s)
@@ -171,7 +169,7 @@ class AE(CommonModel):
 
         if self.cf_model:
             with no_grad():
-                cf_z, _, cf_recons = self(cf_x, cf_s)
+                _, _, cf_recons = self(cf_x, cf_s)
                 cf_recon_loss = l1_loss(index_by_s(cf_recons, cf_s), cf_x, reduction="mean")
                 cf_loss = cf_recon_loss - 1e-6
                 to_log["training_enc/cf_loss"] = cf_loss
@@ -193,9 +191,9 @@ class AE(CommonModel):
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
         if self.cf_model:
-            x, s, y, cf_x, cf_s, cf_y = batch
+            x, s, _, cf_x, cf_s, _ = batch
         else:
-            x, s, y = batch
+            x, s, _ = batch
         z, _, recons = self(x, s)
 
         to_return = {
@@ -225,18 +223,12 @@ class AE(CommonModel):
         logger.info(self.data_cols)
         make_plot(x=all_x, s=all_s, logger=self.logger, name="true_data", cols=self.data_cols)
         make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons", cols=self.data_cols)
-        # make_plot(x=recon_0, s=all_s, logger=self.logger, name="recons_all_s0", cols=self.data_cols)
-        # make_plot(x=recon_1, s=all_s, logger=self.logger, name="recons_all_s1", cols=self.data_cols)
-        make_plot(
-            x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)]
-        )
+        make_plot(x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)])
         recon_mse = (all_x - all_recon).mean(dim=0).abs()
         for i, feature_mse in enumerate(recon_mse):
             feature_name = self.data_cols[i]
             logger.info(f"recon mad - feature {feature_name}: {feature_mse.item():.5f}")
-            self.logger.experiment.log(
-                {f"Table6/recon_mad - feature {feature_name}": round(feature_mse.item(), 5)}
-            )
+            self.logger.experiment.log({f"Table6/recon_mad - feature {feature_name}": round(feature_mse.item(), 5)})
 
         if self.cf_model:
             all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
@@ -248,9 +240,7 @@ class AE(CommonModel):
                 name="true_counterfactual",
                 cols=self.data_cols,
             )
-            make_plot(
-                x=cf_recon, s=all_s, logger=self.logger, name="cf_recons", cols=self.data_cols
-            )
+            make_plot(x=cf_recon, s=all_s, logger=self.logger, name="cf_recons", cols=self.data_cols)
 
             recon_mse = (all_cf_x - cf_recon).mean(dim=0).abs()
             for i, feature_mse in enumerate(recon_mse):
