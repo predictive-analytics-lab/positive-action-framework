@@ -115,6 +115,16 @@ class BaseDataModule(LightningDataModule):
         self._train_tuple = datatuple
 
     @property
+    def true_train_data(self) -> DataTuple:
+        assert self._true_train_tuple is not None
+        assert self.cf_available
+        return self._true_train_tuple  # type: ignore[unreachable]
+
+    @true_train_data.setter
+    def true_train_data(self, datatuple: DataTuple) -> None:
+        self._true_train_tuple = datatuple
+
+    @property
     def test_data(self) -> DataTuple:
         assert self._test_tuple is not None
         return self._test_tuple  # type: ignore[unreachable]
@@ -122,3 +132,13 @@ class BaseDataModule(LightningDataModule):
     @test_data.setter
     def test_data(self, datatuple: DataTuple) -> None:
         self._test_tuple = datatuple
+
+    @property
+    def true_test_data(self) -> DataTuple:
+        assert self._true_test_tuple is not None
+        assert self.cf_available
+        return self._true_test_tuple  # type: ignore[unreachable]
+
+    @true_test_data.setter
+    def true_test_data(self, datatuple: DataTuple) -> None:
+        self._true_test_tuple = datatuple

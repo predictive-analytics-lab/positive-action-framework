@@ -39,7 +39,16 @@ class ThirdWayDataModule(BaseDataModule):
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
-        (dataset, true_data, cf_data, s1_0_s2_0_data, s1_0_s2_1_data, s1_1_s2_0_data, s1_1_s2_1_data,) = third_way_data(
+        (
+            dataset,
+            factual_data,
+            cf_data,
+            data_true_outcome,
+            s1_0_s2_0_data,
+            s1_0_s2_1_data,
+            s1_1_s2_0_data,
+            s1_1_s2_1_data,
+        ) = third_way_data(
             seed=self.seed,
             num_samples=self.num_samples,
             alpha=self.alpha,
@@ -52,27 +61,30 @@ class ThirdWayDataModule(BaseDataModule):
             num_hidden_features=self.num_hidden_features,
         )
         self.dataset = dataset
-        self.true_data = true_data
+        self.factual_data = factual_data
         self.cf_data = cf_data
         self.s1_0_s2_0_data = s1_0_s2_0_data
         self.s1_0_s2_1_data = s1_0_s2_1_data
         self.s1_1_s2_0_data = s1_1_s2_0_data
         self.s1_1_s2_1_data = s1_1_s2_1_data
-        self.num_s = true_data.s.nunique().values[0]
-        self.data_dim = true_data.x.shape[1]
-        self.s_dim = true_data.s.shape[1]
-        self.column_names = true_data.x.columns
-        self.outcome_columns = true_data.y.columns
+        self.num_s = factual_data.s.nunique().values[0]
+        self.data_dim = factual_data.x.shape[1]
+        self.s_dim = factual_data.s.shape[1]
+        self.column_names = factual_data.x.columns
+        self.outcome_columns = factual_data.y.columns
 
-        num_train = int(self.true_data.x.shape[0] * 0.8)
+        num_train = int(self.factual_data.x.shape[0] * 0.8)
         rng = np.random.RandomState(self.seed)
-        idx = rng.permutation(self.true_data.x.index)
+        idx = rng.permutation(self.factual_data.x.index)
         train_indices = idx[:num_train]
         test_indices = idx[num_train:]
 
-        self.make_feature_groups(dataset, true_data)
+        self.make_feature_groups(dataset, factual_data)
 
-        self.train_data, self.test_data = self.scale_and_split(self.true_data, dataset, train_indices, test_indices)
+        self.train_data, self.test_data = self.scale_and_split(self.factual_data, dataset, train_indices, test_indices)
+        self.true_train_data, self.true_test_data = self.scale_and_split(
+            data_true_outcome, dataset, train_indices, test_indices
+        )
         self.cf_train, self.cf_test = self.scale_and_split(self.cf_data, dataset, train_indices, test_indices)
         self.s1_0_s2_0_train, self.s1_0_s2_0_test = self.scale_and_split(
             self.s1_0_s2_0_data, dataset, train_indices, test_indices

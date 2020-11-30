@@ -85,6 +85,10 @@ def run_aies(cfg: Config) -> None:
             log.info(f"=== {model.name} ===")
             results = model.run(data.train_data, data.test_data)
             multiple_metrics(results, data.test_data, model.name, wandb_logger)
+            if data.cf_available:
+                log.info(f"=== {model.name} and \"True\" Data ===")
+                results = model.run(data.train_data, data.test_data)
+                multiple_metrics(results, data.true_test_data, f"{model.name}-TrueLabels", wandb_logger)
 
     wandb_logger.experiment.finish()
 

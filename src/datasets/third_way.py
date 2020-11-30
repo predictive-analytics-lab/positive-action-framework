@@ -89,16 +89,12 @@ def third_way_data(
         tmp_cf_s = counterfactual_s
     else:
         temp_s = make_s(alpha, num_samples, np.random.default_rng(seed + 9), binary_s=binary_s == 1)
-        tmp_cf_s = (
-            np.ones_like(temp_s) - temp_s if binary_s == 1 else np.zeros_like(temp_s) - temp_s
-        )
+        tmp_cf_s = np.ones_like(temp_s) - temp_s if binary_s == 1 else np.zeros_like(temp_s) - temp_s
 
     dx = make_dx(x_bar=x_bar, s=temp_s, gamma=gamma, binary_s=binary_s == 1)
     dx_df = pd.DataFrame(dx, columns=[f"dx_{i}" for i in range(dx.shape[1])])
     counterfactual_dx = make_dx(x_bar, tmp_cf_s, gamma=gamma, binary_s=binary_s == 1)
-    counterfactual_dx_df = pd.DataFrame(
-        counterfactual_dx, columns=[f"dx_{i}" for i in range(dx.shape[1])]
-    )
+    counterfactual_dx_df = pd.DataFrame(counterfactual_dx, columns=[f"dx_{i}" for i in range(dx.shape[1])])
     s0_dx = make_dx(x_bar, s0, gamma=gamma, binary_s=binary_s == 1)
     s0_dx_df = pd.DataFrame(s0_dx, columns=[f"dx_{i}" for i in range(dx.shape[1])])
     s1_dx = make_dx(x_bar, s1, gamma=gamma, binary_s=binary_s == 1)
@@ -136,7 +132,7 @@ def third_way_data(
 
     y_true_threshold = y_true_bar.quantile([0.75]).values[0][0]
 
-    (y_true_bar > y_true_threshold).astype(int)
+    y_true = (y_true_bar > y_true_threshold).astype(int)
     (counterfactual_y_true_bar > y_true_threshold).astype(int)
     (s0_y_true_bar > y_true_threshold).astype(int)
     (s1_y_true_bar > y_true_threshold).astype(int)
@@ -159,7 +155,7 @@ def third_way_data(
     s1_1_s2_1_y_df, _ = make_y(s1_y_bar, s1_df, beta=beta, threshold=threshold)
     s1_1_s2_1_y_df = s1_1_s2_1_y_df.rename(columns={"y": "outcome"})
 
-    data = pd.concat([x_df, s_df, y_df], axis=1).sort_index()
+    data = pd.concat([x_df, s_df, y_df, y_true], axis=1).sort_index()
     counterfactual_data = pd.concat([cf_x_df, cf_s_df, cf_y_df], axis=1).sort_index()
     s1_0_s2_0_data = pd.concat([s0_x_df, s0_df, s1_0_s2_0_y_df], axis=1).sort_index()
     s1_0_s2_1_data = pd.concat([s0_x_df, s0_df, s1_0_s2_1_y_df], axis=1).sort_index()
@@ -196,6 +192,7 @@ def third_way_data(
             s=counterfactual_data[s_df.columns],
             y=counterfactual_data[y_df.columns],
         ),
+        DataTuple(x=data[x_df.columns], s=data[s_df.columns], y=data[y_true.columns]),
         DataTuple(
             x=s1_0_s2_0_data[x_df.columns],
             s=s1_0_s2_0_data[s_df.columns],
