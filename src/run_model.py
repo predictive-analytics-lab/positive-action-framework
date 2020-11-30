@@ -19,9 +19,7 @@ from pytorch_lightning.loggers import WandbLogger
 
 from src.config_classes.dataclasses import Config
 from src.data_modules.create import create_data_module
-from src.ethicml_extension.dp_oracle import DPOracle
-from src.ethicml_extension.eq_opp_oracle import EqOppOracle
-from src.ethicml_extension.oracle import Oracle
+from src.ethicml_extension.oracle import DPOracle, EqOppOracle, Oracle
 from src.model.aies_model import AiesModel
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
@@ -83,7 +81,7 @@ def run_aies(cfg: Config) -> None:
     produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
 
     if cfg.training.all_baselines:
-        for model in [LRCV(), Oracle(), DPOracle(0.25), EqOppOracle(0.25)]:
+        for model in [LRCV(), Oracle(), DPOracle(), EqOppOracle()]:
             log.info(f"=== {model.name} ===")
             results = model.run(data.train_data, data.test_data)
             multiple_metrics(results, data.test_data, model.name, wandb_logger)

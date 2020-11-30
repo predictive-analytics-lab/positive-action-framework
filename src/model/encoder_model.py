@@ -152,7 +152,6 @@ class AE(CommonModel):
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
-            # + z.norm(dim=1).mean()
         ) / 2
         loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
 
