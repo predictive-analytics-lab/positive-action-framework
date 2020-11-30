@@ -1,7 +1,9 @@
 """Scoring functions."""
+from copy import copy
+
 import numpy as np
 import pandas as pd
-from ethicml import Accuracy, Prediction
+from ethicml import Accuracy, DataTuple, Prediction
 from pytorch_lightning.loggers import LightningLoggerBase
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import KFold
@@ -62,3 +64,100 @@ def produce_baselines(*, encoder: CommonModel, dm: BaseDataModule, logger: Light
     train_recon = encoder.get_recon(dm.train_dataloader(shuffle=False, drop_last=False))
     test_recon = encoder.get_recon(dm.test_dataloader())
     lrcv_results(train_recon, test_recon, dm, logger, recon_name)
+
+
+def get_miri_metrics(
+    method: str,
+    acceptance: DataTuple,
+    graduated: DataTuple,
+    logger,
+    y_denotation: str = "Y",
+    s_denotation: str = "S",
+    ty_denotation: str = "Ty",
+) -> None:
+    """Get miri requested metrics."""
+    data = copy(acceptance)
+    data_y_true = copy(graduated)
+
+    num_points = data.y.shape[0]
+    sum_y_is_ty = sum((data.y.values - data_y_true.y.values) == 0)
+
+    do_log(f"{method} - P({y_denotation}={ty_denotation})", sum_y_is_ty / num_points, logger)
+
+    sum_y_is_ty_given_s0 = sum(
+        (data.y[data.s[data.s.columns[0]] == 0].values - data_y_true.y[data.s[data.s.columns[0]] == 0].values) == 0
+    )
+    num_s0 = data.y[data.s[data.s.columns[0]] == 0].shape[0]
+
+    sum_y_is_ty_given_s1 = sum(
+        (data.y[data.s[data.s.columns[0]] == 1].values - data_y_true.y[data.s[data.s.columns[0]] == 1].values) == 0
+    )
+    num_s1 = data.y[data.s[data.s.columns[0]] == 1].shape[0]
+
+    do_log(f"{method} - P({y_denotation}={ty_denotation}|{s_denotation}=0)", sum_y_is_ty_given_s0 / num_s0, logger)
+    do_log(f"{method} - P({y_denotation}={ty_denotation}|{s_denotation}=1)", sum_y_is_ty_given_s1 / num_s1, logger)
+
+    for y_val in [0, 1]:
+        result = data.y[data.y.columns[0]] == y_val
+        do_log(f"{method} - P({y_denotation}={y_val})", result.sum() / result.count(), logger)
+
+    for ty_val in [0, 1]:
+        result = data_y_true.y[data_y_true.y.columns[0]] == ty_val
+        do_log(f"{method} - P({ty_denotation}={ty_val})", result.sum() / result.count(), logger)
+
+    for y_val in [0, 1]:
+        for s_val in [0, 1]:
+            result = data.y[data.s[data.s.columns[0]] == s_val][data.y.columns[0]] == y_val
+            do_log(
+                f"{method} - P({y_denotation}={y_val}|{s_denotation}={s_val})", result.sum() / result.count(), logger
+            )
+
+    for y_val in [0, 1]:
+        for ty_val in [0, 1]:
+            result = data.y[data_y_true.y[data_y_true.y.columns[0]] == ty_val][data.y.columns[0]] == y_val
+            do_log(
+                f"{method} - P({y_denotation}={y_val}|{ty_denotation}={ty_val})", result.sum() / result.count(), logger
+            )
+
+    for y_val in [0, 1]:
+        for ty_val in [0, 1]:
+            result = data_y_true.y[data.y[data.y.columns[0]] == y_val][data_y_true.y.columns[0]] == ty_val
+            do_log(
+                f"{method} - P({ty_denotation}={ty_val}|{y_denotation}={y_val})", result.sum() / result.count(), logger
+            )
+
+    for s_val in [0, 1]:
+        for ty_val in [0, 1]:
+            result = data_y_true.y[data.s[data.s.columns[0]] == s_val][data_y_true.y.columns[0]] == ty_val
+            do_log(
+                f"{method} - P({ty_denotation}={ty_val}|{s_denotation}={s_val})", result.sum() / result.count(), logger
+            )
+
+    for s_val in [0, 1]:
+        for y_val in [0, 1]:
+            result = data.y[data.s[data.s.columns[0]] == s_val][data.y.columns[0]] == y_val
+            do_log(
+                f"{method} - P({y_denotation}={y_val}|{s_denotation}={s_val})", result.sum() / result.count(), logger
+            )
+
+    for s_val in [0, 1]:
+        for ty_val in [0, 1]:
+            result = data_y_true.y[data.s[data.s.columns[0]] == s_val][data_y_true.y.columns[0]] == ty_val
+            do_log(
+                f"{method} - P({ty_denotation}={ty_val}|{s_denotation}={s_val})", result.sum() / result.count(), logger
+            )
+
+    for s_val in [0, 1]:
+        for ty_val in [0, 1]:
+            for y_val in [0, 1]:
+                result = (
+                    data_y_true.y[(data.y[data.y.columns[0]] == y_val) & (data.s[data.s.columns[0]] == s_val)][
+                        data_y_true.y.columns[0]
+                    ]
+                    == ty_val
+                )
+                do_log(
+                    f"{method} - P({ty_denotation}={ty_val}|{s_denotation}={s_val},{y_denotation}={y_val})",
+                    result.sum() / result.count(),
+                    logger,
+                )
