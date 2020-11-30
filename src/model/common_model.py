@@ -21,6 +21,8 @@ class CommonModel(LightningModule):
                 x, s, y, cf_x, cf_s, cf_y = batch
             else:
                 x, s, y = batch
+            x = x.to(self.device)
+            s = s.to(self.device)
             z, _, _ = self(x, s)
             latent = z if latent is None else torch.cat([latent, z], dim=0)  # type: ignore[unreachable]
         assert latent is not None

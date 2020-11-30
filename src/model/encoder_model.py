@@ -263,6 +263,8 @@ class AE(CommonModel):
                 x, s, y, cf_x, cf_s, cf_y = batch
             else:
                 x, s, y = batch
+            x = x.to(self.device)
+            s = s.to(self.device)
             _, _, _r = self(x, s)
             r = self.invert(index_by_s(_r, s))
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
