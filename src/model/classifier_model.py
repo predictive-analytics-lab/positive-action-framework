@@ -214,6 +214,8 @@ class Clf(CommonModel):
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         recons = None
         for x, s, y, _, _, _ in dataloader:
+            x = x.to(self.device)
+            s = s.to(self.device)
             _, _, _r = self(x, s)
             r = self.threshold(index_by_s(_r, s))
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
