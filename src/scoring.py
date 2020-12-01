@@ -97,54 +97,60 @@ def get_miri_metrics(
     do_log(f"{method} - P({y_denotation}={ty_denotation}|{s_denotation}=0)", sum_y_is_ty_given_s0 / num_s0, logger)
     do_log(f"{method} - P({y_denotation}={ty_denotation}|{s_denotation}=1)", sum_y_is_ty_given_s1 / num_s1, logger)
 
-    for y_val in [0, 1]:
-        result = data.y[data.y.columns[0]] == y_val
-        do_log(f"{method} - P({y_denotation}={y_val})", result.sum() / result.count(), logger)
+    for val in [0, 1]:
+        # P(y^=val)
+        result = data.y[data.y.columns[0]] == val
+        do_log(f"{method} - P({y_denotation}={val})", result.sum() / result.count(), logger)
 
-    for ty_val in [0, 1]:
-        result = data_y_true.y[data_y_true.y.columns[0]] == ty_val
-        do_log(f"{method} - P({ty_denotation}={ty_val})", result.sum() / result.count(), logger)
+        # P(Ty=val)
+        result = data_y_true.y[data_y_true.y.columns[0]] == val
+        do_log(f"{method} - P({ty_denotation}={val})", result.sum() / result.count(), logger)
 
-    for y_val in [0, 1]:
-        for s_val in [0, 1]:
-            result = data.y[data.s[data.s.columns[0]] == s_val][data.y.columns[0]] == y_val
+    for outer_val in [0, 1]:
+        for inner_val in [0, 1]:
+            # P(y^=outer | S=inner)
+            result = data.y[data.s[data.s.columns[0]] == inner_val][data.y.columns[0]] == outer_val
             do_log(
-                f"{method} - P({y_denotation}={y_val}|{s_denotation}={s_val})", result.sum() / result.count(), logger
+                f"{method} - P({y_denotation}={outer_val}|{s_denotation}={inner_val})",
+                result.sum() / result.count(),
+                logger,
             )
 
-    for y_val in [0, 1]:
-        for ty_val in [0, 1]:
-            result = data.y[data_y_true.y[data_y_true.y.columns[0]] == ty_val][data.y.columns[0]] == y_val
+            # P(y^=outer | Ty=inner)
+            result = data.y[data_y_true.y[data_y_true.y.columns[0]] == inner_val][data.y.columns[0]] == outer_val
             do_log(
-                f"{method} - P({y_denotation}={y_val}|{ty_denotation}={ty_val})", result.sum() / result.count(), logger
+                f"{method} - P({y_denotation}={outer_val}|{ty_denotation}={inner_val})",
+                result.sum() / result.count(),
+                logger,
             )
 
-    for y_val in [0, 1]:
-        for ty_val in [0, 1]:
-            result = data_y_true.y[data.y[data.y.columns[0]] == y_val][data_y_true.y.columns[0]] == ty_val
+            # P(Ty=outer | y^=inner)
+            result = data_y_true.y[data.y[data.y.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
             do_log(
-                f"{method} - P({ty_denotation}={ty_val}|{y_denotation}={y_val})", result.sum() / result.count(), logger
+                f"{method} - P({ty_denotation}={inner_val}|{y_denotation}={outer_val})",
+                result.sum() / result.count(),
+                logger,
             )
 
-    for s_val in [0, 1]:
-        for ty_val in [0, 1]:
-            result = data_y_true.y[data.s[data.s.columns[0]] == s_val][data_y_true.y.columns[0]] == ty_val
+            result = data_y_true.y[data.s[data.s.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
             do_log(
-                f"{method} - P({ty_denotation}={ty_val}|{s_denotation}={s_val})", result.sum() / result.count(), logger
+                f"{method} - P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
+                result.sum() / result.count(),
+                logger,
             )
 
-    for s_val in [0, 1]:
-        for y_val in [0, 1]:
-            result = data.y[data.s[data.s.columns[0]] == s_val][data.y.columns[0]] == y_val
+            result = data.y[data.s[data.s.columns[0]] == outer_val][data.y.columns[0]] == inner_val
             do_log(
-                f"{method} - P({y_denotation}={y_val}|{s_denotation}={s_val})", result.sum() / result.count(), logger
+                f"{method} - P({y_denotation}={inner_val}|{s_denotation}={outer_val})",
+                result.sum() / result.count(),
+                logger,
             )
 
-    for s_val in [0, 1]:
-        for ty_val in [0, 1]:
-            result = data_y_true.y[data.s[data.s.columns[0]] == s_val][data_y_true.y.columns[0]] == ty_val
+            result = data_y_true.y[data.s[data.s.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
             do_log(
-                f"{method} - P({ty_denotation}={ty_val}|{s_denotation}={s_val})", result.sum() / result.count(), logger
+                f"{method} - P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
+                result.sum() / result.count(),
+                logger,
             )
 
     for s_val in [0, 1]:

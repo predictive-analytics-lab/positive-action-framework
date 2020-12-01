@@ -92,13 +92,9 @@ def third_way_data(
         tmp_cf_s = np.ones_like(temp_s) - temp_s if binary_s == 1 else np.zeros_like(temp_s) - temp_s
 
     dx = make_dx(x_bar=x_bar, s=temp_s, gamma=gamma, binary_s=binary_s == 1)
-    dx_df = pd.DataFrame(dx, columns=[f"dx_{i}" for i in range(dx.shape[1])])
     counterfactual_dx = make_dx(x_bar, tmp_cf_s, gamma=gamma, binary_s=binary_s == 1)
-    counterfactual_dx_df = pd.DataFrame(counterfactual_dx, columns=[f"dx_{i}" for i in range(dx.shape[1])])
     s0_dx = make_dx(x_bar, s0, gamma=gamma, binary_s=binary_s == 1)
-    s0_dx_df = pd.DataFrame(s0_dx, columns=[f"dx_{i}" for i in range(dx.shape[1])])
     s1_dx = make_dx(x_bar, s1, gamma=gamma, binary_s=binary_s == 1)
-    s1_dx_df = pd.DataFrame(s1_dx, columns=[f"dx_{i}" for i in range(dx.shape[1])])
 
     x = make_x(dx, s, xi=xi, n=num_features)
     x_df = pd.DataFrame(x, columns=[f"x_{i}" for i in range(x.shape[1])])

@@ -132,20 +132,16 @@ class EqOppFlip(FlipBase):
         return preds
 
     def _fit(self, test: DataTuple, preds: Prediction) -> Tuple[int, int]:
-        preds_0 = preds.hard[preds.hard == 0]
         preds_1 = preds.hard[preds.hard == 1]
         s_0 = test.s[test.s[test.s.columns[0]] == 0]
         s_1 = test.s[test.s[test.s.columns[0]] == 1]
-        y_0 = test.y[test.y[test.y.columns[0]] == 0]
         y_1 = test.y[test.y[test.y.columns[0]] == 1]
 
         r0 = preds.hard[(s_0.index) & (y_1.index) & (preds_1.index)].count()  # type: ignore[operator]
         r1 = preds.hard[(s_1.index) & (y_1.index) & (preds_1.index)].count()  # type: ignore[operator]
 
         # Naming is nSY
-        n00 = preds.hard[(s_0.index) & (y_0.index)].count()  # type: ignore[operator]
         n01 = preds.hard[(s_0.index) & (y_1.index)].count()  # type: ignore[operator]
-        n10 = preds.hard[(s_1.index) & (y_0.index)].count()  # type: ignore[operator]
         n11 = preds.hard[(s_1.index) & (y_1.index)].count()  # type: ignore[operator]
 
         a = r1 - ((n11 * r0) / n01)

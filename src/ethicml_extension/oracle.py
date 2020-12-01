@@ -3,6 +3,8 @@ from ethicml import LRCV, DataTuple, InAlgorithm, Prediction, TestTuple, impleme
 
 from src.ethicml_extension.flip import DPFlip, EqOppFlip
 
+MUST_BE_DATATUPLE = "test must be a DataTuple."
+
 
 class Oracle(InAlgorithm):
     """A perfect predictor.
@@ -18,7 +20,7 @@ class Oracle(InAlgorithm):
 
     @implements(InAlgorithm)
     def run(self, train: DataTuple, test: TestTuple) -> Prediction:
-        assert isinstance(test, DataTuple), "test must be a DataTuple."
+        assert isinstance(test, DataTuple), MUST_BE_DATATUPLE
         return Prediction(hard=test.y[test.y.columns[0]].copy())
 
 
@@ -36,7 +38,7 @@ class DPOracle(InAlgorithm):
 
     @implements(InAlgorithm)
     def run(self, train: DataTuple, test: TestTuple) -> Prediction:
-        assert isinstance(test, DataTuple), "test must be a DataTuple."
+        assert isinstance(test, DataTuple), MUST_BE_DATATUPLE
         flipper = DPFlip()
         test_preds = Prediction(test.y[test.y.columns[0]].copy())
         return flipper.run(test_preds, test, test_preds, test)
@@ -56,7 +58,7 @@ class EqOppOracle(InAlgorithm):
 
     @implements(InAlgorithm)
     def run(self, train: DataTuple, test: TestTuple) -> Prediction:
-        assert isinstance(test, DataTuple), "test must be a DataTuple."
+        assert isinstance(test, DataTuple), MUST_BE_DATATUPLE
         flipper = EqOppFlip()
         test_preds = LRCV().run(train, test)  # Prediction(test.y[test.y.columns[0]].copy())
         return flipper.run(test_preds, test, test_preds, test)

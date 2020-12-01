@@ -144,10 +144,6 @@ class ThirdWayDataModule(BaseDataModule):
             CFDataTupleDataset(
                 self.train_data,
                 cf_dataset=self.cf_train,
-                # s1_0_s2_0_dataset=self.s1_0_s2_0_data,
-                # s1_0_s2_1_dataset=self.s1_0_s2_1_data,
-                # s1_1_s2_0_dataset=self.s1_1_s2_0_data,
-                # s1_1_s2_1_dataset=self.s1_1_s2_1_data,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.cont_features,
             ),
@@ -163,10 +159,6 @@ class ThirdWayDataModule(BaseDataModule):
             CFDataTupleDataset(
                 self.test_data,
                 cf_dataset=self.cf_test,
-                # s1_0_s2_0_dataset=self.s1_0_s2_0_data,
-                # s1_0_s2_1_dataset=self.s1_0_s2_1_data,
-                # s1_1_s2_0_dataset=self.s1_1_s2_0_data,
-                # s1_1_s2_1_dataset=self.s1_1_s2_1_data,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.cont_features,
             ),
