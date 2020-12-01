@@ -28,6 +28,7 @@ class SimpleXConfig(DataConfig):
 class ThirdWayConfig(DataConfig):
     """Third Way dataset config schema."""
 
+    acceptance_rate: float = MISSING
     alpha: float = MISSING
     beta: float = MISSING
     gamma: float = MISSING

@@ -80,18 +80,18 @@ def get_miri_metrics(
     data_y_true = copy(graduated)
 
     num_points = data.y.shape[0]
-    sum_y_is_ty = sum((data.y.values - data_y_true.y.values) == 0)
+    sum_y_is_ty = sum((data.y.values - data_y_true.y.values) == 0)[0]
 
     do_log(f"{method} - P({y_denotation}={ty_denotation})", sum_y_is_ty / num_points, logger)
 
     sum_y_is_ty_given_s0 = sum(
         (data.y[data.s[data.s.columns[0]] == 0].values - data_y_true.y[data.s[data.s.columns[0]] == 0].values) == 0
-    )
+    )[0]
     num_s0 = data.y[data.s[data.s.columns[0]] == 0].shape[0]
 
     sum_y_is_ty_given_s1 = sum(
         (data.y[data.s[data.s.columns[0]] == 1].values - data_y_true.y[data.s[data.s.columns[0]] == 1].values) == 0
-    )
+    )[0]
     num_s1 = data.y[data.s[data.s.columns[0]] == 1].shape[0]
 
     do_log(f"{method} - P({y_denotation}={ty_denotation}|{s_denotation}=0)", sum_y_is_ty_given_s0 / num_s0, logger)

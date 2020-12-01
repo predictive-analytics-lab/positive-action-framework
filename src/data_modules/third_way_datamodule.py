@@ -23,6 +23,7 @@ class ThirdWayDataModule(BaseDataModule):
 
     def __init__(self, cfg: ThirdWayConfig):
         super().__init__()
+        self.acceptance_rate = cfg.acceptance_rate
         self.alpha = cfg.alpha
         self.beta = cfg.beta
         self._cf_available = True
@@ -51,6 +52,7 @@ class ThirdWayDataModule(BaseDataModule):
         ) = third_way_data(
             seed=self.seed,
             num_samples=self.num_samples,
+            acceptance_rate=self.acceptance_rate,
             alpha=self.alpha,
             gamma=self.gamma,
             random_shift=0,
