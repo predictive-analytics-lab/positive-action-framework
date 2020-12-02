@@ -48,7 +48,7 @@ def produce_baselines(*, encoder: CommonModel, dm: BaseDataModule, logger: Light
     """Produce baselines for predictiveness."""
     latent_train = encoder.get_latent(dm.train_dataloader(shuffle=False, drop_last=False))
     latent_test = encoder.get_latent(dm.test_dataloader())
-    lrcv_results(latent_train, latent_test, dm, logger, "Enc-Z")
+    lrcv_results(latent_train, latent_test, dm, logger, f"{encoder.model_name}-Z")
 
     if isinstance(encoder, AE):
         train = dm.train_data.x.to_numpy()

@@ -97,7 +97,7 @@ class AE(CommonModel):
         feature_groups: Dict[str, List[slice]],
         column_names: List[str],
     ):
-        super().__init__()
+        super().__init__(name="Enc")
         self.enc = Encoder(
             in_size=data_dim + s_dim if cfg.s_as_input else data_dim,
             latent_dim=cfg.latent_dims,

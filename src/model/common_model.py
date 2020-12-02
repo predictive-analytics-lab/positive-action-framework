@@ -10,8 +10,9 @@ from torch.utils.data import DataLoader
 class CommonModel(LightningModule):
     """Base Model for each component."""
 
-    def __init__(self) -> None:
+    def __init__(self, name: str) -> None:
         super().__init__()
+        self.model_name = name
 
     def get_latent(self, dataloader: DataLoader) -> np.ndarray:
         """Get Latents to be used post train/test."""

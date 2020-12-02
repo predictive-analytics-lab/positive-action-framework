@@ -72,7 +72,7 @@ class Clf(CommonModel):
     def __init__(
         self, cfg: ModelConfig, num_s: int, data_dim: int, s_dim: int, cf_available: bool, outcome_cols: List[str]
     ):
-        super().__init__()
+        super().__init__(name="Clf")
         self.enc = Encoder(
             in_size=data_dim + s_dim,
             latent_dim=cfg.latent_dims,
