@@ -38,7 +38,7 @@ def lrcv_results(
         clf.fit(train, train_target.to_numpy().ravel())
         s_preds = Prediction(hard=pd.Series(clf.predict(test)), info=dict(C=clf.C_[0]))
         do_log(
-            f"Baselines/Accuracy-{target_name}-from-{component}",
+            f"Baselines/LRCV/Accuracy-{target_name}-from-{component}",
             Accuracy().score(prediction=s_preds, actual=dm.test_data.replace(y=test_target)),
             logger,
         )
@@ -82,7 +82,7 @@ def get_miri_metrics(
     num_points = data.y.shape[0]
     sum_y_is_ty = sum((data.y.values - data_y_true.y.values) == 0)[0]
 
-    do_log(f"{method} - P({y_denotation}={ty_denotation})", sum_y_is_ty / num_points, logger)
+    do_log(f"{method}/P({y_denotation}={ty_denotation})", sum_y_is_ty / num_points, logger)
 
     sum_y_is_ty_given_s0 = sum(
         (data.y[data.s[data.s.columns[0]] == 0].values - data_y_true.y[data.s[data.s.columns[0]] == 0].values) == 0
@@ -94,24 +94,24 @@ def get_miri_metrics(
     )[0]
     num_s1 = data.y[data.s[data.s.columns[0]] == 1].shape[0]
 
-    do_log(f"{method} - P({y_denotation}={ty_denotation}|{s_denotation}=0)", sum_y_is_ty_given_s0 / num_s0, logger)
-    do_log(f"{method} - P({y_denotation}={ty_denotation}|{s_denotation}=1)", sum_y_is_ty_given_s1 / num_s1, logger)
+    do_log(f"{method}/P({y_denotation}={ty_denotation}|{s_denotation}=0)", sum_y_is_ty_given_s0 / num_s0, logger)
+    do_log(f"{method}/P({y_denotation}={ty_denotation}|{s_denotation}=1)", sum_y_is_ty_given_s1 / num_s1, logger)
 
     for val in [0, 1]:
         # P(y^=val)
         result = data.y[data.y.columns[0]] == val
-        do_log(f"{method} - P({y_denotation}={val})", result.sum() / result.count(), logger)
+        do_log(f"{method}/P({y_denotation}={val})", result.sum() / result.count(), logger)
 
         # P(Ty=val)
         result = data_y_true.y[data_y_true.y.columns[0]] == val
-        do_log(f"{method} - P({ty_denotation}={val})", result.sum() / result.count(), logger)
+        do_log(f"{method}/P({ty_denotation}={val})", result.sum() / result.count(), logger)
 
     for outer_val in [0, 1]:
         for inner_val in [0, 1]:
             # P(y^=outer | S=inner)
             result = data.y[data.s[data.s.columns[0]] == inner_val][data.y.columns[0]] == outer_val
             do_log(
-                f"{method} - P({y_denotation}={outer_val}|{s_denotation}={inner_val})",
+                f"{method}/P({y_denotation}={outer_val}|{s_denotation}={inner_val})",
                 result.sum() / result.count(),
                 logger,
             )
@@ -119,7 +119,7 @@ def get_miri_metrics(
             # P(y^=outer | Ty=inner)
             result = data.y[data_y_true.y[data_y_true.y.columns[0]] == inner_val][data.y.columns[0]] == outer_val
             do_log(
-                f"{method} - P({y_denotation}={outer_val}|{ty_denotation}={inner_val})",
+                f"{method}/P({y_denotation}={outer_val}|{ty_denotation}={inner_val})",
                 result.sum() / result.count(),
                 logger,
             )
@@ -127,28 +127,28 @@ def get_miri_metrics(
             # P(Ty=outer | y^=inner)
             result = data_y_true.y[data.y[data.y.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
             do_log(
-                f"{method} - P({ty_denotation}={inner_val}|{y_denotation}={outer_val})",
+                f"{method}/P({ty_denotation}={inner_val}|{y_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
 
             result = data_y_true.y[data.s[data.s.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
             do_log(
-                f"{method} - P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
+                f"{method}/P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
 
             result = data.y[data.s[data.s.columns[0]] == outer_val][data.y.columns[0]] == inner_val
             do_log(
-                f"{method} - P({y_denotation}={inner_val}|{s_denotation}={outer_val})",
+                f"{method}/P({y_denotation}={inner_val}|{s_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
 
             result = data_y_true.y[data.s[data.s.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
             do_log(
-                f"{method} - P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
+                f"{method}/P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
@@ -163,7 +163,7 @@ def get_miri_metrics(
                     == ty_val
                 )
                 do_log(
-                    f"{method} - P({ty_denotation}={ty_val}|{s_denotation}={s_val},{y_denotation}={y_val})",
+                    f"{method}/P({ty_denotation}={ty_val}|{s_denotation}={s_val},{y_denotation}={y_val})",
                     result.sum() / result.count(),
                     logger,
                 )

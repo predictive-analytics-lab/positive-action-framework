@@ -18,7 +18,7 @@ from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
 from src.model.common_model import CommonModel
 from src.model.model_utils import grad_reverse, index_by_s, to_discrete
-from src.utils import make_plot
+from src.utils import do_log, make_plot
 
 logger = logging.getLogger(__name__)
 
@@ -226,8 +226,7 @@ class AE(CommonModel):
         recon_mse = (all_x - all_recon).mean(dim=0).abs()
         for i, feature_mse in enumerate(recon_mse):
             feature_name = self.data_cols[i]
-            logger.info(f"recon mad - feature {feature_name}: {feature_mse.item():.5f}")
-            self.logger.experiment.log({f"Table6/recon_mad - feature {feature_name}": round(feature_mse.item(), 5)})
+            do_log(f"Table6/Ours/recon_mad - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
 
         if self.cf_model:
             all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
@@ -244,10 +243,7 @@ class AE(CommonModel):
             recon_mse = (all_cf_x - cf_recon).mean(dim=0).abs()
             for i, feature_mse in enumerate(recon_mse):
                 feature_name = self.data_cols[i]
-                logger.info(f"cf recon mad - feature {feature_name}: {feature_mse.item():.5f}")
-                self.logger.experiment.log(
-                    {f"Table6/cf_recon_mad - feature {feature_name}": round(feature_mse.item(), 5)}
-                )
+                do_log(f"Table6/Ours/cf_recon_mad - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:

@@ -158,7 +158,7 @@ def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase
     outcomes_hist(outcomes, logger)
     outcomes["decision"] = selection_rules(outcomes)
     for idx, val in outcomes["decision"].value_counts().iteritems():
-        do_log(f"Table3/selection_rule_group_{idx}", val, logger)
+        do_log(f"Table3/Ours/selection_rule_group_{idx}", val, logger)
     return facct_mapper(Prediction(hard=outcomes["decision"]))
 
 
@@ -168,7 +168,7 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
     sns.barplot(val_counts.index, val_counts.values)
     logger.experiment.log({"Debugging2/Outcomes": wandb.Plotly(plt)})
     for idx, val in val_counts.iteritems():
-        do_log(f"Debugging2/Outcomes-{idx}", val, logger)
+        do_log(f"Debugging2/Ours/Outcomes-{idx}", val, logger)
     plt.clf()
 
 
@@ -184,7 +184,7 @@ def get_wandb_logger(cfg: Config) -> WandbLogger:
     """Get a wandb logger object."""
     return WandbLogger(
         entity="predictive-analytics-lab",
-        project="aies",
+        project="aies21",
         tags=cfg.training.tags.split("/")[:-1],
         config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
     )
