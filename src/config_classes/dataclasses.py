@@ -66,6 +66,7 @@ class ModelConfig:
     s_as_input: bool = MISSING
     mmd_kernel: KernelType = MISSING
     scheduler_rate: float = MISSING
+    weight_decay: float = MISSING
 
 
 @dataclass

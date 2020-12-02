@@ -98,6 +98,7 @@ class Clf(CommonModel):
         self.mmd_kernel = cfg.mmd_kernel
         self.outcome_cols = outcome_cols
         self.scheduler_rate = cfg.scheduler_rate
+        self.weight_decay = cfg.weight_decay
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
