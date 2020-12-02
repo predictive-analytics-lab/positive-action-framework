@@ -1,3 +1,4 @@
+"""Blocks."""
 from typing import List
 
 from torch import nn
@@ -16,8 +17,4 @@ def block(*, in_dim: int, out_dim: int) -> nn.Module:
 
 def mid_blocks(*, latent_dim: int, blocks: int) -> List:
     """Build middle blocks for hidden layers."""
-    return (
-        [block(in_dim=latent_dim, out_dim=latent_dim) for _ in range(2 * blocks - 1)]
-        if blocks > 1
-        else []
-    )
+    return [block(in_dim=latent_dim, out_dim=latent_dim) for _ in range(blocks - 1)] if blocks > 1 else []
