@@ -1,5 +1,6 @@
 """Utility functions."""
 import collections
+import itertools
 import logging
 import warnings
 from typing import Any, Dict, List, MutableMapping
@@ -56,93 +57,141 @@ def flatten(d: MutableMapping[Any, Any], parent_key: str = "", sep: str = ".") -
 
 def facct_mapper(facct_out: Prediction) -> Prediction:
     """Map from groups to outcomes."""
-    lookup = {-1: 0, 1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 0}
+    lookup = {
+        0: 5,
+        1: 6,
+        2: 3,
+        3: -1,
+        4: -1,
+        5: -1,
+        6: 3,
+        7: 4,
+        8: -1,
+        9: -1,
+        10: 1,
+        11: 4,
+        12: -1,
+        13: -1,
+        14: 1,
+        15: 2,
+        16: -1,
+        17: -1,
+        18: -1,
+        19: -1,
+        20: -1,
+        21: -1,
+        22: -1,
+        23: -1,
+        24: -1,
+        25: -1,
+        26: -1,
+        27: -1,
+        28: -1,
+        29: -1,
+        30: 1,
+        31: 2,
+    }
 
-    preds = pd.Series([])
-    for decision in facct_out.hard:
-        preds = preds.append(pd.Series(lookup[decision])).reset_index(drop=True)
+    preds = pd.Series({i: lookup[d] for i, d in enumerate(facct_out.hard)})
 
-    return Prediction(hard=preds, info=facct_out.info)
+    _facct_out = Prediction(hard=preds, info=facct_out.info)
+
+    lookup = {-1: 0, 1: 1, 2: 1, 3: 0, 4: 1, 5: 0, 6: 0}
+
+    preds = pd.Series({i: lookup[d] for i, d in enumerate(_facct_out.hard)})
+
+    return Prediction(hard=preds, info=_facct_out.info)
 
 
 def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
     """Apply selection rules."""
     conditions = [
-        (outcome_df["true_s"] == 0)  # Line 1
-        & (outcome_df["s1_0_s2_0"] == 1)
-        & (outcome_df["s1_0_s2_1"] == 1)
-        & (outcome_df["s1_1_s2_0"] == 1)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 1)  # Line 1
-        & (outcome_df["s1_0_s2_0"] == 1)
-        & (outcome_df["s1_0_s2_1"] == 1)
-        & (outcome_df["s1_1_s2_0"] == 1)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 0)  # Line 2
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 1)
-        & (outcome_df["s1_1_s2_0"] == 1)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 1)  # Line 2
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 1)
-        & (outcome_df["s1_1_s2_0"] == 1)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 1)  # Line 3
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 0)
-        & (outcome_df["s1_1_s2_0"] == 1)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 1)  # Line 4
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 0)
-        & (outcome_df["s1_1_s2_0"] == 0)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 1)  # Line 5
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 1)
-        & (outcome_df["s1_1_s2_0"] == 0)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 0)  # Line 6
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 0)
-        & (outcome_df["s1_1_s2_0"] == 1)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 0)  # Line 7
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 0)
-        & (outcome_df["s1_1_s2_0"] == 0)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 0)  # Line 8
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 1)
-        & (outcome_df["s1_1_s2_0"] == 0)
-        & (outcome_df["s1_1_s2_1"] == 1),
-        (outcome_df["true_s"] == 0)  # Line 9
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 0)
-        & (outcome_df["s1_1_s2_0"] == 0)
-        & (outcome_df["s1_1_s2_1"] == 0),
-        (outcome_df["true_s"] == 1)  # Line 9
-        & (outcome_df["s1_0_s2_0"] == 0)
-        & (outcome_df["s1_0_s2_1"] == 0)
-        & (outcome_df["s1_1_s2_0"] == 0)
-        & (outcome_df["s1_1_s2_1"] == 0),
+        (outcome_df['s1_0_s2_0'] == a)
+        & (outcome_df['s1_0_s2_1'] == b)
+        & (outcome_df['s1_1_s2_0'] == c)
+        & (outcome_df['s1_1_s2_1'] == d)
+        & (outcome_df['true_s'] == e)
+        for a, b, c, d, e in itertools.product([0, 1], repeat=5)
     ]
-    values = [
-        1,  # Line 1
-        2,  # Line 1
-        1,  # Line 2
-        2,  # Line 2
-        4,  # Line 3
-        4,  # Line 4
-        4,  # Line 5
-        3,  # Line 6
-        3,  # Line 7
-        1,  # Line 8
-        5,  # Line 9
-        6,  # Line 9
-    ]
+
+    values = list(range(len(conditions)))
+
+    # conditions = [
+    #     (outcome_df["true_s"] == 0)  # Line 1
+    #     & (outcome_df["s1_0_s2_0"] == 1)
+    #     & (outcome_df["s1_0_s2_1"] == 1)
+    #     & (outcome_df["s1_1_s2_0"] == 1)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 1)  # Line 1
+    #     & (outcome_df["s1_0_s2_0"] == 1)
+    #     & (outcome_df["s1_0_s2_1"] == 1)
+    #     & (outcome_df["s1_1_s2_0"] == 1)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 0)  # Line 2
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 1)
+    #     & (outcome_df["s1_1_s2_0"] == 1)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 1)  # Line 2
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 1)
+    #     & (outcome_df["s1_1_s2_0"] == 1)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 1)  # Line 3
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 0)
+    #     & (outcome_df["s1_1_s2_0"] == 1)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 1)  # Line 4
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 0)
+    #     & (outcome_df["s1_1_s2_0"] == 0)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 1)  # Line 5
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 1)
+    #     & (outcome_df["s1_1_s2_0"] == 0)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 0)  # Line 6
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 0)
+    #     & (outcome_df["s1_1_s2_0"] == 1)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 0)  # Line 7
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 0)
+    #     & (outcome_df["s1_1_s2_0"] == 0)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 0)  # Line 8
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 1)
+    #     & (outcome_df["s1_1_s2_0"] == 0)
+    #     & (outcome_df["s1_1_s2_1"] == 1),
+    #     (outcome_df["true_s"] == 0)  # Line 9
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 0)
+    #     & (outcome_df["s1_1_s2_0"] == 0)
+    #     & (outcome_df["s1_1_s2_1"] == 0),
+    #     (outcome_df["true_s"] == 1)  # Line 9
+    #     & (outcome_df["s1_0_s2_0"] == 0)
+    #     & (outcome_df["s1_0_s2_1"] == 0)
+    #     & (outcome_df["s1_1_s2_0"] == 0)
+    #     & (outcome_df["s1_1_s2_1"] == 0),
+    # ]
+    # values = [
+    #     1,  # Line 1
+    #     2,  # Line 1
+    #     1,  # Line 2
+    #     2,  # Line 2
+    #     4,  # Line 3
+    #     4,  # Line 4
+    #     4,  # Line 5
+    #     3,  # Line 6
+    #     3,  # Line 7
+    #     1,  # Line 8
+    #     5,  # Line 9
+    #     6,  # Line 9
+    # ]
 
     return np.select(conditions, values, -1)
 
@@ -158,8 +207,13 @@ def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase
     outcomes_hist(outcomes, logger)
     outcomes["decision"] = selection_rules(outcomes)
     for idx, val in outcomes["decision"].value_counts().iteritems():
+        do_log(f"Table3/Ours/pre_selection_rule_group_{idx}", val, logger)
+
+    to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
+    for idx, val in to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours/selection_rule_group_{idx}", val, logger)
-    return facct_mapper(Prediction(hard=outcomes["decision"]))
+
+    return to_return
 
 
 def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
