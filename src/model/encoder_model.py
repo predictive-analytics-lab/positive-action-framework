@@ -7,7 +7,7 @@ import torch
 from ethicml import implements
 from pytorch_lightning import LightningModule
 from torch import Tensor, cat, nn, no_grad
-from torch.nn.functional import binary_cross_entropy_with_logits, l1_loss
+from torch.nn.functional import binary_cross_entropy_with_logits, l1_loss, mse_loss
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
@@ -149,7 +149,7 @@ class AE(CommonModel):
         else:
             x, s, y = batch
         z, s_pred, recons = self(x, s)
-        recon_loss = l1_loss(index_by_s(recons, s), x, reduction="mean")
+        recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
