@@ -3,7 +3,7 @@ import collections
 import itertools
 import logging
 import warnings
-from typing import Any, Dict, List, MutableMapping
+from typing import Any, Dict, List, MutableMapping, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,13 +33,13 @@ def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: Lis
     for idx, col in enumerate(cols):
         sns.histplot(x_df[x_df["s"] > 0][idx], kde=True, color='b')
         sns.histplot(x_df[x_df["s"] <= 0][idx], kde=True, color='g')
-        logger.experiment.log({f"histplot_image_{name}/{col}": wandb.Image(plt)})
-        logger.experiment.log({f"histplot_plot_{name}/{col}": wandb.Plotly(plt)})
+        do_log(f"histplot_image_{name}/{col}", wandb.Image(plt), logger)
+        do_log(f"histplot_plot_{name}/{col}", wandb.Plotly(plt), logger)
         plt.clf()
 
         sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
         sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
-        logger.experiment.log({f"distplot_image_{name}/{col}": wandb.Image(plt)})
+        do_log(f"distplot_image_{name}/{col}", wandb.Image(plt), logger)
         plt.clf()
 
 
@@ -61,7 +61,7 @@ def facct_mapper(facct_out: Prediction) -> Prediction:
         0: 5,
         1: 6,
         2: 3,
-        3: -1,
+        3: 4,
         4: -1,
         5: -1,
         6: 3,
@@ -116,90 +116,15 @@ def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
 
     values = list(range(len(conditions)))
 
-    # conditions = [
-    #     (outcome_df["true_s"] == 0)  # Line 1
-    #     & (outcome_df["s1_0_s2_0"] == 1)
-    #     & (outcome_df["s1_0_s2_1"] == 1)
-    #     & (outcome_df["s1_1_s2_0"] == 1)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 1)  # Line 1
-    #     & (outcome_df["s1_0_s2_0"] == 1)
-    #     & (outcome_df["s1_0_s2_1"] == 1)
-    #     & (outcome_df["s1_1_s2_0"] == 1)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 0)  # Line 2
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 1)
-    #     & (outcome_df["s1_1_s2_0"] == 1)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 1)  # Line 2
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 1)
-    #     & (outcome_df["s1_1_s2_0"] == 1)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 1)  # Line 3
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 0)
-    #     & (outcome_df["s1_1_s2_0"] == 1)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 1)  # Line 4
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 0)
-    #     & (outcome_df["s1_1_s2_0"] == 0)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 1)  # Line 5
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 1)
-    #     & (outcome_df["s1_1_s2_0"] == 0)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 0)  # Line 6
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 0)
-    #     & (outcome_df["s1_1_s2_0"] == 1)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 0)  # Line 7
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 0)
-    #     & (outcome_df["s1_1_s2_0"] == 0)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 0)  # Line 8
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 1)
-    #     & (outcome_df["s1_1_s2_0"] == 0)
-    #     & (outcome_df["s1_1_s2_1"] == 1),
-    #     (outcome_df["true_s"] == 0)  # Line 9
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 0)
-    #     & (outcome_df["s1_1_s2_0"] == 0)
-    #     & (outcome_df["s1_1_s2_1"] == 0),
-    #     (outcome_df["true_s"] == 1)  # Line 9
-    #     & (outcome_df["s1_0_s2_0"] == 0)
-    #     & (outcome_df["s1_0_s2_1"] == 0)
-    #     & (outcome_df["s1_1_s2_0"] == 0)
-    #     & (outcome_df["s1_1_s2_1"] == 0),
-    # ]
-    # values = [
-    #     1,  # Line 1
-    #     2,  # Line 1
-    #     1,  # Line 2
-    #     2,  # Line 2
-    #     4,  # Line 3
-    #     4,  # Line 4
-    #     4,  # Line 5
-    #     3,  # Line 6
-    #     3,  # Line 7
-    #     1,  # Line 8
-    #     5,  # Line 9
-    #     6,  # Line 9
-    # ]
-
     return np.select(conditions, values, -1)
 
 
-def do_log(name: str, val: float, logger: WandbLogger) -> None:
+def do_log(name: str, val: Any, logger: Optional[WandbLogger]) -> None:
     """Log to experiment tracker and also the logger."""
-    log.info(f"{name}: {val}")
-    logger.experiment.log({name: val})
+    if isinstance(val, float):
+        log.info(f"{name}: {val}")
+    if logger is not None:
+        logger.experiment.log({name: val})
 
 
 def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase) -> Prediction:

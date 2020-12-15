@@ -175,7 +175,8 @@ class AE(CommonModel):
                 to_log["training_enc/cf_loss"] = cf_loss
                 to_log["training_enc/cf_recon_loss"] = cf_recon_loss
 
-        self.logger.experiment.log(to_log)
+        for k, v in to_log.items():
+            do_log(k, v, self.logger)
         return loss
 
     @torch.no_grad()

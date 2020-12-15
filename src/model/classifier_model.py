@@ -17,7 +17,7 @@ from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
 from src.model.common_model import CommonModel
 from src.model.model_utils import grad_reverse, index_by_s
-from src.utils import make_plot
+from src.utils import do_log, make_plot
 
 
 class BaseModel(nn.Module):
@@ -143,7 +143,9 @@ class Clf(CommonModel):
                 to_log["training_clf/cf_loss"] = cf_loss
                 to_log["training_clf/cf_pred_loss"] = cf_pred_loss
 
-        self.logger.experiment.log(to_log)
+        for k, v in to_log.items():
+            do_log(k, v, self.logger)
+
         return loss
 
     @torch.no_grad()
@@ -214,7 +216,12 @@ class Clf(CommonModel):
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         recons = None
-        for x, s, y, _, _, _ in dataloader:
+        for batch in dataloader:
+            if self.cf_model:
+                x, s, y, cf_x, cf_s, cf_y = batch
+            else:
+                x, s, y = batch
+
             x = x.to(self.device)
             s = s.to(self.device)
             _, _, _r = self(x, s)

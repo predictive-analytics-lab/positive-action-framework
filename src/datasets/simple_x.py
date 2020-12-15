@@ -50,20 +50,16 @@ def simple_x_data(
         tmp_cf_s = counterfactual_s
     else:
         temp_s = make_s(alpha, num_samples, np.random.default_rng(seed + 9), binary_s=binary_s == 1)
-        tmp_cf_s = (
-            np.ones_like(temp_s) - temp_s if binary_s == 1 else np.zeros_like(temp_s) - temp_s
-        )
+        tmp_cf_s = np.ones_like(temp_s) - temp_s if binary_s == 1 else np.zeros_like(temp_s) - temp_s
 
     x = make_x(x_bar=x_bar, s=temp_s, gamma=gamma, binary_s=binary_s == 1)
     counterfactual_x = make_x(x_bar, tmp_cf_s, gamma=gamma, binary_s=binary_s == 1)
     x_df = pd.DataFrame(x, columns=[f"x_{i}" for i in range(x.shape[1])])
-    counterfactual_x_df = pd.DataFrame(
-        counterfactual_x, columns=[f"x_{i}" for i in range(x.shape[1])]
-    )
+    counterfactual_x_df = pd.DataFrame(counterfactual_x, columns=[f"x_{i}" for i in range(x.shape[1])])
 
     data = pd.concat([x_df, s_df, outcome_placeholder], axis=1).sort_index()
     counterfactual_data = pd.concat(
-        [counterfactual_x_df, counterfactual_s_df, outcome_placeholder],
+        [counterfactual_x_df, counterfactual_s_df, 1 - outcome_placeholder],
         axis=1,
     ).sort_index()
 

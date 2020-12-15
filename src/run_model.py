@@ -93,18 +93,33 @@ def run_aies(cfg: Config) -> None:
                     graduated=data.true_test_data,
                     logger=wandb_logger,
                 )
-        get_miri_metrics(
-            method="Miri/Ours-Post-Selection",
-            acceptance=DataTuple(x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=preds.hard.to_frame()),
-            graduated=data.true_test_data,
-            logger=wandb_logger,
+        multiple_metrics(
+            preds,
+            data.test_data,
+            "Ours-Post-Selection",
+            wandb_logger,
         )
-        get_miri_metrics(
-            method="Miri/Ours-Real-World-Preds",
-            acceptance=DataTuple(x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=our_clf_preds.hard.to_frame()),
-            graduated=data.true_test_data,
-            logger=wandb_logger,
+        multiple_metrics(
+            our_clf_preds,
+            data.test_data,
+            "Ours-Real-World-Preds",
+            wandb_logger,
         )
+        if data.cf_available:
+            get_miri_metrics(
+                method="Miri/Ours-Post-Selection",
+                acceptance=DataTuple(x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=preds.hard.to_frame()),
+                graduated=data.true_test_data,
+                logger=wandb_logger,
+            )
+            get_miri_metrics(
+                method="Miri/Ours-Real-World-Preds",
+                acceptance=DataTuple(
+                    x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=our_clf_preds.hard.to_frame()
+                ),
+                graduated=data.true_test_data,
+                logger=wandb_logger,
+            )
 
     wandb_logger.experiment.finish()
 
