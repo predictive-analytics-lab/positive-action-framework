@@ -1,6 +1,5 @@
 # @package _group_
 batch_size: 64
-dataset: ThirdWay
 num_workers: 0
 seed: 0
 
