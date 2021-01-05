@@ -10,7 +10,7 @@ class DataConfig:
     """base Dataset Config Schema."""
 
     batch_size: int = MISSING
-    dataset: str = MISSING
+    # dataset: str = MISSING
     num_workers: int = MISSING
     seed: int = MISSING
 

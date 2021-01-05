@@ -10,9 +10,10 @@ import typer
 def cell(data_cell):
     """Make mean and std have +-."""
     mean = round(np.mean(data_cell), 3)
+    std = round(np.std(data_cell), 3)
     if math.isnan(mean):
         return "N/A"
-    return f"{mean:.3f} $\\pm$ {round(np.std(data_cell), 3):.3f}"
+    return f"{mean:.3f} $\\pm$ {std:.3f}"
 
 
 def main(raw_csv: Path):
@@ -21,7 +22,7 @@ def main(raw_csv: Path):
     data = data.drop(["Name"], axis=1)
 
     data = pd.DataFrame(
-        [{a: f"{b:.5f} +/- {d:.5f}" for (a, b), (c, d) in zip(data.mean().iteritems(), data.std().iteritems())}]
+        [{a: f"{b:.2f} +/- {d:.2f}" for (a, b), (c, d) in zip(data.mean().iteritems(), data.std().iteritems())}]
     )
 
     data.columns = pd.MultiIndex.from_tuples(
@@ -29,8 +30,6 @@ def main(raw_csv: Path):
     )
 
     data = data.T
-
-    # data = data.groupby(level=[0, 1, 2]).agg(['mean', 'std']).agg(cell)
 
     data = data.reset_index().pivot(index=["group", "model"], columns="metric")
 

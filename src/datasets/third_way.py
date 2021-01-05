@@ -169,7 +169,7 @@ def third_way_data(
     s1_1_s2_1_data = s1_1_s2_1_data.reindex(idx).reset_index(drop=True)
 
     dataset = Dataset(
-        name=f"SimpleX",
+        name=f"ThirdWay",
         num_samples=num_samples,
         filename_or_path="none",
         features=[f"x_{i}" for i in range(num_features)] + ["sens"],
