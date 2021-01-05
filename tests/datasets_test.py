@@ -19,7 +19,6 @@ from src.model.encoder_model import AE
 
 THIRD = ThirdWayConfig(
     batch_size=32,
-    dataset="ThirdWay",
     num_workers=1,
     seed=0,
     acceptance_rate=0.4,
@@ -34,7 +33,6 @@ THIRD = ThirdWayConfig(
 
 LILLIPUT = LilliputConfig(
     batch_size=32,
-    dataset="ThirdWay",
     num_workers=1,
     seed=0,
     alpha=0.6,
@@ -44,7 +42,6 @@ LILLIPUT = LilliputConfig(
 
 SIMPLE = SimpleXConfig(
     batch_size=32,
-    dataset="SimpleX",
     num_workers=1,
     seed=0,
     alpha=0.6,
@@ -54,7 +51,6 @@ SIMPLE = SimpleXConfig(
 
 ADULT = AdultConfig(
     batch_size=32,
-    dataset="Adult",
     num_workers=1,
     seed=0,
 )
