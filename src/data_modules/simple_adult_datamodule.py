@@ -28,15 +28,15 @@ class SimpleAdultDataModule(BaseDataModule):
         self.num_s = true_data.s.nunique().values[0]
         self.data_dim = true_data.x.shape[1]
         self.s_dim = true_data.s.shape[1]
-        self.column_names = dataset.discrete_features + dataset.cont_features
+        self.column_names = dataset.discrete_features + dataset.continuous_features
         self.outcome_columns = true_data.y.columns
 
         train, test = train_test_split(true_data, 0.8, self.seed)
 
         scaler = MinMaxScaler()
-        scaler = scaler.fit(train.x[dataset.cont_features])
-        train.x[dataset.cont_features] = scaler.transform(train.x[dataset.cont_features])
-        test.x[dataset.cont_features] = scaler.transform(test.x[dataset.cont_features])
+        scaler = scaler.fit(train.x[dataset.continuous_features])
+        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
 
         self.train_data = train
         self.test_data = test
@@ -48,7 +48,7 @@ class SimpleAdultDataModule(BaseDataModule):
             DataTupleDataset(
                 self.train_data,
                 disc_features=self.dataset.discrete_features,
-                cont_features=self.dataset.cont_features,
+                cont_features=self.dataset.continuous_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -62,7 +62,7 @@ class SimpleAdultDataModule(BaseDataModule):
             DataTupleDataset(
                 self.test_data,
                 disc_features=self.dataset.discrete_features,
-                cont_features=self.dataset.cont_features,
+                cont_features=self.dataset.continuous_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,

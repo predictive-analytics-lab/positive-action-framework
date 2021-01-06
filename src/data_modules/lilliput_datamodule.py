@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import LilliputConfig
 from src.data_modules.base_module import BaseDataModule
-from src.data_modules.dataset_utils import DataTupleDataset
+from src.data_modules.dataset_utils import CFDataTupleDataset
 from src.datasets.lilliput import lilliput
 
 
@@ -17,7 +17,7 @@ class LilliputDataModule(BaseDataModule):
     def __init__(self, cfg: LilliputConfig):
         super().__init__()
         self.alpha = cfg.alpha
-        self._cf_available = False
+        self._cf_available = True
         self.gamma = cfg.gamma
         self.seed = cfg.seed
         self.num_samples = cfg.num_samples
@@ -56,9 +56,9 @@ class LilliputDataModule(BaseDataModule):
         )
 
         scaler = MinMaxScaler()
-        scaler = scaler.fit(train.x[dataset.cont_features])
-        train.x[dataset.cont_features] = scaler.transform(train.x[dataset.cont_features])
-        test.x[dataset.cont_features] = scaler.transform(test.x[dataset.cont_features])
+        scaler = scaler.fit(train.x[dataset.continuous_features])
+        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
 
         self.train_data = train
         self.test_data = test
@@ -76,12 +76,12 @@ class LilliputDataModule(BaseDataModule):
         )
 
         self.scaler_cf = MinMaxScaler()
-        self.scaler_cf = self.scaler_cf.fit(counterfactual_train.x[dataset.cont_features])
-        counterfactual_train.x[dataset.cont_features] = self.scaler_cf.transform(
-            counterfactual_train.x[dataset.cont_features]
+        self.scaler_cf = self.scaler_cf.fit(counterfactual_train.x[dataset.continuous_features])
+        counterfactual_train.x[dataset.continuous_features] = self.scaler_cf.transform(
+            counterfactual_train.x[dataset.continuous_features]
         )
-        counterfactual_test.x[dataset.cont_features] = self.scaler_cf.transform(
-            counterfactual_test.x[dataset.cont_features]
+        counterfactual_test.x[dataset.continuous_features] = self.scaler_cf.transform(
+            counterfactual_test.x[dataset.continuous_features]
         )
 
         self.cf_train = counterfactual_train
@@ -90,10 +90,11 @@ class LilliputDataModule(BaseDataModule):
     @implements(LightningDataModule)
     def train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
-            DataTupleDataset(
-                self.train_data,
+            CFDataTupleDataset(
+                dataset=self.train_data,
+                cf_dataset=self.cf_train,
                 disc_features=self.dataset.discrete_features,
-                cont_features=self.dataset.cont_features,
+                cont_features=self.dataset.continuous_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -104,10 +105,11 @@ class LilliputDataModule(BaseDataModule):
     @implements(LightningDataModule)
     def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
-            DataTupleDataset(
-                self.test_data,
+            CFDataTupleDataset(
+                dataset=self.test_data,
+                cf_dataset=self.cf_test,
                 disc_features=self.dataset.discrete_features,
-                cont_features=self.dataset.cont_features,
+                cont_features=self.dataset.continuous_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,

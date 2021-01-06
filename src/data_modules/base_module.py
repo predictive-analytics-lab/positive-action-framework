@@ -101,7 +101,7 @@ class BaseDataModule(LightningDataModule):
         disc_features = [feat for feat in dataset.discrete_features if feat in data.x.columns]
         self.disc_features = disc_features
 
-        cont_features = [feat for feat in dataset.cont_features if feat in data.x.columns]
+        cont_features = [feat for feat in dataset.continuous_features if feat in data.x.columns]
         self.cont_features = cont_features
         self.feature_groups = dict(discrete=grouped_features_indexes(self.disc_features))
 

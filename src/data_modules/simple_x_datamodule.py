@@ -63,9 +63,9 @@ class SimpleXDataModule(BaseDataModule):
         )
 
         scaler = MinMaxScaler()
-        scaler = scaler.fit(train.x[dataset.cont_features])
-        train.x[dataset.cont_features] = scaler.transform(train.x[dataset.cont_features])
-        test.x[dataset.cont_features] = scaler.transform(test.x[dataset.cont_features])
+        scaler = scaler.fit(train.x[dataset.continuous_features])
+        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
 
         self.train_data = train
         self.test_data = test
@@ -83,12 +83,12 @@ class SimpleXDataModule(BaseDataModule):
         )
 
         self.scaler_cf = MinMaxScaler()
-        self.scaler_cf = self.scaler_cf.fit(counterfactual_train.x[dataset.cont_features])
-        counterfactual_train.x[dataset.cont_features] = self.scaler_cf.transform(
-            counterfactual_train.x[dataset.cont_features]
+        self.scaler_cf = self.scaler_cf.fit(counterfactual_train.x[dataset.continuous_features])
+        counterfactual_train.x[dataset.continuous_features] = self.scaler_cf.transform(
+            counterfactual_train.x[dataset.continuous_features]
         )
-        counterfactual_test.x[dataset.cont_features] = self.scaler_cf.transform(
-            counterfactual_test.x[dataset.cont_features]
+        counterfactual_test.x[dataset.continuous_features] = self.scaler_cf.transform(
+            counterfactual_test.x[dataset.continuous_features]
         )
 
         self.cf_train = counterfactual_train
@@ -101,7 +101,7 @@ class SimpleXDataModule(BaseDataModule):
                 self.train_data,
                 cf_dataset=self.cf_train,
                 disc_features=self.dataset.discrete_features,
-                cont_features=self.dataset.cont_features,
+                cont_features=self.dataset.continuous_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -116,7 +116,7 @@ class SimpleXDataModule(BaseDataModule):
                 self.test_data,
                 cf_dataset=self.cf_test,
                 disc_features=self.dataset.discrete_features,
-                cont_features=self.dataset.cont_features,
+                cont_features=self.dataset.continuous_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,

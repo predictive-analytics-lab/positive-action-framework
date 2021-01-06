@@ -135,9 +135,9 @@ class ThirdWayDataModule(BaseDataModule):
         )
 
         scaler = MinMaxScaler()
-        scaler = scaler.fit(train.x[dataset.cont_features])
-        train.x[dataset.cont_features] = scaler.transform(train.x[dataset.cont_features])
-        test.x[dataset.cont_features] = scaler.transform(test.x[dataset.cont_features])
+        scaler = scaler.fit(train.x[dataset.continuous_features])
+        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
         return train, test
 
     @implements(LightningDataModule)
@@ -147,7 +147,7 @@ class ThirdWayDataModule(BaseDataModule):
                 self.train_data,
                 cf_dataset=self.cf_train,
                 disc_features=self.dataset.discrete_features,
-                cont_features=self.dataset.cont_features,
+                cont_features=self.dataset.continuous_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -162,7 +162,7 @@ class ThirdWayDataModule(BaseDataModule):
                 self.test_data,
                 cf_dataset=self.cf_test,
                 disc_features=self.dataset.discrete_features,
-                cont_features=self.dataset.cont_features,
+                cont_features=self.dataset.continuous_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
