@@ -186,6 +186,9 @@ def lilliput(*, seed, num_samples, alpha):
         int
     )
 
+    data["graduation_grade>70%"] = (data["graduation_grade"] >= 0.70).astype(int)
+    cf_data["graduation_grade>70%"] = (cf_data["graduation_grade"] >= 0.70).astype(int)
+
     features = [
         "potions_bane",
         "potions_wolf",
@@ -197,6 +200,7 @@ def lilliput(*, seed, num_samples, alpha):
         "accepted",
         "admittance_score",
         "graduation_grade",
+        "graduation_grade>70%",
     ]
 
     cont_features = [
@@ -266,5 +270,10 @@ def lilliput(*, seed, num_samples, alpha):
             x=cf_data[dataset.discrete_features + dataset.continuous_features],
             s=cf_data[dataset.sens_attrs],
             y=cf_data[dataset.class_labels],
+        ),
+        DataTuple(
+            x=data[dataset.discrete_features + dataset.continuous_features],
+            s=data[dataset.sens_attrs],
+            y=data[["graduation_grade>70%"]],
         ),
     )
