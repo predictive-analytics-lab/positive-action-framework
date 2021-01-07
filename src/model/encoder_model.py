@@ -201,14 +201,14 @@ class AE(CommonModel):
             "x": x,
             "z": z,
             "s": s,
-            "recon": self.invert(index_by_s(recons, s)),
-            "recons_0": self.invert(recons[0]),
-            "recons_1": self.invert(recons[1]),
+            "recon": self.invert(index_by_s(recons, s).sigmoid()),
+            "recons_0": self.invert(recons[0].sigmoid()),
+            "recons_1": self.invert(recons[1].sigmoid()),
         }
 
         if self.cf_model:
             to_return["cf_x"] = cf_x
-            to_return["cf_recon"] = self.invert(index_by_s(recons.sigmoid(), cf_s))
+            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s).sigmoid())
 
         return to_return
 
@@ -264,7 +264,7 @@ class AE(CommonModel):
             x = x.to(self.device)
             s = s.to(self.device)
             _, _, _r = self(x, s)
-            r = self.invert(index_by_s(_r.sigmoid(), s))
+            r = self.invert(index_by_s(_r, s).sigmoid())
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
         assert recons is not None
         return recons.detach().cpu().numpy()
