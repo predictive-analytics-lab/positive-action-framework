@@ -222,6 +222,23 @@ def lilliput(*, seed, num_samples, alpha):
     import matplotlib.pyplot as plt
     import seaborn as sns
 
+    sns.distplot(data[(data['sens'] == 1)]["potions_wolf"], color='g')
+    sns.distplot(data[(data['sens'] == 0)]['potions_wolf'], color='b')
+    plt.savefig((Path(__file__).parent / "potions_wolf.png"))
+    plt.clf()
+    sns.distplot(cf_data[(data['sens'] == 1)]["potions_wolf"], color='g')
+    sns.distplot(cf_data[(data['sens'] == 0)]['potions_wolf'], color='b')
+    plt.savefig((Path(__file__).parent / "cf_potions_wolf.png"))
+    plt.clf()
+    sns.distplot(data[(data['sens'] == 1)]["potions_bane"], color='g')
+    sns.distplot(data[(data['sens'] == 0)]['potions_bane'], color='b')
+    plt.savefig((Path(__file__).parent / "potions_bane.png"))
+    plt.clf()
+    sns.distplot(cf_data[(data['sens'] == 1)]["potions_bane"], color='g')
+    sns.distplot(cf_data[(data['sens'] == 0)]['potions_bane'], color='b')
+    plt.savefig((Path(__file__).parent / "cfpotions_bane.png"))
+    plt.clf()
+
     sns.distplot(data[(data['sens'] == 1)]["graduation_grade"], color='g')
     sns.distplot(data[(data['sens'] == 0)]['graduation_grade'], color='b')
     plt.savefig((Path(__file__).parent / "grad_grade.png"))

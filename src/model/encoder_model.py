@@ -208,7 +208,7 @@ class AE(CommonModel):
 
         if self.cf_model:
             to_return["cf_x"] = cf_x
-            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s))
+            to_return["cf_recon"] = self.invert(index_by_s(recons.sigmoid(), cf_s))
 
         return to_return
 
@@ -264,7 +264,7 @@ class AE(CommonModel):
             x = x.to(self.device)
             s = s.to(self.device)
             _, _, _r = self(x, s)
-            r = self.invert(index_by_s(_r, s))
+            r = self.invert(index_by_s(_r.sigmoid(), s))
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
         assert recons is not None
         return recons.detach().cpu().numpy()
