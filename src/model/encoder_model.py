@@ -12,7 +12,6 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
-import wandb
 from src.config_classes.dataclasses import ModelConfig
 from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
@@ -161,9 +160,9 @@ class AE(CommonModel):
             "training_enc/recon_loss": recon_loss,
             "training_enc/adv_loss": adv_loss,
             "training_enc/z_norm": z.detach().norm(dim=1).mean(),
-            "training_enc/z_dim_0": wandb.Histogram(z.detach().cpu().numpy()[:, 0]),
-            "training_enc/z_dim_0_s0": wandb.Histogram(z[s <= 0].detach().cpu().numpy()[:, 0]),
-            "training_enc/z_dim_0_s1": wandb.Histogram(z[s > 0].detach().cpu().numpy()[:, 0]),
+            # "training_enc/z_dim_0": wandb.Histogram(z.detach().cpu().numpy()[:, 0]),
+            # "training_enc/z_dim_0_s0": wandb.Histogram(z[s <= 0].detach().cpu().numpy()[:, 0]),
+            # "training_enc/z_dim_0_s1": wandb.Histogram(z[s > 0].detach().cpu().numpy()[:, 0]),
             "training_enc/z_mean_abs_diff": (z[s <= 0].mean() - z[s > 0].mean()).abs(),
         }
 
