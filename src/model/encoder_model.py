@@ -139,7 +139,7 @@ class AE(CommonModel):
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_input else x
         z = self.enc(_x)
         s_pred = self.adv(z)
-        recons = [dec(z) for dec in self.decoders]
+        recons = [dec(z).sigmoid() for dec in self.decoders]
         return z, s_pred, recons
 
     @implements(LightningModule)
@@ -201,14 +201,14 @@ class AE(CommonModel):
             "x": x,
             "z": z,
             "s": s,
-            "recon": self.invert(index_by_s(recons, s).sigmoid()),
-            "recons_0": self.invert(recons[0].sigmoid()),
-            "recons_1": self.invert(recons[1].sigmoid()),
+            "recon": self.invert(index_by_s(recons, s)),
+            "recons_0": self.invert(recons[0]),
+            "recons_1": self.invert(recons[1]),
         }
 
         if self.cf_model:
             to_return["cf_x"] = cf_x
-            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s).sigmoid())
+            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s))
 
         return to_return
 
@@ -264,7 +264,7 @@ class AE(CommonModel):
             x = x.to(self.device)
             s = s.to(self.device)
             _, _, _r = self(x, s)
-            r = self.invert(index_by_s(_r, s).sigmoid())
+            r = self.invert(index_by_s(_r, s))
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
         assert recons is not None
         return recons.detach().cpu().numpy()
