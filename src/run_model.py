@@ -23,7 +23,7 @@ from src.ethicml_extension.oracle import DPOracle, EqOppOracle, Oracle
 from src.model.aies_model import AiesModel
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
-from src.scoring import get_miri_metrics, produce_baselines
+from src.scoring import produce_baselines
 from src.utils import do_log, get_trainer, get_wandb_logger, produce_selection_groups
 
 log = logging.getLogger(__name__)
@@ -85,14 +85,14 @@ def run_aies(cfg: Config) -> None:
                 log.info(f"=== {model.name} and \"True\" Data ===")
                 results = model.run(data.train_data, data.test_data)
                 multiple_metrics(results, data.true_test_data, f"{model.name}-TrueLabels", wandb_logger)
-                get_miri_metrics(
-                    method=f"Miri/{model.name}",
-                    acceptance=DataTuple(
-                        x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=results.hard.to_frame()
-                    ),
-                    graduated=data.true_test_data,
-                    logger=wandb_logger,
-                )
+                # get_miri_metrics(
+                #     method=f"Miri/{model.name}",
+                #     acceptance=DataTuple(
+                #         x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=results.hard.to_frame()
+                #     ),
+                #     graduated=data.true_test_data,
+                #     logger=wandb_logger,
+                # )
         multiple_metrics(
             preds,
             data.test_data,
