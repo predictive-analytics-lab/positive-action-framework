@@ -228,7 +228,7 @@ class AE(CommonModel):
         recon_mse = (all_x - all_recon).mean(dim=0).abs()
         for i, feature_mse in enumerate(recon_mse):
             feature_name = self.data_cols[i]
-            do_log(f"Table6/Ours/recon_mad - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
+            do_log(f"Table6/Ours/recon_l1 - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
 
         if self.cf_model:
             all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
@@ -245,7 +245,7 @@ class AE(CommonModel):
             recon_mse = (all_cf_x - cf_recon).mean(dim=0).abs()
             for i, feature_mse in enumerate(recon_mse):
                 feature_name = self.data_cols[i]
-                do_log(f"Table6/Ours/cf_recon_mad - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
+                do_log(f"Table6/Ours/cf_recon_l1 - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:

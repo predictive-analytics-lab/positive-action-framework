@@ -31,11 +31,11 @@ def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: Lis
     x_df["s"] = s.detach().cpu().numpy()
 
     for idx, col in enumerate(cols):
-        sns.histplot(x_df[x_df["s"] > 0][idx], kde=True, color='b')
-        sns.histplot(x_df[x_df["s"] <= 0][idx], kde=True, color='g')
-        do_log(f"histplot_image_{name}/{col}", wandb.Image(plt), logger)
-        do_log(f"histplot_plot_{name}/{col}", wandb.Plotly(plt), logger)
-        plt.clf()
+        # sns.histplot(x_df[x_df["s"] > 0][idx], kde=True, color='b')
+        # sns.histplot(x_df[x_df["s"] <= 0][idx], kde=True, color='g')
+        # do_log(f"histplot_image_{name}/{col}", wandb.Image(plt), logger)
+        # do_log(f"histplot_plot_{name}/{col}", wandb.Plotly(plt), logger)
+        # plt.clf()
 
         sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
         sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
