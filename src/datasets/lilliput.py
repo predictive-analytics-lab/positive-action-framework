@@ -63,8 +63,8 @@ def lilliput(*, seed, num_samples, alpha):
     essay_score_vnm = num_gen.vonmises(0.4, 60, len(s)).round(2).clip(0, 1)
     essay_score_lap = num_gen.laplace(0.5, 0.075, len(s)).round(2).clip(0, 1)
 
-    essay_score = np.where(s == 0, essay_score_lap, essay_score_vnm)
-    cf_essay_score = np.where(s == 1, essay_score_lap, essay_score_vnm)
+    essay_score = np.where(s == 1, essay_score_lap, essay_score_vnm)
+    cf_essay_score = np.where(s == 0, essay_score_lap, essay_score_vnm)
 
     ess_bane_err = num_gen.normal(0.03, 0.02, len(s)).clip(0, 1)
     essay_bane = (essay_score + ess_bane_err).round(2).clip(0, 1)
