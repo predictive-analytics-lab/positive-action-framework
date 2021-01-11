@@ -183,3 +183,5 @@ def test_all():
     model_trainer = Trainer(fast_dev_run=True, logger=False)
     model_trainer.fit(model, datamodule=data)
     model_trainer.test(ckpt_path=None, datamodule=data)
+
+    print(model.pd_results)
