@@ -58,12 +58,12 @@ class AiesModel(AiesProperties):
 
         for i, recon in enumerate(recons):
             clf_z, clf_s_pred, preds = self.clf(self.enc.invert(recon), torch.ones_like(s) * i)
-            to_return[f"preds_{i}"] = self.clf.threshold(index_by_s(preds, s))
+            # to_return[f"preds_{i}"] = self.clf.threshold(index_by_s(preds, s))
             to_return[f"preds_{i}_0"] = self.clf.threshold(preds[0])
             to_return[f"preds_{i}_1"] = self.clf.threshold(preds[1])
 
-        if self.enc.cf_model:
-            to_return["true_s1_0_s2_0"] = self.clf.threshold(index_by_s(preds, cf_s))
+        # if self.enc.cf_model:
+        #     to_return["true_s1_0_s2_0"] = self.clf.threshold(index_by_s(preds, cf_s))
 
         return to_return
 

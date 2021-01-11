@@ -38,8 +38,8 @@ def lilliput(*, seed, num_samples, alpha):
     #     for (a, b, c) in zip(num_gen.normal(0.01, 0.04, len(s)).clip(0, 1), potions_score, s)
     # ]
 
-    video_mean = 0.4 + 0.01 * -(s * 2 - 1)
-    cf_video_mean = 0.4 + 0.01 * -(cf_s * 2 - 1)
+    video_mean = 0.4 + 0.01 * (s * 2 - 1)
+    cf_video_mean = 0.4 + 0.01 * (cf_s * 2 - 1)
 
     vid_score_nrm = num_gen.normal(0, 0.2, len(s))
     video_score = video_mean + vid_score_nrm
