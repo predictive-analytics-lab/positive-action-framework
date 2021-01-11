@@ -21,8 +21,8 @@ def lilliput(*, seed, num_samples, alpha):
     potions_score_nrm = num_gen.normal(0.65, 0.15, len(s)).round(2).clip(0, 0.95)
     potions_score_skw = stats.skewnorm(4, 0.35, 0.2).rvs(len(s)).round(2).clip(0, 0.95)
 
-    potions_score = np.where(s == 0, potions_score_skw, potions_score_nrm)
-    cf_potions_score = np.where(s == 1, potions_score_skw, potions_score_nrm)
+    potions_score = np.where(s == 1, potions_score_skw, potions_score_nrm)
+    cf_potions_score = np.where(s == 0, potions_score_skw, potions_score_nrm)
 
     pot_bane_err = num_gen.normal(0.03, 0.02, len(s)).clip(0, 1)
     potions_bane = (potions_score + pot_bane_err * (1 - s)).round(2).clip(0, 1)
@@ -151,15 +151,15 @@ def lilliput(*, seed, num_samples, alpha):
     )
 
     data["admittance_score"] = (
-        0.4 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
+        0.2 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
         + 0.4 * ((data["video_bane"] + data["video_wolf"]) / 2)
-        + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
+        + 0.4 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
     ).round(2)
 
     cf_data["admittance_score"] = (
-        0.4 * ((cf_data["potions_bane"] + cf_data["potions_wolf"]) / 2)
+        0.2 * ((cf_data["potions_bane"] + cf_data["potions_wolf"]) / 2)
         + 0.4 * ((cf_data["video_bane"] + cf_data["video_wolf"]) / 2)
-        + 0.2 * ((cf_data["essay_bane"] + cf_data["essay_wolf"]) / 2)
+        + 0.4 * ((cf_data["essay_bane"] + cf_data["essay_wolf"]) / 2)
     ).round(2)
 
     graduation = []
