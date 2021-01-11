@@ -94,13 +94,16 @@ def facct_mapper(facct_out: Prediction) -> Prediction:
 
     preds = pd.Series({i: lookup[d] for i, d in enumerate(facct_out.hard)})
 
-    _facct_out = Prediction(hard=preds, info=facct_out.info)
+    return Prediction(hard=preds, info=facct_out.info)
 
+
+def facct_mapper_2(facct_out: Prediction) -> Prediction:
+    """Map from groups to outcomes."""
     lookup = {-1: 0, 1: 1, 2: 1, 3: 0, 4: 1, 5: 0, 6: 0}
 
-    preds = pd.Series({i: lookup[d] for i, d in enumerate(_facct_out.hard)})
+    preds = pd.Series({i: lookup[d] for i, d in enumerate(facct_out.hard)})
 
-    return Prediction(hard=preds, info=_facct_out.info)
+    return Prediction(hard=preds, info=facct_out.info)
 
 
 def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
@@ -127,25 +130,27 @@ def do_log(name: str, val: Any, logger: Optional[WandbLogger]) -> None:
         logger.experiment.log({name: val})
 
 
-def produce_selection_groups(outcomes: pd.DataFrame, logger: LightningLoggerBase) -> Prediction:
+def produce_selection_groups(outcomes: pd.DataFrame, logger: Optional[LightningLoggerBase]) -> Prediction:
     """Follow Selection rules."""
     outcomes_hist(outcomes, logger)
     outcomes["decision"] = selection_rules(outcomes)
     for idx, val in outcomes["decision"].value_counts().iteritems():
         do_log(f"Table3/Ours/pre_selection_rule_group_{idx}", val, logger)
 
-    to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
-    for idx, val in to_return.hard.value_counts().iteritems():
+    _to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
+    for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours/selection_rule_group_{idx}", val, logger)
 
+    to_return = facct_mapper_2(_to_return)
     return to_return
 
 
-def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
+def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None:
     """Produce a distribution of the outcomes."""
     val_counts = outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
     sns.barplot(val_counts.index, val_counts.values)
-    logger.experiment.log({"Debugging2/Outcomes": wandb.Plotly(plt)})
+    if logger is not None:
+        logger.experiment.log({"Debugging2/Outcomes": wandb.Plotly(plt)})
     for idx, val in val_counts.iteritems():
         do_log(f"Debugging2/Ours/Outcomes-{idx}", val, logger)
     plt.clf()
