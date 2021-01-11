@@ -1,7 +1,11 @@
 """The hand crafted synthetic data."""
 
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from ethicml import Dataset, DataTuple
 from scipy import stats
 
@@ -17,8 +21,8 @@ def lilliput(*, seed, num_samples, alpha):
     potions_score_nrm = num_gen.normal(0.65, 0.15, len(s)).round(2).clip(0, 0.95)
     potions_score_skw = stats.skewnorm(4, 0.35, 0.2).rvs(len(s)).round(2).clip(0, 0.95)
 
-    potions_score = np.where(s == 1, potions_score_skw, potions_score_nrm)
-    cf_potions_score = np.where(s == 0, potions_score_skw, potions_score_nrm)
+    potions_score = np.where(s == 0, potions_score_skw, potions_score_nrm)
+    cf_potions_score = np.where(s == 1, potions_score_skw, potions_score_nrm)
 
     pot_bane_err = num_gen.normal(0.03, 0.02, len(s)).clip(0, 1)
     potions_bane = (potions_score + pot_bane_err * (1 - s)).round(2).clip(0, 1)
@@ -218,46 +222,46 @@ def lilliput(*, seed, num_samples, alpha):
     class_label = "accepted"
     class_prefix = ["accepted", "graduation", "admittance"]
 
-    # sns.distplot(data[(data['sens'] == 1)]["potions_wolf"], color='g')
-    # sns.distplot(data[(data['sens'] == 0)]['potions_wolf'], color='b')
-    # plt.savefig((Path(__file__).parent / "potions_wolf.png"))
-    # plt.clf()
-    # sns.distplot(cf_data[(data['sens'] == 1)]["potions_wolf"], color='g')
-    # sns.distplot(cf_data[(data['sens'] == 0)]['potions_wolf'], color='b')
-    # plt.savefig((Path(__file__).parent / "cf_potions_wolf.png"))
-    # plt.clf()
-    # sns.distplot(data[(data['sens'] == 1)]["potions_bane"], color='g')
-    # sns.distplot(data[(data['sens'] == 0)]['potions_bane'], color='b')
-    # plt.savefig((Path(__file__).parent / "potions_bane.png"))
-    # plt.clf()
-    # sns.distplot(cf_data[(data['sens'] == 1)]["potions_bane"], color='g')
-    # sns.distplot(cf_data[(data['sens'] == 0)]['potions_bane'], color='b')
-    # plt.savefig((Path(__file__).parent / "cfpotions_bane.png"))
-    # plt.clf()
-    #
-    # sns.distplot(data[(data['sens'] == 1)]["graduation_grade"], color='g')
-    # sns.distplot(data[(data['sens'] == 0)]['graduation_grade'], color='b')
-    # plt.savefig((Path(__file__).parent / "grad_grade.png"))
-    # plt.clf()
-    # sns.histplot(data=data, x="accepted", hue="sens", multiple="dodge")
-    # plt.savefig((Path(__file__).parent / "accepted.png"))
-    # plt.clf()
-    # sns.distplot(data[(data['sens'] == 1)]["admittance_score"], color='g')
-    # sns.distplot(data[(data['sens'] == 0)]['admittance_score'], color='b')
-    # plt.savefig((Path(__file__).parent / "admittance.png"))
-    # plt.clf()
-    #
-    # sns.distplot(cf_data[(data['sens'] == 1)]["graduation_grade"], color='g')
-    # sns.distplot(cf_data[(data['sens'] == 0)]['graduation_grade'], color='b')
-    # plt.savefig((Path(__file__).parent / "cf_grad_grade.png"))
-    # plt.clf()
-    # sns.histplot(data=cf_data, x="accepted", hue="sens", multiple="dodge")
-    # plt.savefig((Path(__file__).parent / "cf_accepted.png"))
-    # plt.clf()
-    # sns.distplot(cf_data[(data['sens'] == 1)]["admittance_score"], color='g')
-    # sns.distplot(cf_data[(data['sens'] == 0)]['admittance_score'], color='b')
-    # plt.savefig((Path(__file__).parent / "cf_admittance.png"))
-    # plt.clf()
+    sns.distplot(data[(data['sens'] == 1)]["potions_wolf"], color='g')
+    sns.distplot(data[(data['sens'] == 0)]['potions_wolf'], color='b')
+    plt.savefig((Path(__file__).parent / "potions_wolf.png"))
+    plt.clf()
+    sns.distplot(cf_data[(data['sens'] == 1)]["potions_wolf"], color='g')
+    sns.distplot(cf_data[(data['sens'] == 0)]['potions_wolf'], color='b')
+    plt.savefig((Path(__file__).parent / "cf_potions_wolf.png"))
+    plt.clf()
+    sns.distplot(data[(data['sens'] == 1)]["potions_bane"], color='g')
+    sns.distplot(data[(data['sens'] == 0)]['potions_bane'], color='b')
+    plt.savefig((Path(__file__).parent / "potions_bane.png"))
+    plt.clf()
+    sns.distplot(cf_data[(data['sens'] == 1)]["potions_bane"], color='g')
+    sns.distplot(cf_data[(data['sens'] == 0)]['potions_bane'], color='b')
+    plt.savefig((Path(__file__).parent / "cfpotions_bane.png"))
+    plt.clf()
+
+    sns.distplot(data[(data['sens'] == 1)]["graduation_grade"], color='g')
+    sns.distplot(data[(data['sens'] == 0)]['graduation_grade'], color='b')
+    plt.savefig((Path(__file__).parent / "grad_grade.png"))
+    plt.clf()
+    sns.histplot(data=data, x="accepted", hue="sens", multiple="dodge")
+    plt.savefig((Path(__file__).parent / "accepted.png"))
+    plt.clf()
+    sns.distplot(data[(data['sens'] == 1)]["admittance_score"], color='g')
+    sns.distplot(data[(data['sens'] == 0)]['admittance_score'], color='b')
+    plt.savefig((Path(__file__).parent / "admittance.png"))
+    plt.clf()
+
+    sns.distplot(cf_data[(data['sens'] == 1)]["graduation_grade"], color='g')
+    sns.distplot(cf_data[(data['sens'] == 0)]['graduation_grade'], color='b')
+    plt.savefig((Path(__file__).parent / "cf_grad_grade.png"))
+    plt.clf()
+    sns.histplot(data=cf_data, x="accepted", hue="sens", multiple="dodge")
+    plt.savefig((Path(__file__).parent / "cf_accepted.png"))
+    plt.clf()
+    sns.distplot(cf_data[(data['sens'] == 1)]["admittance_score"], color='g')
+    sns.distplot(cf_data[(data['sens'] == 0)]['admittance_score'], color='b')
+    plt.savefig((Path(__file__).parent / "cf_admittance.png"))
+    plt.clf()
 
     dataset = Dataset(
         name=f"University of Lilliput",
