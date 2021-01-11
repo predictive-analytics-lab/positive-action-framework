@@ -117,69 +117,69 @@ def lilliput(*, seed, num_samples, alpha):
     cf_s = pd.DataFrame(cf_s, columns=["sens"])
     data = pd.concat(
         [
-            potions_score,
-            potions_bane,
-            potions_wolf,
+            # potions_score,
+            # potions_bane,
+            # potions_wolf,
             s,
             # video_score,
             # video_bane,
             # video_wolf,
-            # essay_score,
-            # essay_bane,
-            # essay_wolf,
+            essay_score,
+            essay_bane,
+            essay_wolf,
         ],
         axis=1,
     )
 
     cf_data = pd.concat(
         [
-            cf_potions_score,
-            cf_potions_bane,
-            cf_potions_wolf,
+            # cf_potions_score,
+            # cf_potions_bane,
+            # cf_potions_wolf,
             cf_s,
             # cf_video_score,
             # cf_video_bane,
             # cf_video_wolf,
-            # cf_essay_score,
-            # cf_essay_bane,
-            # cf_essay_wolf,
+            cf_essay_score,
+            cf_essay_bane,
+            cf_essay_wolf,
         ],
         axis=1,
     )
 
     data["admittance_score"] = (
-        0.4
-        * ((data["potions_bane"] + data["potions_wolf"]) / 2)
+        # 0.4 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
         # + 0.4 * ((data["video_bane"] + data["video_wolf"]) / 2)
-        # + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
+        +0.2
+        * ((data["essay_bane"] + data["essay_wolf"]) / 2)
     ).round(2)
 
     cf_data["admittance_score"] = (
-        0.4
-        * ((cf_data["potions_bane"] + cf_data["potions_wolf"]) / 2)
+        # 0.4 * ((cf_data["potions_bane"] + cf_data["potions_wolf"]) / 2)
         # + 0.4 * ((cf_data["video_bane"] + cf_data["video_wolf"]) / 2)
-        # + 0.2 * ((cf_data["essay_bane"] + cf_data["essay_wolf"]) / 2)
+        +0.2
+        * ((cf_data["essay_bane"] + cf_data["essay_wolf"]) / 2)
     ).round(2)
 
     graduation = []
     # for (c, p, v, e) in zip(data["sens"], data["potions_score"], data["video_score"], data["essay_score"]):
-    for (c, p) in zip(data["sens"], data["potions_score"]):
+    for (c, e) in zip(data["sens"], data["essay_score"]):
         if c == 0:
             # graduation.append(round(0.7 * p + 0.15 * v + 0.15 * e, 2))
-            graduation.append(round(0.7 * p, 2))
+            graduation.append(round(0.15 * e, 2))
         else:
             # graduation.append(round(0.1 * p + 0.7 * v + 0.2 * e, 2))
-            graduation.append(round(0.1 * p, 2))
+            graduation.append(round(0.2 * e, 2))
 
     cf_graduation = []
     # for (c, p, v, e) in zip(cf_data["sens"], cf_data["potions_score"], cf_data["video_score"], cf_data["essay_score"]):
-    for (c, p) in zip(cf_data["sens"], cf_data["potions_score"]):
+    for (c, e) in zip(cf_data["sens"], cf_data["essay_score"]):
         if c == 0:
             # cf_graduation.append(round(0.7 * p + 0.15 * v + 0.15 * e, 2))
-            cf_graduation.append(round(0.7 * p, 2))
+            cf_graduation.append(round(0.15 * e, 2))
         else:
             # cf_graduation.append(round(0.1 * p + 0.7 * v + 0.2 * e, 2))
-            cf_graduation.append(round(0.1 * p, 2))
+            cf_graduation.append(round(0.2 * e, 2))
 
     g = pd.DataFrame(graduation, columns=["graduation_grade"])
     cf_g = pd.DataFrame(cf_graduation, columns=["graduation_grade"])
@@ -198,12 +198,12 @@ def lilliput(*, seed, num_samples, alpha):
     cf_data["graduation_grade>70%"] = (cf_data["graduation_grade"] >= 0.70).astype(int)
 
     features = [
-        "potions_bane",
-        "potions_wolf",
+        # "potions_bane",
+        # "potions_wolf",
         # "video_bane",
         # "video_wolf",
-        # "essay_bane",
-        # "essay_wolf",
+        "essay_bane",
+        "essay_wolf",
         "sens",
         "accepted",
         "admittance_score",
@@ -212,12 +212,12 @@ def lilliput(*, seed, num_samples, alpha):
     ]
 
     cont_features = [
-        "potions_bane",
-        "potions_wolf",
+        # "potions_bane",
+        # "potions_wolf",
         # "video_bane",
         # "video_wolf",
-        # "essay_bane",
-        # "essay_wolf",
+        "essay_bane",
+        "essay_wolf",
         "admittance_score",
         "graduation_grade",
     ]
