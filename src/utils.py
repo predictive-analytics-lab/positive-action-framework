@@ -130,16 +130,18 @@ def do_log(name: str, val: Any, logger: Optional[WandbLogger]) -> None:
         logger.experiment.log({name: val})
 
 
-def produce_selection_groups(outcomes: pd.DataFrame, logger: Optional[LightningLoggerBase]) -> Prediction:
+def produce_selection_groups(
+    outcomes: pd.DataFrame, logger: Optional[LightningLoggerBase], data: str = "Test"
+) -> Prediction:
     """Follow Selection rules."""
     outcomes_hist(outcomes, logger)
     outcomes["decision"] = selection_rules(outcomes)
     for idx, val in outcomes["decision"].value_counts().iteritems():
-        do_log(f"Table3/Ours/pre_selection_rule_group_{idx}", val, logger)
+        do_log(f"Table3/Ours_{data}/pre_selection_rule_group_{idx}", val, logger)
 
     _to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
     for idx, val in _to_return.hard.value_counts().iteritems():
-        do_log(f"Table3/Ours/selection_rule_group_{idx}", val, logger)
+        do_log(f"Table3/Ours_{data}/selection_rule_group_{idx}", val, logger)
 
     to_return = facct_mapper_2(_to_return)
     return to_return

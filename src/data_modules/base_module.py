@@ -1,9 +1,11 @@
 """Base Data Module."""
+from abc import abstractmethod
 from typing import Dict, List, Optional
 
 import pandas as pd
-from ethicml import Dataset, DataTuple
+from ethicml import Dataset, DataTuple, implements
 from pytorch_lightning import LightningDataModule
+from torch.utils.data import DataLoader
 
 from src.data_modules.dataset_utils import grouped_features_indexes
 
@@ -23,6 +25,7 @@ class BaseDataModule(LightningDataModule):
         self._train_tuple: Optional[DataTuple] = None
         self._x_dim: Optional[int] = None
         self._feature_groups: Optional[Dict[str, List[slice]]] = None
+        self.train_means_train = True
 
     @property
     def outcome_columns(self) -> List[str]:
@@ -142,3 +145,29 @@ class BaseDataModule(LightningDataModule):
     @true_test_data.setter
     def true_test_data(self, datatuple: DataTuple) -> None:
         self._true_test_tuple = datatuple
+
+    def flip_train_test(self):
+        """Swap the train and test dataloaders."""
+        self.train_means_train = not self.train_means_train
+
+    @abstractmethod
+    def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+        ...
+
+    @abstractmethod
+    def _test_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+        ...
+
+    @implements(LightningDataModule)
+    def train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+        if self.train_means_train:
+            return self._train_dataloader(shuffle, drop_last)
+        else:
+            return self._test_dataloader(shuffle, drop_last)
+
+    @implements(LightningDataModule)
+    def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+        if self.train_means_train:
+            return self._test_dataloader(shuffle, drop_last)
+        else:
+            return self._train_dataloader(shuffle, drop_last)

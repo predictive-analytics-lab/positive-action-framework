@@ -140,8 +140,8 @@ class ThirdWayDataModule(BaseDataModule):
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
         return train, test
 
-    @implements(LightningDataModule)
-    def train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    @implements(BaseDataModule)
+    def _train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.train_data,
@@ -155,8 +155,8 @@ class ThirdWayDataModule(BaseDataModule):
             drop_last=drop_last,
         )
 
-    @implements(LightningDataModule)
-    def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    @implements(BaseDataModule)
+    def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.test_data,

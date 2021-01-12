@@ -94,8 +94,8 @@ class SimpleXDataModule(BaseDataModule):
         self.cf_train = counterfactual_train
         self.cf_test = counterfactual_test
 
-    @implements(LightningDataModule)
-    def train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+    @implements(BaseDataModule)
+    def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.train_data,
@@ -109,8 +109,8 @@ class SimpleXDataModule(BaseDataModule):
             drop_last=drop_last,
         )
 
-    @implements(LightningDataModule)
-    def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    @implements(BaseDataModule)
+    def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.test_data,

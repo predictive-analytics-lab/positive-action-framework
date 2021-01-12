@@ -110,6 +110,31 @@ def test_data(cfg, cf_available):
             torch.testing.assert_allclose(y, y)
 
 
+# @pytest.mark.parametrize("cfg,cf_available", [(THIRD, True), (LILLIPUT, True), (SIMPLE, True), (ADULT, False)])
+# def test_data_flip(cfg, cf_available):
+#     """Test the flip dataset function."""
+#     seed_everything(0)
+#     data = create_data_module(cfg)
+#     data.prepare_data()
+#
+#     training_dl = data.train_dataloader(shuffle=False, drop_last=False)
+#     test_dl = data.test_dataloader(shuffle=False, drop_last=False)
+#     data.flip_train_test()
+#     training_dl2 = data.train_dataloader(shuffle=False, drop_last=False)
+#     test_dl2 = data.test_dataloader(shuffle=False, drop_last=False)
+#
+#     for (tr_batch, te_batch) in zip(training_dl, training_dl2):
+#         if data.cf_available:
+#             tr_x, tr_s, tr_y, _, _, _ = tr_batch
+#             te_x, te_s, te_y, _, _, _ = te_batch
+#         else:
+#             tr_x, tr_s, tr_y = tr_batch
+#             te_x, te_s, te_y = te_batch
+#
+#         with pytest.raises(AssertionError):
+#             torch.testing.assert_allclose(tr_x, te_x)
+
+
 def test_enc():
     """Test the encoder network runs."""
     data = create_data_module(SIMPLE)

@@ -77,8 +77,8 @@ class LilliputDataModule(BaseDataModule):
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
         return train, test
 
-    @implements(LightningDataModule)
-    def train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+    @implements(BaseDataModule)
+    def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 dataset=self.train_data,
@@ -92,8 +92,8 @@ class LilliputDataModule(BaseDataModule):
             drop_last=drop_last,
         )
 
-    @implements(LightningDataModule)
-    def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    @implements(BaseDataModule)
+    def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 dataset=self.test_data,

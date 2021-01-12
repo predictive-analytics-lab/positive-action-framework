@@ -42,8 +42,8 @@ class SimpleAdultDataModule(BaseDataModule):
         self.test_data = test
         self.make_feature_groups(dataset, true_data)
 
-    @implements(LightningDataModule)
-    def train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    @implements(BaseDataModule)
+    def _train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
                 self.train_data,
@@ -56,8 +56,8 @@ class SimpleAdultDataModule(BaseDataModule):
             drop_last=drop_last,
         )
 
-    @implements(LightningDataModule)
-    def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    @implements(BaseDataModule)
+    def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
                 self.test_data,
