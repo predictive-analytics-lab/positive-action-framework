@@ -71,8 +71,11 @@ def run_aies(cfg: Config) -> None:
     multiple_metrics(preds, data.test_data, "Ours-Post-Selection", wandb_logger)
 
     data.flip_train_test()
-    model_trainer.test(ckpt_path=None, datamodule=data)
-    produce_selection_groups(model.pd_results, wandb_logger, "Train")
+    _model = AiesModel(encoder=encoder, classifier=classifier)
+    _model_trainer = get_trainer(cfg.training.gpus, wandb_logger, 0)
+    _model_trainer.fit(_model, datamodule=data)
+    _model_trainer.test(ckpt_path=None, datamodule=data)
+    produce_selection_groups(_model.pd_results, wandb_logger, "Train")
     data.flip_train_test()
 
     our_clf_preds = Prediction(hard=pd.Series(model.all_preds.squeeze(-1).detach().cpu().numpy()))
