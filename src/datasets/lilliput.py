@@ -165,7 +165,7 @@ def lilliput(*, seed, num_samples, alpha):
     graduation = []
     for (c, p, v, e) in zip(data["sens"], data["potions_score"], data["video_score"], data["essay_score"]):
         if c == 0:
-            graduation.append(round(0.7 * p + 0.15 * v + 0.15 * e, 2))
+            graduation.append(round(0.3 * p + 0.25 * v + 0.45 * e, 2))
         else:
             graduation.append(round(0.1 * p + 0.7 * v + 0.2 * e, 2))
 
