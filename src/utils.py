@@ -124,7 +124,7 @@ def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
 
 def do_log(name: str, val: Any, logger: Optional[WandbLogger]) -> None:
     """Log to experiment tracker and also the logger."""
-    if isinstance(val, float):
+    if isinstance(val, float) or isinstance(val, int):
         log.info(f"{name}: {val}")
     if logger is not None:
         logger.experiment.log({name: val})
