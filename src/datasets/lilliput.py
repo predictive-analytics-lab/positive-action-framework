@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy
 import seaborn as sns
 from ethicml import Dataset, DataTuple
 from scipy import stats
@@ -22,8 +23,11 @@ def lilliput(*, seed, num_samples, alpha):
     s_all_0 = np.zeros_like(s)
     s_all_1 = np.ones_like(s)
 
-    potions_score_nrm = num_gen.normal(0.65, 0.15, len(s)).round(2).clip(0, 0.95)
-    potions_score_skw = stats.skewnorm(4, 0.35, 0.2).rvs(len(s)).round(2).clip(0, 0.95)
+    potions_percent = num_gen.random(len(s))
+
+    potions_score_nrm = scipy.stats.norm.ppf(potions_percent, loc=0.65, scale=0.15).round(2).clip(0, 1)
+    # potions_score_skw = stats.skewnorm.ppf(potions_percent, a=4, loc=0.35, scale=0.2).round(2).clip(0, 0.95)
+    potions_score_skw = stats.johnsonsu.ppf(potions_percent, a=-2, b=3, loc=0.35, scale=0.2).round(2).clip(0, 1)
 
     potions_score = np.where(s == 0, potions_score_skw, potions_score_nrm)
     cf_potions_score = np.where(s == 1, potions_score_skw, potions_score_nrm)
@@ -31,10 +35,10 @@ def lilliput(*, seed, num_samples, alpha):
     potions_score_all_1 = potions_score_nrm
 
     pot_bane_err = num_gen.normal(0.03, 0.02, len(s)).clip(0, 1)
-    potions_bane = (potions_score + pot_bane_err * (-(2 * s) - 1)).round(2).clip(0, 1)
-    cf_potions_bane = (cf_potions_score + pot_bane_err * (-(2 * cf_s) - 1)).round(2).clip(0, 1)
-    potions_bane_all_0 = (potions_score_all_0 + pot_bane_err * (-(2 * s_all_0) - 1)).round(2).clip(0, 1)
-    potions_bane_all_1 = (potions_score_all_1 + pot_bane_err * (-(2 * s_all_1) - 1)).round(2).clip(0, 1)
+    potions_bane = (potions_score + pot_bane_err * ((2 * s) - 1)).round(2).clip(0, 1)
+    cf_potions_bane = (cf_potions_score + pot_bane_err * ((2 * cf_s) - 1)).round(2).clip(0, 1)
+    potions_bane_all_0 = (potions_score_all_0 + pot_bane_err * ((2 * s_all_0) - 1)).round(2).clip(0, 1)
+    potions_bane_all_1 = (potions_score_all_1 + pot_bane_err * ((2 * s_all_1) - 1)).round(2).clip(0, 1)
 
     pot_wolf_err = num_gen.normal(0.01, 0.04, len(s)).clip(0, 1)
     potions_wolf = (potions_score + pot_wolf_err * ((2 * s) - 1)).round(2).clip(0, 1)
@@ -51,10 +55,10 @@ def lilliput(*, seed, num_samples, alpha):
     #     for (a, b, c) in zip(num_gen.normal(0.01, 0.04, len(s)).clip(0, 1), potions_score, s)
     # ]
 
-    video_mean = 0.4 + 0.01 * -(s * 2 - 1)
-    cf_video_mean = 0.4 + 0.01 * -(cf_s * 2 - 1)
-    video_mean_all_0 = 0.4 + 0.01 * -(s_all_0 * 2 - 1)
-    video_mean_all_1 = 0.4 + 0.01 * -(s_all_1 * 2 - 1)
+    video_mean = 0.4 + 0.01 * (s * 2 - 1)
+    cf_video_mean = 0.4 + 0.01 * (cf_s * 2 - 1)
+    video_mean_all_0 = 0.4 + 0.01 * (s_all_0 * 2 - 1)
+    video_mean_all_1 = 0.4 + 0.01 * (s_all_1 * 2 - 1)
 
     vid_score_nrm = num_gen.normal(0, 0.2, len(s))
     video_score = video_mean + vid_score_nrm
@@ -82,8 +86,12 @@ def lilliput(*, seed, num_samples, alpha):
     #     (v + r).round(2).clip(0, 1) for (r, v) in zip(num_gen.normal(0, 0.05, len(s)).clip(0, 1), video_score)
     # ]
 
-    essay_score_vnm = num_gen.vonmises(0.4, 60, len(s)).round(2).clip(0, 1)
-    essay_score_lap = num_gen.laplace(0.5, 0.075, len(s)).round(2).clip(0, 1)
+    random_nums = num_gen.random(len(s))
+    # essay_score_vnm = (np.exp(60 * np.cos(random_nums - 0.4)) / (2 * np.pi * sc.i0(60))).round(2).clip(0, 1)
+    # essay_score_lap = (np.exp(-abs(random_nums - 0.5) / 0.075) / (2.0 * 0.075)).round(2).clip(0, 1)
+
+    essay_score_vnm = scipy.stats.t.ppf(random_nums, df=100, loc=0.4, scale=0.15).round(2).clip(0, 1)
+    essay_score_lap = scipy.stats.laplace.ppf(random_nums, loc=0.5, scale=0.075).round(2).clip(0, 1)
 
     essay_score = np.where(s == 1, essay_score_lap, essay_score_vnm)
     cf_essay_score = np.where(s == 0, essay_score_lap, essay_score_vnm)
@@ -308,10 +316,10 @@ def lilliput(*, seed, num_samples, alpha):
 
     passed_threshold = data.nlargest(n=int(data.shape[0] * 0.2), columns='admittance_score')["admittance_score"].min()
 
-    accepted_Sx_0_Sy_0 = data_all_0["Sy=0_admittance_score"] > passed_threshold
-    accepted_Sx_0_Sy_1 = data_all_0["Sy=1_admittance_score"] > passed_threshold
-    accepted_Sx_1_Sy_0 = data_all_1["Sy=0_admittance_score"] > passed_threshold
-    accepted_Sx_1_Sy_1 = data_all_1["Sy=1_admittance_score"] > passed_threshold
+    accepted_Sx_0_Sy_0 = data_all_0["Sy=0_admittance_score"] >= passed_threshold
+    accepted_Sx_0_Sy_1 = data_all_0["Sy=1_admittance_score"] >= passed_threshold
+    accepted_Sx_1_Sy_0 = data_all_1["Sy=0_admittance_score"] >= passed_threshold
+    accepted_Sx_1_Sy_1 = data_all_1["Sy=1_admittance_score"] >= passed_threshold
 
     gt_results = pd.concat(
         [
@@ -367,22 +375,42 @@ def lilliput(*, seed, num_samples, alpha):
     class_label = "accepted"
     class_prefix = ["accepted", "graduation", "admittance"]
 
-    sns.distplot(data[(data['sens'] == 1)]["potions_wolf"], color='g')
-    sns.distplot(data[(data['sens'] == 0)]['potions_wolf'], color='b')
-    plt.savefig((Path(__file__).parent / "potions_wolf.png"))
-    plt.clf()
-    sns.distplot(cf_data[(data['sens'] == 1)]["potions_wolf"], color='g')
-    sns.distplot(cf_data[(data['sens'] == 0)]['potions_wolf'], color='b')
-    plt.savefig((Path(__file__).parent / "cf_potions_wolf.png"))
-    plt.clf()
-    sns.distplot(data[(data['sens'] == 1)]["potions_bane"], color='g')
-    sns.distplot(data[(data['sens'] == 0)]['potions_bane'], color='b')
-    plt.savefig((Path(__file__).parent / "potions_bane.png"))
-    plt.clf()
-    sns.distplot(cf_data[(data['sens'] == 1)]["potions_bane"], color='g')
-    sns.distplot(cf_data[(data['sens'] == 0)]['potions_bane'], color='b')
-    plt.savefig((Path(__file__).parent / "cfpotions_bane.png"))
-    plt.clf()
+    for subject in ["potions", "video", "essay"]:
+        sns.distplot(data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane")
+        sns.distplot(data[(data['sens'] == 1)][f"{subject}_bane"], color='g', kde_kws={'linestyle': '--'}, label="bane")
+        sns.distplot(data[(data['sens'] == 0)][f'{subject}_wolf'], color='b', kde_kws={'linestyle': ':'}, label="wolf")
+        sns.distplot(data[(data['sens'] == 1)][f"{subject}_wolf"], color='g', kde_kws={'linestyle': ':'}, label="wolf")
+        plt.legend()
+        plt.savefig((Path(__file__).parent / f"{subject}.png"))
+        plt.clf()
+
+        sns.distplot(
+            cf_data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane"
+        )
+        sns.distplot(
+            cf_data[(data['sens'] == 1)][f"{subject}_bane"], color='g', kde_kws={'linestyle': '--'}, label="bane"
+        )
+        sns.distplot(
+            cf_data[(data['sens'] == 0)][f'{subject}_wolf'], color='b', kde_kws={'linestyle': ':'}, label="wolf"
+        )
+        sns.distplot(
+            cf_data[(data['sens'] == 1)][f"{subject}_wolf"], color='g', kde_kws={'linestyle': ':'}, label="wolf"
+        )
+        plt.legend()
+        plt.savefig((Path(__file__).parent / f"cf_{subject}.png"))
+        plt.clf()
+
+    # sns.distplot(cf_data[(data['sens'] == 1)]["potions_wolf"], color='g')
+    # sns.distplot(cf_data[(data['sens'] == 0)]['potions_wolf'], color='b')
+    # plt.savefig((Path(__file__).parent / "cf_potions_wolf.png"))
+    # plt.clf()
+
+    # plt.savefig((Path(__file__).parent / "potions_bane.png"))
+    # plt.clf()
+    # sns.distplot(cf_data[(data['sens'] == 1)]["potions_bane"], color='g')
+    # sns.distplot(cf_data[(data['sens'] == 0)]['potions_bane'], color='b')
+    # plt.savefig((Path(__file__).parent / "cf_potions_bane.png"))
+    # plt.clf()
 
     sns.distplot(data[(data['sens'] == 1)]["graduation_grade"], color='g')
     sns.distplot(data[(data['sens'] == 0)]['graduation_grade'], color='b')
