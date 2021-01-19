@@ -24,7 +24,7 @@ from src.model.aies_model import AiesModel
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
 from src.scoring import produce_baselines
-from src.utils import do_log, get_trainer, get_wandb_logger, produce_selection_groups
+from src.utils import do_log, get_trainer, get_wandb_logger, label_plot, produce_selection_groups
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ def run_aies(cfg: Config) -> None:
     seed_everything(cfg.data.seed)
     data = create_data_module(cfg.data)
     data.prepare_data()
+
     log.info(f"data_dim={data.data_dim}, num_s={data.num_s}")
     encoder = AE(
         cfg.enc,
@@ -45,6 +46,7 @@ def run_aies(cfg: Config) -> None:
         column_names=data.column_names,
     )
     wandb_logger = get_wandb_logger(cfg)
+    data.make_data_plots(wandb_logger)
 
     enc_trainer = get_trainer(cfg.training.gpus, wandb_logger, cfg.training.enc_epochs)
     enc_trainer.fit(encoder, datamodule=data)
@@ -130,11 +132,14 @@ def run_aies(cfg: Config) -> None:
         #         logger=wandb_logger,
         #     )
 
-    wandb_logger.experiment.finish()
+    if cfg.training.log:
+        wandb_logger.experiment.finish()
 
 
 def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: WandbLogger) -> None:
     """Get multiple metrics."""
+    label_plot(target.replace(y=preds.hard.to_frame()), logger, name)
+
     for metric in [Accuracy(), ProbPos(), TPR(), TNR()]:
         general_str = f"Results/{name}/{metric.name}"
         do_log(general_str, metric.score(preds, target), logger)

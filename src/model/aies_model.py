@@ -38,7 +38,7 @@ class AiesModel(AiesProperties):
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
         if self.enc.cf_model:
-            x, s, y, cf_x, cf_s, cf_y = batch
+            x, s, y, cf_x, cf_s, cf_y, _ = batch
         else:
             x, s, y = batch
 

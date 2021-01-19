@@ -1,13 +1,17 @@
 """Base Data Module."""
 from abc import abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 from ethicml import Dataset, DataTuple, implements
 from pytorch_lightning import LightningDataModule
+from pytorch_lightning.loggers import WandbLogger
+from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
 from src.data_modules.dataset_utils import grouped_features_indexes
+from src.utils import label_plot
 
 
 class BaseDataModule(LightningDataModule):
@@ -171,3 +175,29 @@ class BaseDataModule(LightningDataModule):
             return self._test_dataloader(shuffle, drop_last)
         else:
             return self._train_dataloader(shuffle, drop_last)
+
+    def scale_and_split(
+        self, datatuple: DataTuple, dataset: Dataset, train_indices: np.ndarray, test_indices: np.ndarray
+    ) -> Tuple[DataTuple, DataTuple]:
+        """Scale a datatuple and split to train/test."""
+        train = DataTuple(
+            x=datatuple.x.iloc[train_indices].reset_index(drop=True),
+            s=datatuple.s.iloc[train_indices].reset_index(drop=True),
+            y=datatuple.y.iloc[train_indices].reset_index(drop=True),
+        )
+        test = DataTuple(
+            x=datatuple.x.iloc[test_indices].reset_index(drop=True),
+            s=datatuple.s.iloc[test_indices].reset_index(drop=True),
+            y=datatuple.y.iloc[test_indices].reset_index(drop=True),
+        )
+
+        scaler = MinMaxScaler()
+        scaler = scaler.fit(train.x[dataset.continuous_features])
+        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
+        return train, test
+
+    def make_data_plots(self, logger: Optional[WandbLogger]):
+        """Make plots of the data."""
+        label_plot(self.train_data, logger, "train")
+        label_plot(self.test_data, logger, "test")

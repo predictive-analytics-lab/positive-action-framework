@@ -19,7 +19,7 @@ class CommonModel(LightningModule):
         latent = None
         for batch in dataloader:
             if self.cf_model:
-                x, s, y, cf_x, cf_s, cf_y = batch
+                x, s, y, cf_x, cf_s, cf_y, _ = batch
             else:
                 x, s, y = batch
             x = x.to(self.device)

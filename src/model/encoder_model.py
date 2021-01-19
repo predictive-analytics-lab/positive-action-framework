@@ -144,9 +144,9 @@ class AE(CommonModel):
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
         if self.cf_model:
-            x, s, _, cf_x, cf_s, _ = batch
+            x, s, _, cf_x, cf_s, _, _ = batch
         else:
-            x, s, y = batch
+            x, s, y, _ = batch
         z, s_pred, recons = self(x, s)
         recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
         adv_loss = (
@@ -191,7 +191,7 @@ class AE(CommonModel):
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
         if self.cf_model:
-            x, s, _, cf_x, cf_s, _ = batch
+            x, s, _, cf_x, cf_s, _, _ = batch
         else:
             x, s, _ = batch
         z, _, recons = self(x, s)
@@ -257,7 +257,7 @@ class AE(CommonModel):
         recons = None
         for batch in dataloader:
             if self.cf_model:
-                x, s, y, cf_x, cf_s, cf_y = batch
+                x, s, y, cf_x, cf_s, cf_y, _ = batch
             else:
                 x, s, y = batch
             x = x.to(self.device)

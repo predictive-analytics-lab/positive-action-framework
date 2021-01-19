@@ -1,5 +1,6 @@
 # @package _group_
-enc_epochs: 2
-clf_epochs: 2
+enc_epochs: 50
+clf_epochs: 50
 all_baselines: true
 gpus: -1
+log: true

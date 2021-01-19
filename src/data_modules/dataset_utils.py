@@ -5,7 +5,7 @@ from typing import Iterator, List, Tuple
 
 import numpy as np
 import torch
-from ethicml import DataTuple
+from ethicml import DataTuple, compute_instance_weights
 from ethicml.implementations.pytorch_common import _get_info
 from torch import Tensor
 
@@ -97,6 +97,7 @@ class CFDataTupleDataset(DataTupleDatasetBase):
         """Create DataTupleDataset."""
         super().__init__(dataset, disc_features, cont_features)
         self.cf_x_disc, self.cf_x_cont, self.cf_s, self.cf_y = self.split_tuple(cf_dataset)
+        self.instance_weight = torch.tensor(compute_instance_weights(dataset)["instance weights"].values)
 
     def split_tuple(self, datatuple: DataTuple) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Split a datatuple to components."""
@@ -128,7 +129,7 @@ class CFDataTupleDataset(DataTupleDatasetBase):
     def _cf_y(self, index: int) -> Tensor:
         return self._make_from_arr(self.cf_y, index)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         return (
             super()._x(index),
             super()._s(index),
@@ -136,4 +137,5 @@ class CFDataTupleDataset(DataTupleDatasetBase):
             self._cf_x(index),
             self._cf_s(index),
             self._cf_y(index),
+            self.instance_weight[index],
         )

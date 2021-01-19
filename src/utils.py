@@ -5,11 +5,12 @@ import logging
 import warnings
 from typing import Any, Dict, List, MutableMapping, Optional
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from ethicml import Prediction
+from ethicml import DataTuple, Prediction
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
@@ -124,7 +125,7 @@ def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
 
 def do_log(name: str, val: Any, logger: Optional[WandbLogger]) -> None:
     """Log to experiment tracker and also the logger."""
-    if isinstance(val, float) or isinstance(val, int):
+    if isinstance(val, (float, int)):
         log.info(f"{name}: {val}")
     if logger is not None:
         logger.experiment.log({name: val})
@@ -143,8 +144,7 @@ def produce_selection_groups(
     for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours_{data}/selection_rule_group_{idx}", val, logger)
 
-    to_return = facct_mapper_2(_to_return)
-    return to_return
+    return facct_mapper_2(_to_return)
 
 
 def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None:
@@ -166,11 +166,93 @@ def get_trainer(gpus: int, logger: LightningLoggerBase, max_epochs: int) -> Trai
         return Trainer(max_epochs=max_epochs, deterministic=True, logger=logger)
 
 
-def get_wandb_logger(cfg: Config) -> WandbLogger:
+def get_wandb_logger(cfg: Config) -> Optional[WandbLogger]:
     """Get a wandb logger object."""
-    return WandbLogger(
-        entity="predictive-analytics-lab",
-        project="aies21",
-        tags=cfg.training.tags.split("/")[:-1],
-        config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+    if cfg.training.log:
+        return WandbLogger(
+            entity="predictive-analytics-lab",
+            project="aies21",
+            tags=cfg.training.tags.split("/")[:-1],
+            config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+        )
+    else:
+        return None
+
+
+def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
+    """Make a label (quadrant) plot and uplad to wandb."""
+    s_col = data.s.columns[0]
+    s_values = data.s[s_col].value_counts() / data.s[s_col].count()
+
+    s_0_val = s_values[0]
+    s_1_val = s_values[1]
+
+    s_0_label = s_values.index.min()
+    s_1_label = s_values.index.max()
+
+    y_col = data.y.columns[0]
+    y_s0 = data.y[y_col][data.s[s_col] == 0].value_counts() / data.y[y_col][data.s[s_col] == 0].count()
+    y_s1 = data.y[y_col][data.s[s_col] == 1].value_counts() / data.y[y_col][data.s[s_col] == 1].count()
+
+    y_0_label = y_s0.index[0]
+    y_1_label = y_s0.index[1]
+
+    mpl.style.use("seaborn-pastel")
+    # plt.xkcd()
+
+    fig, plot = plt.subplots()
+
+    quadrant1 = plot.bar(
+        0,
+        height=y_s0[y_0_label] * 100,
+        width=s_0_val * 100,
+        align="edge",
+        edgecolor="black",
+        color="C0",
     )
+    quadrant2 = plot.bar(
+        s_0_val * 100,
+        height=y_s1[y_0_label] * 100,
+        width=s_1_val * 100,
+        align="edge",
+        edgecolor="black",
+        color="C1",
+    )
+    quadrant3 = plot.bar(
+        0,
+        height=y_s0[y_1_label] * 100,
+        width=s_0_val * 100,
+        bottom=y_s0[y_0_label] * 100,
+        align="edge",
+        edgecolor="black",
+        color="C2",
+    )
+    quadrant4 = plot.bar(
+        s_0_val * 100,
+        height=y_s1[y_1_label] * 100,
+        width=s_1_val * 100,
+        bottom=y_s1[y_0_label] * 100,
+        align="edge",
+        edgecolor="black",
+        color="C3",
+    )
+
+    plot.set_ylim(0, 100)
+    plot.set_xlim(0, 100)
+    plot.set_ylabel(f"Percent {y_col}=y")
+    plot.set_xlabel(f"Percent {s_col}=s")
+    plot.set_title("Dataset Composition by class and sensitive attribute")
+
+    plot.legend(
+        [quadrant1, quadrant2, quadrant3, quadrant4],
+        [
+            f"y={y_0_label}, s={s_0_label}",
+            f"y={y_0_label}, s={s_1_label}",
+            f"y={y_1_label}, s={s_0_label}",
+            f"y={y_1_label}, s={s_1_label}",
+        ],
+    )
+
+    do_log(f"label_plot/{name}", wandb.Image(plt), logger)
+
+    plt.clf()
