@@ -8,6 +8,7 @@ from ethicml import (
     TPR,
     Accuracy,
     DataTuple,
+    Kamiran,
     Prediction,
     ProbPos,
     diff_per_sensitive_attribute,
@@ -88,7 +89,13 @@ def run_aies(cfg: Config) -> None:
     produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
 
     if cfg.training.all_baselines:
-        for model in [LRCV(), Oracle(), DPOracle(), EqOppOracle()]:
+        for model in [
+            LRCV(),
+            Oracle(),
+            DPOracle(),
+            EqOppOracle(),
+            Kamiran(),
+        ]:
             log.info(f"=== {model.name} ===")
             results = model.run(data.train_data, data.test_data)
             multiple_metrics(results, data.test_data, model.name, wandb_logger)
