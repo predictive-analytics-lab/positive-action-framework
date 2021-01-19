@@ -98,13 +98,13 @@ def lilliput(*, seed, num_samples, alpha):
     essay_score_all_0 = essay_score_lap
     essay_score_all_1 = essay_score_vnm
 
-    ess_bane_err = num_gen.normal(0.03, 0.02, len(s)).clip(0, 1)
+    ess_bane_err = num_gen.normal(0.03, 0.01, len(s)).clip(0, 1)
     essay_bane = (essay_score + ess_bane_err).round(2).clip(0, 1)
     cf_essay_bane = (cf_essay_score + ess_bane_err).round(2).clip(0, 1)
     essay_bane_all_0 = (essay_score_all_0 + ess_bane_err).round(2).clip(0, 1)
     essay_bane_all_1 = (essay_score_all_1 + ess_bane_err).round(2).clip(0, 1)
 
-    ess_wolf_err = num_gen.normal(0.01, 0.01, len(s)).clip(0, 1)
+    ess_wolf_err = num_gen.normal(0.01, 0.02, len(s)).clip(0, 1)
     essay_wolf = (essay_score + ess_wolf_err).round(2).clip(0, 1)
     cf_essay_wolf = (cf_essay_score + ess_wolf_err).round(2).clip(0, 1)
     essay_wolf_all_0 = (essay_score_all_0 + ess_wolf_err).round(2).clip(0, 1)
