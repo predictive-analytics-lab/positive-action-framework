@@ -373,7 +373,7 @@ def lilliput(*, seed, num_samples, alpha):
     s_prefix = ["sens"]
     sens_attr = "sens"
     class_label = "accepted"
-    class_prefix = ["accepted", "graduation", "admittance"]
+    class_prefix = ["accepted", "graduation", "admittance", "Sy=0", "Sy=1"]
 
     for subject in ["potions", "video", "essay"]:
         sns.distplot(data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane")
@@ -467,4 +467,24 @@ def lilliput(*, seed, num_samples, alpha):
             y=data[["graduation_grade>70%"]],
         ),
         best_aim,
+        DataTuple(
+            x=data_all_0[dataset.discrete_features + dataset.continuous_features],
+            s=data_all_0[dataset.sens_attrs],
+            y=gt_results["s1_0_s2_0"].to_frame(),
+        ),
+        DataTuple(
+            x=data_all_0[dataset.discrete_features + dataset.continuous_features],
+            s=data_all_0[dataset.sens_attrs],
+            y=gt_results["s1_0_s2_1"].to_frame(),
+        ),
+        DataTuple(
+            x=data_all_1[dataset.discrete_features + dataset.continuous_features],
+            s=data_all_1[dataset.sens_attrs],
+            y=gt_results["s1_1_s2_0"].to_frame(),
+        ),
+        DataTuple(
+            x=data_all_1[dataset.discrete_features + dataset.continuous_features],
+            s=data_all_1[dataset.sens_attrs],
+            y=gt_results["s1_1_s2_1"].to_frame(),
+        ),
     )

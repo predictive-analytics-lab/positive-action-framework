@@ -11,7 +11,7 @@ optuna = "^2.1.0"
 teext = "^0.1.2"
 wandb = "^0.10.5"
 plotly = "^4.11.0"
-ethicml = {git = "https://github.com/predictive-analytics-lab/EthicML.git"}
+ethicml = {git = "https://github.com/predictive-analytics-lab/EthicML.git", extras = ["all"]}
 pytorch-lightning = "^1.0.6"
 hydra-core = "^1.0.3"
 

@@ -204,3 +204,7 @@ class BaseDataModule(LightningDataModule):
         label_plot(self.cf_train, logger, "cf_train")
         label_plot(self.cf_test, logger, "cf_test")
         label_plot(self.factual_data.replace(y=self.best_guess.hard.to_frame()), logger, "best_guess")
+        label_plot(self.s0_s0, logger, "s0_s0")
+        label_plot(self.s0_s1, logger, "s0_s1")
+        label_plot(self.s1_s0, logger, "s1_s0")
+        label_plot(self.s1_s1, logger, "s1_s1")

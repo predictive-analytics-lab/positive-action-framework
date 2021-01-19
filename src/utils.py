@@ -183,6 +183,10 @@ def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
     """Make a label (quadrant) plot and uplad to wandb."""
     s_col = data.s.columns[0]
     s_values = data.s[s_col].value_counts() / data.s[s_col].count()
+    if len(s_values) == 1:
+        missing = s_values.index.min()
+        missing_val = s_values[missing]
+        s_values[1 - missing] = 1 - missing_val
 
     s_0_val = s_values[0]
     s_1_val = s_values[1]
@@ -193,6 +197,13 @@ def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
     y_col = data.y.columns[0]
     y_s0 = data.y[y_col][data.s[s_col] == 0].value_counts() / data.y[y_col][data.s[s_col] == 0].count()
     y_s1 = data.y[y_col][data.s[s_col] == 1].value_counts() / data.y[y_col][data.s[s_col] == 1].count()
+
+    if len(y_s1) == 0:
+        y_s1[0] = 0
+        y_s1[1] = 1
+    if len(y_s0) == 0:
+        y_s0[0] = 0
+        y_s0[1] = 1
 
     y_0_label = y_s0.index[0]
     y_1_label = y_s0.index[1]
