@@ -30,9 +30,10 @@ class LilliputDataModule(BaseDataModule):
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
-        dataset, factual_data, cf_data, data_true_outcome = lilliput(
+        dataset, factual_data, cf_data, data_true_outcome, best_guess = lilliput(
             seed=self.seed, alpha=self.alpha, num_samples=self.num_samples
         )
+        self.best_guess = best_guess
         self.dataset = dataset
         self.factual_data = factual_data
         self.cf_data = cf_data

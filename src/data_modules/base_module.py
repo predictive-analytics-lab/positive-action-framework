@@ -201,3 +201,6 @@ class BaseDataModule(LightningDataModule):
         """Make plots of the data."""
         label_plot(self.train_data, logger, "train")
         label_plot(self.test_data, logger, "test")
+        label_plot(self.cf_train, logger, "cf_train")
+        label_plot(self.cf_test, logger, "cf_test")
+        label_plot(self.factual_data.replace(y=self.best_guess.hard.to_frame()), logger, "best_guess")
