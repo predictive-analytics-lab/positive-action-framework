@@ -83,7 +83,7 @@ class Clf(CommonModel):
         )
         self.decoders = nn.ModuleList(
             [
-                Decoder(latent_dim=cfg.latent_dims, in_size=1, blocks=cfg.blocks, hid_multiplier=cfg.latent_multiplier)
+                Decoder(latent_dim=cfg.latent_dims, in_size=1, blocks=0, hid_multiplier=cfg.latent_multiplier)
                 for _ in range(num_s)
             ]
         )
