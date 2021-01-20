@@ -22,6 +22,7 @@ from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import WandbLogger
 
 from src.config_classes.dataclasses import Config
+from src.data_modules.augmenter import AugmentedDataModule
 from src.data_modules.create import create_data_module
 from src.ethicml_extension.oracle import DPOracle, EqOppOracle, Oracle
 from src.model.aies_model import AiesModel
@@ -56,6 +57,8 @@ def run_aies(cfg: Config) -> None:
     enc_trainer.fit(encoder, datamodule=data)
     enc_trainer.test(ckpt_path=None, datamodule=data)
 
+    augmented_data = AugmentedDataModule(data, encoder)
+
     classifier = Clf(
         cfg.clf,
         num_s=data.num_s,
@@ -65,7 +68,7 @@ def run_aies(cfg: Config) -> None:
         outcome_cols=data.outcome_columns,
     )
     clf_trainer = get_trainer(cfg.training.gpus, wandb_logger, cfg.training.clf_epochs)
-    clf_trainer.fit(classifier, datamodule=data)
+    clf_trainer.fit(classifier, datamodule=augmented_data)
     clf_trainer.test(ckpt_path=None, datamodule=data)
 
     model = AiesModel(encoder=encoder, classifier=classifier)
@@ -92,7 +95,12 @@ def run_aies(cfg: Config) -> None:
     produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
 
     if cfg.training.all_baselines:
-        for model in [LRCV(), Oracle(), DPOracle(), EqOppOracle(), Kamiran(), ZafarFairness(), Kamishima(), Agarwal()]:
+        for model in [
+            LRCV(),
+            Oracle(),
+            DPOracle(),
+            EqOppOracle(),
+        ]:  # , Kamiran(), ZafarFairness(), Kamishima(), Agarwal()]:
             log.info(f"=== {model.name} ===")
             results = model.run(data.train_data, data.test_data)
             multiple_metrics(results, data.test_data, model.name, wandb_logger)

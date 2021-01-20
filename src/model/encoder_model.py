@@ -267,3 +267,24 @@ class AE(CommonModel):
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
         assert recons is not None
         return recons.detach().cpu().numpy()
+
+    def run_through(self, dataloader: DataLoader) -> Tensor:
+        """Run through a dataloader and record the outputs with labels."""
+        recons = None
+        sens = None
+        labels = None
+        for batch in dataloader:
+            if self.cf_model:
+                x, s, y, cf_x, cf_s, cf_y, _ = batch
+            else:
+                x, s, y = batch
+            x = x.to(self.device)
+            s = s.to(self.device)
+            _, _, _r = self(x, s)
+            r0 = self.invert(_r[0])
+            r1 = self.invert(_r[1])
+            recons = torch.stack([r0, r1]) if recons is None else cat([recons, torch.stack([r0, r1])], dim=1)  # type: ignore[unreachable]
+            sens = s if sens is None else cat([sens, s], dim=0)
+            labels = y if labels is None else cat([labels, y], dim=0)
+        assert recons is not None
+        return recons.detach(), sens.detach(), labels.detach()

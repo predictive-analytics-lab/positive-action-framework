@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from ethicml import implements
 from pytorch_lightning import LightningModule
-from torch import Tensor, cat, nn, no_grad
+from torch import Tensor, cat, nn
 from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
@@ -109,12 +109,12 @@ class Clf(CommonModel):
 
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        if self.cf_model:
-            x, s, y, cf_x, cf_s, cf_y, iw = batch
-        else:
-            x, s, y = batch
+        # if self.cf_model:
+        #     x, s, y, cf_x, cf_s, cf_y, iw = batch
+        # else:
+        x, s, y = batch
         z, s_pred, preds = self(x, s)
-        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=iw)
+        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
@@ -132,15 +132,15 @@ class Clf(CommonModel):
             "training_clf/z_mean_abs_diff": (z[s <= 0].mean() - z[s > 0].mean()).abs(),
         }
 
-        if self.cf_model:
-            with no_grad():
-                cf_z, _, cf_preds = self(cf_x, cf_s)
-                cf_pred_loss = binary_cross_entropy_with_logits(
-                    index_by_s(cf_preds, cf_s).squeeze(-1), cf_y, reduction="mean"
-                )
-                cf_loss = cf_pred_loss - 1e-6
-                to_log["training_clf/cf_loss"] = cf_loss
-                to_log["training_clf/cf_pred_loss"] = cf_pred_loss
+        # if self.cf_model:
+        #     with no_grad():
+        #         cf_z, _, cf_preds = self(cf_x, cf_s)
+        #         cf_pred_loss = binary_cross_entropy_with_logits(
+        #             index_by_s(cf_preds, cf_s).squeeze(-1), cf_y, reduction="mean"
+        #         )
+        #         cf_loss = cf_pred_loss - 1e-6
+        #         to_log["training_clf/cf_loss"] = cf_loss
+        #         to_log["training_clf/cf_pred_loss"] = cf_pred_loss
 
         for k, v in to_log.items():
             do_log(k, v, self.logger)
