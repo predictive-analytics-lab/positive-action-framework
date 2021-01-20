@@ -51,7 +51,7 @@ class AugmentedDataModule(BaseDataModule):
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
             AugDataset(self.recons, self.sens, self.labels),
-            batch_size=128,
+            batch_size=256,
             num_workers=0,
             shuffle=shuffle,
             drop_last=drop_last,
