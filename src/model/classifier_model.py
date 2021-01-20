@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import ModelConfig
+from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
 from src.model.common_model import CommonModel
 from src.model.model_utils import grad_reverse, index_by_s
@@ -82,8 +83,7 @@ class Clf(CommonModel):
         )
         self.decoders = nn.ModuleList(
             [
-                # Decoder(latent_dim=cfg.latent_dims, in_size=1, blocks=0, hid_multiplier=cfg.latent_multiplier)
-                Decoder(latent_dim=data_dim + s_dim, in_size=1, blocks=0, hid_multiplier=cfg.latent_multiplier)
+                Decoder(latent_dim=cfg.latent_dims, in_size=1, blocks=0, hid_multiplier=cfg.latent_multiplier)
                 for _ in range(num_s)
             ]
         )
@@ -104,7 +104,7 @@ class Clf(CommonModel):
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_input else x
         z = self.enc(_x)
         s_pred = self.adv(z)
-        preds = [dec(_x) for dec in self.decoders]
+        preds = [dec(z) for dec in self.decoders]
         return z, s_pred, preds
 
     @implements(LightningModule)
@@ -114,17 +114,17 @@ class Clf(CommonModel):
         # else:
         x, s, _s, y = batch
         z, s_pred, preds = self(x, _s)
-        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, _s).squeeze(-1), y, reduction="mean")
-        # adv_loss = (
-        #     mmd2(z[_s == 0], z[_s == 1], kernel=self.mmd_kernel)
-        #     + binary_cross_entropy_with_logits(s_pred.squeeze(-1), _s, reduction="mean")
-        # ) / 2
-        loss = self.pred_weight * pred_loss  # + self.adv_weight * adv_loss
+        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
+        adv_loss = (
+            mmd2(z[_s == 0], z[_s == 1], kernel=self.mmd_kernel)
+            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), _s, reduction="mean")
+        ) / 2
+        loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
 
         to_log = {
             "training_clf/loss": loss,
             "training_clf/pred_loss": pred_loss,
-            # "training_clf/adv_loss": adv_loss,
+            "training_clf/adv_loss": adv_loss,
             "training_clf/z_norm": z.detach().norm(dim=1).mean(),
             # "training_clf/z_dim_0": wandb.Histogram(z.detach().cpu().numpy()[:, 0]),
             # "training_clf/z_dim_0_s0": wandb.Histogram(z[s <= 0].detach().cpu().numpy()[:, 0]),
