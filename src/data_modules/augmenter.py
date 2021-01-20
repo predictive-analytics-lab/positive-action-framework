@@ -16,6 +16,8 @@ class AugDataset(Dataset):
         super().__init__()
         self.recons = recons
         self.sens = sens
+        self.sens_0 = torch.zeros_like(self.sens)
+        self.sens_1 = torch.ones_like(self.sens)
         self.labels = labels
 
     def __len__(self) -> int:
@@ -23,8 +25,8 @@ class AugDataset(Dataset):
 
     def __getitem__(self, index) -> T_co:
         return (
-            (self.recons[0][index], self.sens[index], self.labels[index]),
-            (self.recons[1][index], self.sens[index], self.labels[index]),
+            (self.recons[0][index], self.sens_0[index], self.labels[index]),
+            (self.recons[1][index], self.sens_1[index], self.labels[index]),
         )
 
 
