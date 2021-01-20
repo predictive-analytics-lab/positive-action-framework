@@ -109,15 +109,16 @@ class Clf(CommonModel):
 
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        # if self.cf_model:
-        #     x, s, y, cf_x, cf_s, cf_y, iw = batch
-        # else:
-        x, s, _s, y, iw = batch
-        z, s_pred, preds = self(x, _s)
-        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
+        if self.cf_model:
+            x, s, y, cf_x, cf_s, cf_y, iw = batch
+        else:
+            x, s, y, iw = batch
+        # x, s, _s, y, iw = batch
+        z, s_pred, preds = self(x, s)
+        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=iw)
         adv_loss = (
-            mmd2(z[_s == 0], z[_s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), _s, reduction="mean")
+            mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
+            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
         ) / 2
         loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
 
