@@ -25,8 +25,8 @@ class AugDataset(Dataset):
 
     def __getitem__(self, index) -> T_co:
         return (
-            (self.recons[0][index], self.sens_0[index], self.labels[index]),
-            (self.recons[1][index], self.sens_1[index], self.labels[index]),
+            (self.recons[0][index], self.sens[index], self.sens_0[index], self.labels[index]),
+            (self.recons[1][index], self.sens[index], self.sens_1[index], self.labels[index]),
         )
 
 
@@ -51,7 +51,7 @@ class AugmentedDataModule(BaseDataModule):
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
             AugDataset(self.recons, self.sens, self.labels),
-            batch_size=16,
+            batch_size=128,
             num_workers=0,
             shuffle=shuffle,
             drop_last=drop_last,
