@@ -1,5 +1,7 @@
 """Augmented dataset."""
+import pandas as pd
 import torch
+from ethicml import DataTuple, compute_instance_weights
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
@@ -19,14 +21,32 @@ class AugDataset(Dataset):
         self.sens_0 = torch.zeros_like(self.sens)
         self.sens_1 = torch.ones_like(self.sens)
         self.labels = labels
+        dataset = DataTuple(
+            x=pd.DataFrame(recons[0].detach().cpu().numpy()),
+            s=pd.DataFrame(sens.detach().cpu().numpy()),
+            y=pd.DataFrame(labels.detach().cpu().numpy()),
+        )
+        self.instance_weight = torch.tensor(compute_instance_weights(dataset)["instance weights"].values)
 
     def __len__(self) -> int:
         return self.sens.shape[0]
 
     def __getitem__(self, index) -> T_co:
         return (
-            (self.recons[0][index], self.sens[index], self.sens_0[index], self.labels[index]),
-            (self.recons[1][index], self.sens[index], self.sens_1[index], self.labels[index]),
+            (
+                self.recons[0][index],
+                self.sens[index],
+                self.sens_0[index],
+                self.labels[index],
+                self.instance_weight[index],
+            ),
+            (
+                self.recons[1][index],
+                self.sens[index],
+                self.sens_1[index],
+                self.labels[index],
+                self.instance_weight[index],
+            ),
         )
 
 

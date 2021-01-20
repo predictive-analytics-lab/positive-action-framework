@@ -112,9 +112,9 @@ class Clf(CommonModel):
         # if self.cf_model:
         #     x, s, y, cf_x, cf_s, cf_y, iw = batch
         # else:
-        x, s, _s, y = batch
+        x, s, _s, y, iw = batch
         z, s_pred, preds = self(x, _s)
-        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
+        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=iw)
         adv_loss = (
             mmd2(z[_s == 0], z[_s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), _s, reduction="mean")
