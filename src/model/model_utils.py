@@ -7,8 +7,8 @@ from torch import Tensor, arange, autograd, nn, stack
 
 def init_weights(m: nn.Module) -> None:
     """Make Linear layer weights initialised with Xavier Norm."""
-    if type(m) == nn.Linear:
-        nn.init.xavier_uniform_(m.weight)
+    # if type(m) == nn.Linear:
+    # nn.init.xavier_uniform_(m.weight)
 
 
 def index_by_s(recons: List[Tensor], s: Tensor) -> Tensor:
