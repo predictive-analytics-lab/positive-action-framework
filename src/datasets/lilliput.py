@@ -1,12 +1,9 @@
 """The hand crafted synthetic data."""
 
-from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
-import seaborn as sns
 from ethicml import Dataset, DataTuple
 from scipy import stats
 
@@ -375,30 +372,30 @@ def lilliput(*, seed, num_samples, alpha):
     class_label = "accepted"
     class_prefix = ["accepted", "graduation", "admittance", "Sy=0", "Sy=1"]
 
-    for subject in ["potions", "video", "essay"]:
-        sns.distplot(data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane")
-        sns.distplot(data[(data['sens'] == 1)][f"{subject}_bane"], color='g', kde_kws={'linestyle': '--'}, label="bane")
-        sns.distplot(data[(data['sens'] == 0)][f'{subject}_wolf'], color='b', kde_kws={'linestyle': ':'}, label="wolf")
-        sns.distplot(data[(data['sens'] == 1)][f"{subject}_wolf"], color='g', kde_kws={'linestyle': ':'}, label="wolf")
-        plt.legend()
-        plt.savefig((Path(__file__).parent / f"{subject}.png"))
-        plt.clf()
-
-        sns.distplot(
-            cf_data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane"
-        )
-        sns.distplot(
-            cf_data[(data['sens'] == 1)][f"{subject}_bane"], color='g', kde_kws={'linestyle': '--'}, label="bane"
-        )
-        sns.distplot(
-            cf_data[(data['sens'] == 0)][f'{subject}_wolf'], color='b', kde_kws={'linestyle': ':'}, label="wolf"
-        )
-        sns.distplot(
-            cf_data[(data['sens'] == 1)][f"{subject}_wolf"], color='g', kde_kws={'linestyle': ':'}, label="wolf"
-        )
-        plt.legend()
-        plt.savefig((Path(__file__).parent / f"cf_{subject}.png"))
-        plt.clf()
+    # for subject in ["potions", "video", "essay"]:
+    #     sns.distplot(data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane")
+    #     sns.distplot(data[(data['sens'] == 1)][f"{subject}_bane"], color='g', kde_kws={'linestyle': '--'}, label="bane")
+    #     sns.distplot(data[(data['sens'] == 0)][f'{subject}_wolf'], color='b', kde_kws={'linestyle': ':'}, label="wolf")
+    #     sns.distplot(data[(data['sens'] == 1)][f"{subject}_wolf"], color='g', kde_kws={'linestyle': ':'}, label="wolf")
+    #     plt.legend()
+    #     plt.savefig((Path(__file__).parent / f"{subject}.png"))
+    #     plt.clf()
+    #
+    #     sns.distplot(
+    #         cf_data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane"
+    #     )
+    #     sns.distplot(
+    #         cf_data[(data['sens'] == 1)][f"{subject}_bane"], color='g', kde_kws={'linestyle': '--'}, label="bane"
+    #     )
+    #     sns.distplot(
+    #         cf_data[(data['sens'] == 0)][f'{subject}_wolf'], color='b', kde_kws={'linestyle': ':'}, label="wolf"
+    #     )
+    #     sns.distplot(
+    #         cf_data[(data['sens'] == 1)][f"{subject}_wolf"], color='g', kde_kws={'linestyle': ':'}, label="wolf"
+    #     )
+    #     plt.legend()
+    #     plt.savefig((Path(__file__).parent / f"cf_{subject}.png"))
+    #     plt.clf()
 
     # sns.distplot(cf_data[(data['sens'] == 1)]["potions_wolf"], color='g')
     # sns.distplot(cf_data[(data['sens'] == 0)]['potions_wolf'], color='b')
@@ -412,29 +409,29 @@ def lilliput(*, seed, num_samples, alpha):
     # plt.savefig((Path(__file__).parent / "cf_potions_bane.png"))
     # plt.clf()
 
-    sns.distplot(data[(data['sens'] == 1)]["graduation_grade"], color='g')
-    sns.distplot(data[(data['sens'] == 0)]['graduation_grade'], color='b')
-    plt.savefig((Path(__file__).parent / "grad_grade.png"))
-    plt.clf()
-    sns.histplot(data=data, x="accepted", hue="sens", multiple="dodge")
-    plt.savefig((Path(__file__).parent / "accepted.png"))
-    plt.clf()
-    sns.distplot(data[(data['sens'] == 1)]["admittance_score"], color='g')
-    sns.distplot(data[(data['sens'] == 0)]['admittance_score'], color='b')
-    plt.savefig((Path(__file__).parent / "admittance.png"))
-    plt.clf()
+    # sns.distplot(data[(data['sens'] == 1)]["graduation_grade"], color='g')
+    # sns.distplot(data[(data['sens'] == 0)]['graduation_grade'], color='b')
+    # plt.savefig((Path(__file__).parent / "grad_grade.png"))
+    # plt.clf()
+    # sns.histplot(data=data, x="accepted", hue="sens", multiple="dodge")
+    # plt.savefig((Path(__file__).parent / "accepted.png"))
+    # plt.clf()
+    # sns.distplot(data[(data['sens'] == 1)]["admittance_score"], color='g')
+    # sns.distplot(data[(data['sens'] == 0)]['admittance_score'], color='b')
+    # plt.savefig((Path(__file__).parent / "admittance.png"))
+    # plt.clf()
 
-    sns.distplot(cf_data[(data['sens'] == 1)]["graduation_grade"], color='g')
-    sns.distplot(cf_data[(data['sens'] == 0)]['graduation_grade'], color='b')
-    plt.savefig((Path(__file__).parent / "cf_grad_grade.png"))
-    plt.clf()
-    sns.histplot(data=cf_data, x="accepted", hue="sens", multiple="dodge")
-    plt.savefig((Path(__file__).parent / "cf_accepted.png"))
-    plt.clf()
-    sns.distplot(cf_data[(data['sens'] == 1)]["admittance_score"], color='g')
-    sns.distplot(cf_data[(data['sens'] == 0)]['admittance_score'], color='b')
-    plt.savefig((Path(__file__).parent / "cf_admittance.png"))
-    plt.clf()
+    # sns.distplot(cf_data[(data['sens'] == 1)]["graduation_grade"], color='g')
+    # sns.distplot(cf_data[(data['sens'] == 0)]['graduation_grade'], color='b')
+    # plt.savefig((Path(__file__).parent / "cf_grad_grade.png"))
+    # plt.clf()
+    # sns.histplot(data=cf_data, x="accepted", hue="sens", multiple="dodge")
+    # plt.savefig((Path(__file__).parent / "cf_accepted.png"))
+    # plt.clf()
+    # sns.distplot(cf_data[(data['sens'] == 1)]["admittance_score"], color='g')
+    # sns.distplot(cf_data[(data['sens'] == 0)]['admittance_score'], color='b')
+    # plt.savefig((Path(__file__).parent / "cf_admittance.png"))
+    # plt.clf()
 
     dataset = Dataset(
         name=f"University of Lilliput",
