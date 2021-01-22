@@ -49,7 +49,7 @@ class LilliputDataModule(BaseDataModule):
 
         num_train = int(self.factual_data.x.shape[0] * 0.7)
         num_val = int(self.factual_data.x.shape[0] * 0.1)
-        rng = np.random.RandomState(0)  # self.seed)
+        rng = np.random.RandomState(self.seed)
         idx = rng.permutation(self.factual_data.x.index)
         train_indices = idx[:num_train]
         val_indices = idx[num_train : num_train + num_val]
