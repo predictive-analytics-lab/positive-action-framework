@@ -8,7 +8,7 @@ from pytorch_lightning import LightningModule
 from torch import Tensor, cat, nn
 from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
-from torch.optim.lr_scheduler import ExponentialLR, ReduceLROnPlateau
+from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
 from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import ModelConfig
@@ -228,11 +228,11 @@ class Clf(CommonModel):
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
         optimizer = Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        scheduler = ReduceLROnPlateau(
-            optimizer, "min", patience=5
-        )  # ExponentialLR(optimizer, gamma=self.scheduler_rate)
-        # return [optimizer], [scheduler]
-        return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_bce'}
+        scheduler = CosineAnnealingLR(optimizer, 10)
+        # scheduler = ReduceLROnPlateau(optimizer, "min", patience=5)
+        # ExponentialLR(optimizer, gamma=self.scheduler_rate)
+        return [optimizer], [scheduler]
+        # return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_bce'}
 
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
