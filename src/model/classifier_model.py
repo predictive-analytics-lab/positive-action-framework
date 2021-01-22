@@ -226,7 +226,7 @@ class Clf(CommonModel):
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
-        optimizer = Adam(self.parameters(), lr=self.lr, weight_decay=1e-6)
+        optimizer = Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         scheduler = ExponentialLR(optimizer, gamma=self.scheduler_rate)
         return [optimizer], [scheduler]
 
