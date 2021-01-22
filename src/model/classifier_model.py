@@ -99,8 +99,6 @@ class Clf(CommonModel):
         self.scheduler_rate = cfg.scheduler_rate
         self.weight_decay = cfg.weight_decay
 
-        self.val_counts = 0
-
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_input else x
@@ -157,10 +155,6 @@ class Clf(CommonModel):
 
     @implements(LightningModule)
     def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
-        if batch_idx == 0:
-            self.val_counts += 1
-        if self.val_counts < 50:
-            return {"val_bce": torch.tensor(np.Inf) - self.val_counts}
 
         if self.cf_model:
             x, s, y, cf_x, cf_s, cf_y, _ = batch
