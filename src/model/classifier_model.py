@@ -169,7 +169,7 @@ class Clf(CommonModel):
         }
         bce = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
 
-        self.log('val_bce', bce.item())
+        self.log('val_bce', bce.item(), logger=False)
 
         if self.cf_model:
             to_return["cf_y"] = cf_y

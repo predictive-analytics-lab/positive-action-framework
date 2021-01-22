@@ -261,7 +261,7 @@ class AE(CommonModel):
             "recon": self.invert(index_by_s(recons, s)),
         }
         recon_mse = (x - to_return["recon"]).mean(dim=0).sum().abs()
-        self.log("val_mse", recon_mse)
+        self.log("val_mse", recon_mse, logger=False)
 
         if self.cf_model:
             to_return["cf_x"] = cf_x
