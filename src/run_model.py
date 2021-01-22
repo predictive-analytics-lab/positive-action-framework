@@ -19,6 +19,7 @@ from ethicml import (
     ratio_per_sensitive_attribute,
 )
 from pytorch_lightning import seed_everything
+from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 
 from src.config_classes.dataclasses import Config
@@ -52,7 +53,10 @@ def run_aies(cfg: Config) -> None:
     wandb_logger = get_wandb_logger(cfg)
     data.make_data_plots(wandb_logger)
 
-    enc_trainer = get_trainer(cfg.training.gpus, wandb_logger, cfg.training.enc_epochs)
+    enc_early_stop_callback = EarlyStopping(monitor='val_mse', min_delta=0.00, patience=3, verbose=False, mode='min')
+    enc_trainer = get_trainer(
+        cfg.training.gpus, wandb_logger, cfg.training.enc_epochs, callbacks=[enc_early_stop_callback]
+    )
     enc_trainer.fit(encoder, datamodule=data)
     enc_trainer.test(ckpt_path=None, datamodule=data)
 
@@ -66,7 +70,10 @@ def run_aies(cfg: Config) -> None:
         cf_available=data.cf_available,
         outcome_cols=data.outcome_columns,
     )
-    clf_trainer = get_trainer(cfg.training.gpus, wandb_logger, cfg.training.clf_epochs)
+    clf_early_stop_callback = EarlyStopping(monitor='val_bce', min_delta=0.00, patience=3, verbose=False, mode='min')
+    clf_trainer = get_trainer(
+        cfg.training.gpus, wandb_logger, cfg.training.clf_epochs, callbacks=[clf_early_stop_callback]
+    )
     clf_trainer.fit(classifier, datamodule=data)
     clf_trainer.test(ckpt_path=None, datamodule=data)
 

@@ -13,6 +13,7 @@ import seaborn as sns
 from ethicml import DataTuple, Prediction
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
 from torch import Tensor
 
@@ -158,12 +159,12 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None
     plt.clf()
 
 
-def get_trainer(gpus: int, logger: LightningLoggerBase, max_epochs: int) -> Trainer:
+def get_trainer(gpus: int, logger: LightningLoggerBase, max_epochs: int, callbacks: List[EarlyStopping]) -> Trainer:
     """Get a trainer object set to the right device."""
     if gpus > 0:
-        return Trainer(gpus=gpus, max_epochs=max_epochs, deterministic=True, logger=logger)
+        return Trainer(gpus=gpus, max_epochs=max_epochs, deterministic=True, logger=logger, callbacks=callbacks)
     else:
-        return Trainer(max_epochs=max_epochs, deterministic=True, logger=logger)
+        return Trainer(max_epochs=max_epochs, deterministic=True, logger=logger, callbacks=callbacks)
 
 
 def get_wandb_logger(cfg: Config) -> Optional[WandbLogger]:

@@ -247,6 +247,29 @@ class AE(CommonModel):
                 do_log(f"Table6/Ours/cf_recon_l1 - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
 
     @implements(LightningModule)
+    def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
+        if self.cf_model:
+            x, s, _, cf_x, cf_s, _, _ = batch
+        else:
+            x, s, _ = batch
+        z, _, recons = self(x, s)
+
+        to_return = {
+            "x": x,
+            "z": z,
+            "s": s,
+            "recon": self.invert(index_by_s(recons, s)),
+        }
+        recon_mse = (x - to_return["recon"]).mean().abs()
+        self.log("val_mse", recon_mse)
+
+        if self.cf_model:
+            to_return["cf_x"] = cf_x
+            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s))
+
+        return to_return
+
+    @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
         optimizer = Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         scheduler = ExponentialLR(optimizer, gamma=self.scheduler_rate)

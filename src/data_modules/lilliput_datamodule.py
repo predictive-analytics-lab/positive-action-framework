@@ -47,28 +47,44 @@ class LilliputDataModule(BaseDataModule):
         self.column_names = factual_data.x.columns
         self.outcome_columns = factual_data.y.columns
 
-        num_train = int(self.factual_data.x.shape[0] * 0.8)
+        num_train = int(self.factual_data.x.shape[0] * 0.7)
+        num_val = int(self.factual_data.x.shape[0] * 0.1)
         rng = np.random.RandomState(self.seed)
         idx = rng.permutation(self.factual_data.x.index)
         train_indices = idx[:num_train]
-        test_indices = idx[num_train:]
+        val_indices = idx[num_train : num_train + num_val]
+        test_indices = idx[num_train + num_val :]
 
-        self.train_data, self.test_data = self.scale_and_split(self.factual_data, dataset, train_indices, test_indices)
-        self.true_train_data, self.true_test_data = self.scale_and_split(
-            data_true_outcome, dataset, train_indices, test_indices
+        self.train_data, self.val_data, self.test_data = self.scale_and_split(
+            self.factual_data, dataset, train_indices, val_indices, test_indices
         )
-        self.cf_train, self.cf_test = self.scale_and_split(self.cf_data, dataset, train_indices, test_indices)
+        self.true_train_data, self.true_val_data, self.true_test_data = self.scale_and_split(
+            data_true_outcome, dataset, train_indices, val_indices, test_indices
+        )
+        self.cf_train, self.cf_val, self.cf_test = self.scale_and_split(
+            self.cf_data, dataset, train_indices, val_indices, test_indices
+        )
 
         self.make_feature_groups(dataset, factual_data)
 
     def scale_and_split(
-        self, datatuple: DataTuple, dataset: Dataset, train_indices: np.ndarray, test_indices: np.ndarray
-    ) -> Tuple[DataTuple, DataTuple]:
+        self,
+        datatuple: DataTuple,
+        dataset: Dataset,
+        train_indices: np.ndarray,
+        val_indices: np.ndarray,
+        test_indices: np.ndarray,
+    ) -> Tuple[DataTuple, DataTuple, DataTuple]:
         """Scale a datatuple and split to train/test."""
         train = DataTuple(
             x=datatuple.x.iloc[train_indices].reset_index(drop=True),
             s=datatuple.s.iloc[train_indices].reset_index(drop=True),
             y=datatuple.y.iloc[train_indices].reset_index(drop=True),
+        )
+        val = DataTuple(
+            x=datatuple.x.iloc[val_indices].reset_index(drop=True),
+            s=datatuple.s.iloc[val_indices].reset_index(drop=True),
+            y=datatuple.y.iloc[val_indices].reset_index(drop=True),
         )
         test = DataTuple(
             x=datatuple.x.iloc[test_indices].reset_index(drop=True),
@@ -79,8 +95,9 @@ class LilliputDataModule(BaseDataModule):
         scaler = MinMaxScaler()
         scaler = scaler.fit(train.x[dataset.continuous_features])
         train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        val.x[dataset.continuous_features] = scaler.transform(val.x[dataset.continuous_features])
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
-        return train, test
+        return train, val, test
 
     @implements(BaseDataModule)
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
@@ -88,6 +105,21 @@ class LilliputDataModule(BaseDataModule):
             CFDataTupleDataset(
                 dataset=self.train_data,
                 cf_dataset=self.cf_train,
+                disc_features=self.dataset.discrete_features,
+                cont_features=self.dataset.continuous_features,
+            ),
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=shuffle,
+            drop_last=drop_last,
+        )
+
+    @implements(LightningDataModule)
+    def val_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+        return DataLoader(
+            CFDataTupleDataset(
+                dataset=self.val_data,
+                cf_dataset=self.cf_val,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
