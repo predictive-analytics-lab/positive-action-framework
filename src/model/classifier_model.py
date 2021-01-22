@@ -153,23 +153,23 @@ class Clf(CommonModel):
         """Go from soft to discrete features."""
         return z.sigmoid().round()
 
-    @implements(LightningModule)
-    def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
-
-        if self.cf_model:
-            x, s, y, cf_x, cf_s, cf_y, _ = batch
-        else:
-            x, s, y = batch
-        z, _, preds = self(x, s)
-        bce = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
-
-        to_return = {"y": y, "z": z, "s": s, "preds": self.threshold(index_by_s(preds, s)), "val_bce": bce}
-
-        if self.cf_model:
-            to_return["cf_y"] = cf_y
-            to_return["cf_preds"] = self.threshold(index_by_s(preds, cf_s))
-
-        return to_return
+    # @implements(LightningModule)
+    # def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
+    #
+    #     if self.cf_model:
+    #         x, s, y, cf_x, cf_s, cf_y, _ = batch
+    #     else:
+    #         x, s, y = batch
+    #     z, _, preds = self(x, s)
+    #     bce = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
+    #
+    #     to_return = {"y": y, "z": z, "s": s, "preds": self.threshold(index_by_s(preds, s)), "val_bce": bce}
+    #
+    #     if self.cf_model:
+    #         to_return["cf_y"] = cf_y
+    #         to_return["cf_preds"] = self.threshold(index_by_s(preds, cf_s))
+    #
+    #     return to_return
 
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:

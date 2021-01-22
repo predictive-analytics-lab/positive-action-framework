@@ -246,29 +246,29 @@ class AE(CommonModel):
                 feature_name = self.data_cols[i]
                 do_log(f"Table6/Ours/cf_recon_l1 - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
 
-    @implements(LightningModule)
-    def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
-
-        if self.cf_model:
-            x, s, _, cf_x, cf_s, _, _ = batch
-        else:
-            x, s, _ = batch
-        z, s_pred, recons = self(x, s)
-
-        recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
-        adv_loss = (
-            mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
-        ) / 2
-        loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
-
-        to_return = {"x": x, "z": z, "s": s, "recon": self.invert(index_by_s(recons, s)), "val_mse": loss}
-
-        if self.cf_model:
-            to_return["cf_x"] = cf_x
-            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s))
-
-        return to_return
+    # @implements(LightningModule)
+    # def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
+    #
+    #     if self.cf_model:
+    #         x, s, _, cf_x, cf_s, _, _ = batch
+    #     else:
+    #         x, s, _ = batch
+    #     z, s_pred, recons = self(x, s)
+    #
+    #     recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
+    #     adv_loss = (
+    #         mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
+    #         + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
+    #     ) / 2
+    #     loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
+    #
+    #     to_return = {"x": x, "z": z, "s": s, "recon": self.invert(index_by_s(recons, s)), "val_mse": loss}
+    #
+    #     if self.cf_model:
+    #         to_return["cf_x"] = cf_x
+    #         to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s))
+    #
+    #     return to_return
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
