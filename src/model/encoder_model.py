@@ -253,7 +253,7 @@ class AE(CommonModel):
         if batch_idx == 0:
             self.val_counts += 1
         if self.val_counts < 50:
-            return {"val_mse": torch.tensor(np.Inf)}
+            return {"val_mse": torch.tensor(np.Inf) - self.val_counts}
 
         if self.cf_model:
             x, s, _, cf_x, cf_s, _, _ = batch

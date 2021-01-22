@@ -160,7 +160,7 @@ class Clf(CommonModel):
         if batch_idx == 0:
             self.val_counts += 1
         if self.val_counts < 50:
-            return {"val_bce": torch.tensor(np.Inf)}
+            return {"val_bce": torch.tensor(np.Inf) - self.val_counts}
 
         if self.cf_model:
             x, s, y, cf_x, cf_s, cf_y, _ = batch
