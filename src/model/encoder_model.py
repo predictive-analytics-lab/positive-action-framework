@@ -275,7 +275,8 @@ class AE(CommonModel):
         scheduler = ReduceLROnPlateau(
             optimizer, "min", patience=5
         )  # ExponentialLR(optimizer, gamma=self.scheduler_rate)
-        return [optimizer], [scheduler]
+        # return [optimizer], [scheduler]
+        return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_mse'}
 
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
