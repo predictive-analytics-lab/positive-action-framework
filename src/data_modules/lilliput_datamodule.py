@@ -31,7 +31,7 @@ class LilliputDataModule(BaseDataModule):
     def prepare_data(self) -> None:
         # called only on 1 GPU
         dataset, factual_data, cf_data, data_true_outcome, best_guess, s0s0, s0s1, s1s0, s1s1 = lilliput(
-            seed=self.seed, alpha=self.alpha, num_samples=self.num_samples
+            seed=0, alpha=self.alpha, num_samples=self.num_samples
         )
         self.best_guess = best_guess
         self.s0_s0 = s0s0
