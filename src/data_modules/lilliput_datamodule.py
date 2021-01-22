@@ -21,7 +21,7 @@ class LilliputDataModule(BaseDataModule):
         self.alpha = cfg.alpha
         self._cf_available = True
         self.gamma = cfg.gamma
-        self.seed = cfg.seed
+        self.seed = 0  # cfg.seed
         self.num_samples = cfg.num_samples
         self.train_dims = None
         self.num_workers = cfg.num_workers
