@@ -254,19 +254,14 @@ class AE(CommonModel):
             x, s, _ = batch
         z, s_pred, recons = self(x, s)
 
-        to_return = {
-            "x": x,
-            "z": z,
-            "s": s,
-            "recon": self.invert(index_by_s(recons, s)),
-        }
         recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
         ) / 2
         loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
-        self.log("val_mse", loss, logger=False)
+
+        to_return = {"x": x, "z": z, "s": s, "recon": self.invert(index_by_s(recons, s)), "val_mse": loss}
 
         if self.cf_model:
             to_return["cf_x"] = cf_x

@@ -160,16 +160,9 @@ class Clf(CommonModel):
         else:
             x, s, y = batch
         z, _, preds = self(x, s)
-
-        to_return = {
-            "y": y,
-            "z": z,
-            "s": s,
-            "preds": self.threshold(index_by_s(preds, s)),
-        }
         bce = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
 
-        self.log('val_bce', bce.item(), logger=False)
+        to_return = {"y": y, "z": z, "s": s, "preds": self.threshold(index_by_s(preds, s)), "val_bce": bce}
 
         if self.cf_model:
             to_return["cf_y"] = cf_y
