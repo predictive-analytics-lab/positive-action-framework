@@ -53,7 +53,7 @@ def run_aies(cfg: Config) -> None:
     wandb_logger = get_wandb_logger(cfg)
     data.make_data_plots(wandb_logger)
 
-    enc_early_stop_callback = EarlyStopping(monitor='val_mse', min_delta=1e-5, patience=10, verbose=False, mode='min')
+    enc_early_stop_callback = EarlyStopping(monitor='val_mse', patience=10)
     enc_trainer = get_trainer(
         cfg.training.gpus, wandb_logger, cfg.training.enc_epochs, callbacks=[enc_early_stop_callback]
     )
@@ -70,7 +70,7 @@ def run_aies(cfg: Config) -> None:
         cf_available=data.cf_available,
         outcome_cols=data.outcome_columns,
     )
-    clf_early_stop_callback = EarlyStopping(monitor='val_bce', min_delta=1e-5, patience=10, verbose=False, mode='min')
+    clf_early_stop_callback = EarlyStopping(monitor='val_bce', patience=10)
     clf_trainer = get_trainer(
         cfg.training.gpus, wandb_logger, cfg.training.clf_epochs, callbacks=[clf_early_stop_callback]
     )
