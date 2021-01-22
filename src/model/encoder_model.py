@@ -9,7 +9,7 @@ from pytorch_lightning import LightningModule
 from torch import Tensor, cat, nn, no_grad
 from torch.nn.functional import binary_cross_entropy_with_logits, l1_loss, mse_loss
 from torch.optim import Adam
-from torch.optim.lr_scheduler import ExponentialLR
+from torch.optim.lr_scheduler import ExponentialLR, ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import ModelConfig
@@ -272,7 +272,9 @@ class AE(CommonModel):
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
         optimizer = Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        scheduler = ExponentialLR(optimizer, gamma=self.scheduler_rate)
+        scheduler = ReduceLROnPlateau(
+            optimizer, "min", patience=5
+        )  # ExponentialLR(optimizer, gamma=self.scheduler_rate)
         return [optimizer], [scheduler]
 
     @implements(CommonModel)
