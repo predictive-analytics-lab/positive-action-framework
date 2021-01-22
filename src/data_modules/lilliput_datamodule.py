@@ -21,7 +21,7 @@ class LilliputDataModule(BaseDataModule):
         self.alpha = cfg.alpha
         self._cf_available = True
         self.gamma = cfg.gamma
-        self.seed = 0  # cfg.seed
+        self.seed = cfg.seed
         self.num_samples = cfg.num_samples
         self.train_dims = None
         self.num_workers = cfg.num_workers
@@ -49,7 +49,7 @@ class LilliputDataModule(BaseDataModule):
 
         num_train = int(self.factual_data.x.shape[0] * 0.7)
         num_val = int(self.factual_data.x.shape[0] * 0.1)
-        rng = np.random.RandomState(self.seed)
+        rng = np.random.RandomState(0)  # self.seed)
         idx = rng.permutation(self.factual_data.x.index)
         train_indices = idx[:num_train]
         val_indices = idx[num_train : num_train + num_val]
