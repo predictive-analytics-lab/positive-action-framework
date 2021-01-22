@@ -159,7 +159,9 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None
     plt.clf()
 
 
-def get_trainer(gpus: int, logger: LightningLoggerBase, max_epochs: int, callbacks: List[EarlyStopping]) -> Trainer:
+def get_trainer(
+    gpus: int, logger: LightningLoggerBase, max_epochs: int, callbacks: Optional[List[EarlyStopping]] = None
+) -> Trainer:
     """Get a trainer object set to the right device."""
     if gpus > 0:
         return Trainer(gpus=gpus, max_epochs=max_epochs, deterministic=True, logger=logger, callbacks=callbacks)
