@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 
 def run_aies(cfg: Config) -> None:
     """Run the X Autoencoder."""
-    seed_everything(0)  # cfg.data.seed)
+    seed_everything(cfg.data.seed)
     data = create_data_module(cfg.data)
     data.prepare_data()
 
