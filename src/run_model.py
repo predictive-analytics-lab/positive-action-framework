@@ -51,7 +51,7 @@ def run_aies(cfg: Config) -> None:
         column_names=data.column_names,
     )
     wandb_logger = get_wandb_logger(cfg)
-    data.make_data_plots(wandb_logger)
+    data.make_data_plots(data.cf_available, wandb_logger)
 
     enc_early_stop_callback = EarlyStopping(monitor='val_mse', patience=30, mode="min")
     enc_trainer = get_trainer(

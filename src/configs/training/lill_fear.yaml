@@ -1,5 +1,5 @@
 # @package _group_
-enc_epochs: 200
+enc_epochs: 100
 clf_epochs: 200
 all_baselines: true
 gpus: 1

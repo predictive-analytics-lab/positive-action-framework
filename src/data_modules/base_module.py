@@ -177,13 +177,23 @@ class BaseDataModule(LightningDataModule):
             return self._train_dataloader(shuffle, drop_last)
 
     def scale_and_split(
-        self, datatuple: DataTuple, dataset: Dataset, train_indices: np.ndarray, test_indices: np.ndarray
-    ) -> Tuple[DataTuple, DataTuple]:
+        self,
+        datatuple: DataTuple,
+        dataset: Dataset,
+        train_indices: np.ndarray,
+        val_indices: np.ndarray,
+        test_indices: np.ndarray,
+    ) -> Tuple[DataTuple, DataTuple, DataTuple]:
         """Scale a datatuple and split to train/test."""
         train = DataTuple(
             x=datatuple.x.iloc[train_indices].reset_index(drop=True),
             s=datatuple.s.iloc[train_indices].reset_index(drop=True),
             y=datatuple.y.iloc[train_indices].reset_index(drop=True),
+        )
+        val = DataTuple(
+            x=datatuple.x.iloc[val_indices].reset_index(drop=True),
+            s=datatuple.s.iloc[val_indices].reset_index(drop=True),
+            y=datatuple.y.iloc[val_indices].reset_index(drop=True),
         )
         test = DataTuple(
             x=datatuple.x.iloc[test_indices].reset_index(drop=True),
@@ -194,17 +204,19 @@ class BaseDataModule(LightningDataModule):
         scaler = MinMaxScaler()
         scaler = scaler.fit(train.x[dataset.continuous_features])
         train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        # val.x[dataset.continuous_features] = scaler.transform(val.x[dataset.continuous_features])
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
-        return train, test
+        return train, val, test
 
-    def make_data_plots(self, logger: Optional[WandbLogger]):
+    def make_data_plots(self, cf_available: bool, logger: Optional[WandbLogger]):
         """Make plots of the data."""
         label_plot(self.train_data, logger, "train")
         label_plot(self.test_data, logger, "test")
-        label_plot(self.cf_train, logger, "cf_train")
-        label_plot(self.cf_test, logger, "cf_test")
-        label_plot(self.factual_data.replace(y=self.best_guess.hard.to_frame()), logger, "best_guess")
-        label_plot(self.s0_s0, logger, "s0_s0")
-        label_plot(self.s0_s1, logger, "s0_s1")
-        label_plot(self.s1_s0, logger, "s1_s0")
-        label_plot(self.s1_s1, logger, "s1_s1")
+        if cf_available:
+            label_plot(self.factual_data.replace(y=self.best_guess.hard.to_frame()), logger, "best_guess")
+            label_plot(self.cf_train, logger, "cf_train")
+            label_plot(self.cf_test, logger, "cf_test")
+            label_plot(self.s0_s0, logger, "s0_s0")
+            label_plot(self.s0_s1, logger, "s0_s1")
+            label_plot(self.s1_s0, logger, "s1_s0")
+            label_plot(self.s1_s1, logger, "s1_s1")

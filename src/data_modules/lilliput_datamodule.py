@@ -1,10 +1,8 @@
 """Data Module for simple data."""
-from typing import Tuple
 
 import numpy as np
-from ethicml import Dataset, DataTuple, implements
+from ethicml import implements
 from pytorch_lightning import LightningDataModule
-from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import LilliputConfig
@@ -21,7 +19,7 @@ class LilliputDataModule(BaseDataModule):
         self.alpha = cfg.alpha
         self._cf_available = True
         self.gamma = cfg.gamma
-        self.seed = 0  # cfg.seed
+        self.seed = cfg.seed
         self.num_samples = cfg.num_samples
         self.train_dims = None
         self.num_workers = cfg.num_workers
@@ -66,38 +64,6 @@ class LilliputDataModule(BaseDataModule):
         )
 
         self.make_feature_groups(dataset, factual_data)
-
-    def scale_and_split(
-        self,
-        datatuple: DataTuple,
-        dataset: Dataset,
-        train_indices: np.ndarray,
-        val_indices: np.ndarray,
-        test_indices: np.ndarray,
-    ) -> Tuple[DataTuple, DataTuple, DataTuple]:
-        """Scale a datatuple and split to train/test."""
-        train = DataTuple(
-            x=datatuple.x.iloc[train_indices].reset_index(drop=True),
-            s=datatuple.s.iloc[train_indices].reset_index(drop=True),
-            y=datatuple.y.iloc[train_indices].reset_index(drop=True),
-        )
-        val = DataTuple(
-            x=datatuple.x.iloc[val_indices].reset_index(drop=True),
-            s=datatuple.s.iloc[val_indices].reset_index(drop=True),
-            y=datatuple.y.iloc[val_indices].reset_index(drop=True),
-        )
-        test = DataTuple(
-            x=datatuple.x.iloc[test_indices].reset_index(drop=True),
-            s=datatuple.s.iloc[test_indices].reset_index(drop=True),
-            y=datatuple.y.iloc[test_indices].reset_index(drop=True),
-        )
-
-        scaler = MinMaxScaler()
-        scaler = scaler.fit(train.x[dataset.continuous_features])
-        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
-        # val.x[dataset.continuous_features] = scaler.transform(val.x[dataset.continuous_features])
-        test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
-        return train, val, test
 
     @implements(BaseDataModule)
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:

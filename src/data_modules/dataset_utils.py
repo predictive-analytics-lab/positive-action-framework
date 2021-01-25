@@ -85,9 +85,10 @@ class DataTupleDataset(DataTupleDatasetBase):
 
     def __init__(self, dataset: DataTuple, disc_features: List[str], cont_features: List[str]):
         super().__init__(dataset, disc_features, cont_features)
+        self.instance_weight = torch.tensor(compute_instance_weights(dataset)["instance weights"].values)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
-        return (self._x(index), self._s(index), self._y(index))
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        return (self._x(index), self._s(index), self._y(index), self.instance_weight[index])
 
 
 class CFDataTupleDataset(DataTupleDatasetBase):

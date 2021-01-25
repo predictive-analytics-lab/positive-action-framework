@@ -1,7 +1,7 @@
 """Adult Dataset DataModule."""
-from ethicml import implements, train_test_split
+import numpy as np
+from ethicml import implements
 from pytorch_lightning import LightningDataModule
-from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import AdultConfig
@@ -23,24 +23,27 @@ class SimpleAdultDataModule(BaseDataModule):
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
-        dataset, true_data = adult_data(bin_nationality=self.bin_nat)
-        self.dataset = dataset
-        self.num_s = true_data.s.nunique().values[0]
-        self.data_dim = true_data.x.shape[1]
-        self.s_dim = true_data.s.shape[1]
-        self.column_names = dataset.discrete_features + dataset.continuous_features
-        self.outcome_columns = true_data.y.columns
+        self.dataset, self.factual_data = adult_data(bin_nationality=self.bin_nat)
+        self.dataset = self.dataset
+        self.num_s = self.factual_data.s.nunique().values[0]
+        self.data_dim = self.factual_data.x.shape[1]
+        self.s_dim = self.factual_data.s.shape[1]
+        self.column_names = self.dataset.discrete_features + self.dataset.continuous_features
+        self.outcome_columns = self.factual_data.y.columns
 
-        train, test = train_test_split(true_data, 0.8, self.seed)
+        num_train = int(self.factual_data.x.shape[0] * 0.8)
+        num_val = 0  # int(self.factual_data.x.shape[0] * 0.1)
+        rng = np.random.RandomState(self.seed)
+        idx = rng.permutation(self.factual_data.x.index)
+        train_indices = idx[:num_train]
+        val_indices = idx[num_train : num_train + num_val]
+        test_indices = idx[num_train + num_val :]
 
-        scaler = MinMaxScaler()
-        scaler = scaler.fit(train.x[dataset.continuous_features])
-        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
-        test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
+        self.train_data, self.val_data, self.test_data = self.scale_and_split(
+            self.factual_data, self.dataset, train_indices, val_indices, test_indices
+        )
 
-        self.train_data = train
-        self.test_data = test
-        self.make_feature_groups(dataset, true_data)
+        self.make_feature_groups(self.dataset, self.factual_data)
 
     @implements(BaseDataModule)
     def _train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:

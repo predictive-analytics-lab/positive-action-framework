@@ -193,7 +193,7 @@ class AE(CommonModel):
         if self.cf_model:
             x, s, _, cf_x, cf_s, _, _ = batch
         else:
-            x, s, _ = batch
+            x, s, _, _ = batch
         z, _, recons = self(x, s)
 
         to_return = {

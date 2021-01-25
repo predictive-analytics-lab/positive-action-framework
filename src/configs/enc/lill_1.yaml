@@ -8,5 +8,5 @@ target_weight: 1.0
 reg_weight: 1.0
 s_as_input: true
 mmd_kernel: "linear"
-scheduler_rate: 0.999
+scheduler_rate: 0.99
 weight_decay: 1e-6
