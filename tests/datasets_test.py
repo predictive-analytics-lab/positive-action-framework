@@ -104,7 +104,7 @@ def test_data(cfg, cf_available):
             with pytest.raises(AssertionError):
                 torch.testing.assert_allclose(y, cf_y)
         else:
-            x, s, y = batch
+            x, s, y, _ = batch
             torch.testing.assert_allclose(x, x)
             torch.testing.assert_allclose(s, s)
             torch.testing.assert_allclose(y, y)

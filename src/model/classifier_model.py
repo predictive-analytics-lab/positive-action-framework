@@ -241,7 +241,7 @@ class Clf(CommonModel):
             if self.cf_model:
                 x, s, y, cf_x, cf_s, cf_y, _ = batch
             else:
-                x, s, y = batch
+                x, s, y, _ = batch
 
             x = x.to(self.device)
             s = s.to(self.device)
