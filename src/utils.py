@@ -154,6 +154,7 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None
     sns.barplot(val_counts.index, val_counts.values)
     if logger is not None:
         logger.experiment.log({"Debugging2/Outcomes": wandb.Plotly(plt)})
+        plt.clf()
     for idx, val in val_counts.iteritems():
         do_log(f"Debugging2/Ours/Outcomes-{idx}", val, logger)
     plt.clf()
