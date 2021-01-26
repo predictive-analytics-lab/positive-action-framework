@@ -42,8 +42,8 @@ def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: Lis
         # plt.clf()
 
         if cat_plot:
-            sns.countplot(data=x_df[x_df["s"] > 0], x=col, color='b')
-            sns.countplot(data=x_df[x_df["s"] <= 0], x=col, color='g')
+            sns.countplot(data=x_df[x_df["s"] > 0], x=col, color='b', plot_kws={'scatter_kws': {'alpha': 0.1}})
+            sns.countplot(data=x_df[x_df["s"] <= 0], x=col, color='g', plot_kws={'scatter_kws': {'alpha': 0.1}})
         else:
             sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
             sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
