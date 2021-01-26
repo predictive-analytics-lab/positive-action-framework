@@ -157,7 +157,7 @@ class AE(CommonModel):
                 x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
                 reduction="mean",
             )
-            _tmp_recon_loss = torch.tensor(0)
+            _tmp_recon_loss = torch.zeros_like(recon_loss)
             for group_slice in self.feature_groups["discrete"]:
                 _tmp_recon_loss += cross_entropy(
                     index_by_s(recons, s)[:, group_slice],
