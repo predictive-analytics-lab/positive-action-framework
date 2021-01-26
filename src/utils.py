@@ -172,8 +172,8 @@ def analyse_selection_groups(
 
     for group_slice in data.feature_groups["discrete"]:
         (
-            reconstructed_0.iloc[selected_data.index].mean(axis=0)
-            - reconstructed_1.iloc[selected_data.index].mean(axis=0)
+            reconstructed_1.iloc[selected_data.index].mean(axis=0)
+            - reconstructed_0.iloc[selected_data.index].mean(axis=0)
         )[data.test_data.x.columns[group_slice]].plot(kind="bar")
         plt.tight_layout()
         do_log(f"feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}/{data_name}", wandb.Image(plt), logger)
@@ -181,8 +181,8 @@ def analyse_selection_groups(
 
     for feature in data.dataset.continuous_features:
         (
-            reconstructed_0.iloc[selected_data.index].mean(axis=0)
-            - reconstructed_1.iloc[selected_data.index].mean(axis=0)
+            reconstructed_1.iloc[selected_data.index].mean(axis=0)
+            - reconstructed_0.iloc[selected_data.index].mean(axis=0)
         )[[feature]].plot(kind="bar")
         plt.tight_layout()
         do_log(f"feature_groups_0-1/{feature}/{data_name}", wandb.Image(plt), logger)
