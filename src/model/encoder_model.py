@@ -241,8 +241,34 @@ class AE(CommonModel):
         torch.cat([_r["recons_1"] for _r in output_results], 0)
 
         logger.info(self.data_cols)
-        make_plot(x=all_x, s=all_s, logger=self.logger, name="true_data", cols=self.data_cols)
-        make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons", cols=self.data_cols)
+        if self.feature_groups["discrete"]:
+            make_plot(
+                x=all_x[:, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
+                s=all_s,
+                logger=self.logger,
+                name="true_data",
+                cols=self.data_cols[slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
+            )
+            for group_slice in self.feature_groups["discrete"]:
+                make_plot(
+                    x=all_x[:, group_slice],
+                    s=all_s,
+                    logger=self.logger,
+                    name="true_data",
+                    cols=self.data_cols[group_slice],
+                    cat_plot=True,
+                )
+                make_plot(
+                    x=all_recon[:, group_slice],
+                    s=all_s,
+                    logger=self.logger,
+                    name="recons",
+                    cols=self.data_cols[group_slice],
+                    cat_plot=True,
+                )
+        else:
+            make_plot(x=all_x, s=all_s, logger=self.logger, name="true_data", cols=self.data_cols)
+            make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons", cols=self.data_cols)
         make_plot(x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)])
         recon_mse = (all_x - all_recon).mean(dim=0).abs()
         for i, feature_mse in enumerate(recon_mse):

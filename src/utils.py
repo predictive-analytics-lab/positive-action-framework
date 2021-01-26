@@ -24,9 +24,13 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 
-def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: List[str]) -> None:
+def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: List[str], cat_plot: bool = False) -> None:
     """Make plots for logging."""
-    x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
+    if cat_plot:
+        x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=cols).idxmax(axis=1)
+    else:
+        x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
+
     x_df["s"] = s.detach().cpu().numpy()
 
     for idx, col in enumerate(cols):
