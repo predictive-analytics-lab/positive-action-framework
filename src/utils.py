@@ -176,6 +176,7 @@ def analyse_selection_groups(
             - reconstructed_1.iloc[selected_data.index].mean(axis=0)
         )[data.test_data.x.columns[group_slice]].plot(kind="bar")
         do_log(f"feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}/{data_name}", wandb.Image(plt), logger)
+        plt.clf()
 
     for feature in data.dataset.continuous_features:
         (
@@ -183,6 +184,7 @@ def analyse_selection_groups(
             - reconstructed_1.iloc[selected_data.index].mean(axis=0)
         )[[feature]].plot(kind="bar")
         do_log(f"feature_groups_0-1/{feature}/{data_name}", wandb.Image(plt), logger)
+        plt.clf()
 
 
 def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None:
