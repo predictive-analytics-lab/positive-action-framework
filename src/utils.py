@@ -32,7 +32,7 @@ def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: Lis
     else:
         x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
 
-    x_df["s"] = s.detach().cpu().numpy()
+    x_df["s"] = s.int().detach().cpu().numpy()
 
     for idx, col in enumerate(cols):
         # sns.histplot(x_df[x_df["s"] > 0][idx], kde=True, color='b')
@@ -42,7 +42,7 @@ def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: Lis
         # plt.clf()
 
         if cat_plot:
-            sns.countplot(data=x_df, x=col, color='b', hue="s", palette={'1.0': 'b', '1': 'b', '0.0': 'g', '0': 'g'})
+            sns.countplot(data=x_df, x=col, color='b', hue="s", palette={1: 'b', 0: 'g'})
         else:
             sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
             sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
