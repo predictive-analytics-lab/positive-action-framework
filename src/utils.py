@@ -148,9 +148,9 @@ def produce_selection_groups(
     for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
 
-    mapped = facct_mapper_2(_to_return)
+    analyse_selection_groups(data, outcomes, _to_return, recon_0, recon_1, data_name, logger)
 
-    analyse_selection_groups(data, outcomes, mapped, recon_0, recon_1, data_name, logger)
+    mapped = facct_mapper_2(_to_return)
 
     return facct_mapper_outcomes(mapped)
 
@@ -168,25 +168,32 @@ def analyse_selection_groups(
     reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_data.x.columns)
     reconstructed_1 = pd.DataFrame(recon_1.cpu().numpy(), columns=data.test_data.x.columns)
 
-    selected_data = data.test_data.x.iloc[selected.hard[selected.hard == 2].index]
+    for selection_group in [-1, 1, 2, 3, 4, 5, 6]:
+        selected_data = data.test_data.x.iloc[selected.hard[selected.hard == selection_group].index]
 
-    for group_slice in data.feature_groups["discrete"]:
-        (
-            reconstructed_1.iloc[selected_data.index].mean(axis=0)
-            - reconstructed_0.iloc[selected_data.index].mean(axis=0)
-        )[data.test_data.x.columns[group_slice]].plot(kind="bar")
-        plt.tight_layout()
-        do_log(f"feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}/{data_name}", wandb.Image(plt), logger)
-        plt.clf()
+        for group_slice in data.feature_groups["discrete"]:
+            (
+                reconstructed_1.iloc[selected_data.index].mean(axis=0)
+                - reconstructed_0.iloc[selected_data.index].mean(axis=0)
+            )[data.test_data.x.columns[group_slice]].plot(kind="bar")
+            plt.tight_layout()
+            do_log(
+                f"selection_group_{selection_group}_feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}/{data_name}",
+                wandb.Image(plt),
+                logger,
+            )
+            plt.clf()
 
-    for feature in data.dataset.continuous_features:
-        (
-            reconstructed_1.iloc[selected_data.index].mean(axis=0)
-            - reconstructed_0.iloc[selected_data.index].mean(axis=0)
-        )[[feature]].plot(kind="bar")
-        plt.tight_layout()
-        do_log(f"feature_groups_0-1/{feature}/{data_name}", wandb.Image(plt), logger)
-        plt.clf()
+        for feature in data.dataset.continuous_features:
+            (
+                reconstructed_1.iloc[selected_data.index].mean(axis=0)
+                - reconstructed_0.iloc[selected_data.index].mean(axis=0)
+            )[[feature]].plot(kind="bar")
+            plt.tight_layout()
+            do_log(
+                f"selection_group_{selection_group}_feature_groups_0-1/{feature}/{data_name}", wandb.Image(plt), logger
+            )
+            plt.clf()
 
 
 def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None:
