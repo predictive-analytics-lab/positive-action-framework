@@ -27,7 +27,8 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: List[str], cat_plot: bool = False) -> None:
     """Make plots for logging."""
     if cat_plot:
-        x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=cols).idxmax(axis=1)
+        x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=cols).idxmax(axis=1).to_frame(cols[0].split("_")[0])
+        cols = [cols[0].split("_")[0]]
     else:
         x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
 
@@ -40,8 +41,12 @@ def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: Lis
         # do_log(f"histplot_plot_{name}/{col}", wandb.Plotly(plt), logger)
         # plt.clf()
 
-        sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
-        sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
+        if cat_plot:
+            sns.countplot(data=x_df[x_df["s"] > 0], x=col, color='b')
+            sns.countplot(data=x_df[x_df["s"] <= 0], x=col, color='g')
+        else:
+            sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
+            sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
         do_log(f"distplot_image_{name}/{col}", wandb.Image(plt), logger)
         plt.clf()
 
