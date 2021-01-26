@@ -7,7 +7,7 @@ import torch
 from ethicml import implements
 from pytorch_lightning import LightningModule
 from torch import Tensor, cat, nn, no_grad
-from torch.nn.functional import binary_cross_entropy_with_logits, l1_loss, mse_loss
+from torch.nn.functional import binary_cross_entropy_with_logits, cross_entropy, l1_loss, mse_loss
 from torch.optim import Adam
 from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
 from torch.utils.data import DataLoader
@@ -149,7 +149,23 @@ class AE(CommonModel):
         else:
             x, s, y, _ = batch
         z, s_pred, recons = self(x, s)
-        recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
+
+        if self.feature_groups["discrete"]:
+            # TODO: make this work with vae
+            recon_loss = mse_loss(
+                index_by_s(recons, s)[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
+                x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
+                reduction="mean",
+            )
+            for group_slice in self.feature_groups["discrete"]:
+                recon_loss += cross_entropy(
+                    index_by_s(recons, s)[:, group_slice],
+                    torch.argmax(x[:, group_slice], dim=-1),
+                    reduction="mean",
+                )
+        else:
+            recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
+
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
