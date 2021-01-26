@@ -11,7 +11,7 @@ from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
 from src.data_modules.dataset_utils import grouped_features_indexes
-from src.utils import label_plot
+from src.plotting import label_plot
 
 
 class BaseDataModule(LightningDataModule):
@@ -30,6 +30,7 @@ class BaseDataModule(LightningDataModule):
         self._x_dim: Optional[int] = None
         self._feature_groups: Optional[Dict[str, List[slice]]] = None
         self.train_means_train = True
+        self._dataset = None
 
     @property
     def outcome_columns(self) -> List[str]:
@@ -66,6 +67,15 @@ class BaseDataModule(LightningDataModule):
     @cf_available.setter
     def cf_available(self, true_cf_available: bool) -> None:
         self._cf_available = true_cf_available
+
+    @property
+    def dataset(self) -> Dataset:
+        assert self._dataset is not None
+        return self._dataset  # type: ignore[unreachable]
+
+    @dataset.setter
+    def dataset(self, dataset: Dataset) -> None:
+        self._dataset = dataset
 
     @property
     def data_dim(self) -> int:

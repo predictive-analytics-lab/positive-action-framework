@@ -9,9 +9,9 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import KFold
 
 from src.data_modules.base_module import BaseDataModule
+from src.logging import do_log
 from src.model.common_model import CommonModel
 from src.model.encoder_model import AE
-from src.utils import do_log
 
 
 def lrcv_results(

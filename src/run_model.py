@@ -25,11 +25,13 @@ from pytorch_lightning.loggers import WandbLogger
 from src.config_classes.dataclasses import Config
 from src.data_modules.create import create_data_module
 from src.ethicml_extension.oracle import DPOracle, EqOppOracle, Oracle
+from src.logging import do_log
 from src.model.aies_model import AiesModel
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
+from src.plotting import label_plot
 from src.scoring import produce_baselines
-from src.utils import do_log, get_trainer, get_wandb_logger, label_plot, produce_selection_groups
+from src.utils import get_trainer, get_wandb_logger, produce_selection_groups
 
 log = logging.getLogger(__name__)
 
@@ -82,7 +84,7 @@ def run_aies(cfg: Config) -> None:
     model_trainer.fit(model, datamodule=data)
     model_trainer.test(ckpt_path=None, datamodule=data)
 
-    preds = produce_selection_groups(model.pd_results, wandb_logger)
+    preds = produce_selection_groups(data, model.pd_results, model.recon_0, model.recon_1, wandb_logger)
     multiple_metrics(preds, data.test_data, "Ours-Post-Selection", wandb_logger)
 
     # === This is only for reporting ====
@@ -91,7 +93,7 @@ def run_aies(cfg: Config) -> None:
     _model_trainer = get_trainer(cfg.training.gpus, wandb_logger, 0)
     _model_trainer.fit(_model, datamodule=data)
     _model_trainer.test(ckpt_path=None, datamodule=data)
-    produce_selection_groups(_model.pd_results, wandb_logger, "Train")
+    produce_selection_groups(data, _model.pd_results, _model.recon_0, _model.recon_1, wandb_logger, "Train")
     data.flip_train_test()
     # === === ===
 

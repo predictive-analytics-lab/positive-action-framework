@@ -1,16 +1,14 @@
 """Utility functions."""
 import collections
 import itertools
-import logging
 import warnings
 from typing import Any, Dict, List, MutableMapping, Optional
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from ethicml import DataTuple, Prediction
+from ethicml import Prediction
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
@@ -19,9 +17,8 @@ from torch import Tensor
 
 import wandb
 from src.config_classes.dataclasses import Config
-
-log = logging.getLogger(__name__)
-
+from src.data_modules.base_module import BaseDataModule
+from src.logging import do_log
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -101,11 +98,20 @@ def facct_mapper(facct_out: Prediction) -> Prediction:
 
 def facct_mapper_2(facct_out: Prediction) -> Prediction:
     """Map from groups to outcomes."""
-    lookup = {-1: 0, 1: 1, 2: 1, 3: 0, 4: 1, 5: 0, 6: 0}
+    lookup = {-1: 0, 1: 1, 2: 1, 3: 2, 4: 1, 5: 0, 6: 0}
 
     preds = pd.Series({i: lookup[d] for i, d in enumerate(facct_out.hard)})
 
     return Prediction(hard=preds, info=facct_out.info)
+
+
+def facct_mapper_outcomes(mapped: Prediction) -> Prediction:
+    """Make the final outcome."""
+    lookup = {0: 0, 1: 1, 2: 0}
+
+    preds = pd.Series({i: lookup[d] for i, d in enumerate(mapped.hard)})
+
+    return Prediction(hard=preds, info=mapped.info)
 
 
 def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
@@ -124,28 +130,59 @@ def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
     return np.select(conditions, values, -1)
 
 
-def do_log(name: str, val: Any, logger: Optional[WandbLogger]) -> None:
-    """Log to experiment tracker and also the logger."""
-    if isinstance(val, (float, int)):
-        log.info(f"{name}: {val}")
-    if logger is not None:
-        logger.experiment.log({name: val})
-
-
 def produce_selection_groups(
-    outcomes: pd.DataFrame, logger: Optional[LightningLoggerBase], data: str = "Test"
+    data: BaseDataModule,
+    outcomes: pd.DataFrame,
+    recon_0: Tensor,
+    recon_1: Tensor,
+    logger: Optional[LightningLoggerBase],
+    data_name: str = "Test",
 ) -> Prediction:
     """Follow Selection rules."""
     outcomes_hist(outcomes, logger)
     outcomes["decision"] = selection_rules(outcomes)
     for idx, val in outcomes["decision"].value_counts().iteritems():
-        do_log(f"Table3/Ours_{data}/pre_selection_rule_group_{idx}", val, logger)
+        do_log(f"Table3/Ours_{data_name}/pre_selection_rule_group_{idx}", val, logger)
 
     _to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
     for idx, val in _to_return.hard.value_counts().iteritems():
-        do_log(f"Table3/Ours_{data}/selection_rule_group_{idx}", val, logger)
+        do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
 
-    return facct_mapper_2(_to_return)
+    mapped = facct_mapper_2(_to_return)
+
+    analyse_selection_groups(data, outcomes, mapped, recon_0, recon_1, data_name, logger)
+
+    return facct_mapper_outcomes(mapped)
+
+
+def analyse_selection_groups(
+    data: BaseDataModule,
+    outcomes: pd.DataFrame,
+    selected: Prediction,
+    recon_0: Tensor,
+    recon_1: Tensor,
+    data_name: str,
+    logger: Optional[WandbLogger],
+) -> None:
+    """What's changed in these feature groups?"""
+    reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_data.x.columns)
+    reconstructed_1 = pd.DataFrame(recon_1.cpu().numpy(), columns=data.test_data.x.columns)
+
+    selected_data = data.test_data.x.iloc[selected.hard[selected.hard == 2].index]
+
+    for group_slice in data.feature_groups["discrete"]:
+        (
+            reconstructed_0.iloc[selected_data.index].mean(axis=0)
+            - reconstructed_1.iloc[selected_data.index].mean(axis=0)
+        )[data.test_data.x.columns[group_slice]].plot(kind="bar")
+        do_log(f"feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}/{data_name}", wandb.Image(plt), logger)
+
+    for feature in data.dataset.continuous_features:
+        (
+            reconstructed_0.iloc[selected_data.index].mean(axis=0)
+            - reconstructed_1.iloc[selected_data.index].mean(axis=0)
+        )[[feature]].plot(kind="bar")
+        do_log(f"feature_groups_0-1/{feature}/{data_name}", wandb.Image(plt), logger)
 
 
 def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None:
@@ -181,93 +218,3 @@ def get_wandb_logger(cfg: Config) -> Optional[WandbLogger]:
         )
     else:
         return None
-
-
-def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
-    """Make a label (quadrant) plot and uplad to wandb."""
-    s_col = data.s.columns[0]
-    s_values = data.s[s_col].value_counts() / data.s[s_col].count()
-    if len(s_values) == 1:
-        missing = s_values.index.min()
-        missing_val = s_values[missing]
-        s_values[1 - missing] = 1 - missing_val
-
-    s_0_val = s_values[0]
-    s_1_val = s_values[1]
-
-    s_0_label = s_values.index.min()
-    s_1_label = s_values.index.max()
-
-    y_col = data.y.columns[0]
-    y_s0 = data.y[y_col][data.s[s_col] == 0].value_counts() / data.y[y_col][data.s[s_col] == 0].count()
-    y_s1 = data.y[y_col][data.s[s_col] == 1].value_counts() / data.y[y_col][data.s[s_col] == 1].count()
-
-    if len(y_s1) == 0:
-        y_s1[0] = 0
-        y_s1[1] = 1
-    if len(y_s0) == 0:
-        y_s0[0] = 0
-        y_s0[1] = 1
-
-    y_0_label = y_s0.index[0]
-    y_1_label = y_s0.index[1]
-
-    mpl.style.use("seaborn-pastel")
-    # plt.xkcd()
-
-    fig, plot = plt.subplots()
-
-    quadrant1 = plot.bar(
-        0,
-        height=y_s0[y_0_label] * 100,
-        width=s_0_val * 100,
-        align="edge",
-        edgecolor="black",
-        color="C0",
-    )
-    quadrant2 = plot.bar(
-        s_0_val * 100,
-        height=y_s1[y_0_label] * 100,
-        width=s_1_val * 100,
-        align="edge",
-        edgecolor="black",
-        color="C1",
-    )
-    quadrant3 = plot.bar(
-        0,
-        height=y_s0[y_1_label] * 100,
-        width=s_0_val * 100,
-        bottom=y_s0[y_0_label] * 100,
-        align="edge",
-        edgecolor="black",
-        color="C2",
-    )
-    quadrant4 = plot.bar(
-        s_0_val * 100,
-        height=y_s1[y_1_label] * 100,
-        width=s_1_val * 100,
-        bottom=y_s1[y_0_label] * 100,
-        align="edge",
-        edgecolor="black",
-        color="C3",
-    )
-
-    plot.set_ylim(0, 100)
-    plot.set_xlim(0, 100)
-    plot.set_ylabel(f"Percent {y_col}=y")
-    plot.set_xlabel(f"Percent {s_col}=s")
-    plot.set_title("Dataset Composition by class and sensitive attribute")
-
-    plot.legend(
-        [quadrant1, quadrant2, quadrant3, quadrant4],
-        [
-            f"y={y_0_label}, s={s_0_label}",
-            f"y={y_0_label}, s={s_1_label}",
-            f"y={y_1_label}, s={s_0_label}",
-            f"y={y_1_label}, s={s_1_label}",
-        ],
-    )
-
-    do_log(f"label_plot/{name}", wandb.Image(plt), logger)
-
-    plt.clf()

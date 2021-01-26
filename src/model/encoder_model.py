@@ -13,11 +13,12 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
 from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import ModelConfig
+from src.logging import do_log
 from src.mmd import mmd2
 from src.model.blocks import block, mid_blocks
 from src.model.common_model import CommonModel
 from src.model.model_utils import grad_reverse, index_by_s, to_discrete
-from src.utils import do_log, make_plot
+from src.utils import make_plot
 
 logger = logging.getLogger(__name__)
 

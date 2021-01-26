@@ -75,6 +75,8 @@ class AiesModel(AiesProperties):
         self.all_x = torch.cat([_r["x"] for _r in output_results], 0)
         self.all_y = torch.cat([_r["y"] for _r in output_results], 0)
         self.all_recon = torch.cat([_r["recon"] for _r in output_results], 0)
+        self.recon_0 = torch.cat([_r["recons_0"] for _r in output_results], 0)
+        self.recon_1 = torch.cat([_r["recons_1"] for _r in output_results], 0)
         self.all_preds = torch.cat([_r["preds"] for _r in output_results], 0)
 
         all_s0_s0_preds = torch.cat([_r["preds_0_0"] for _r in output_results], 0)
