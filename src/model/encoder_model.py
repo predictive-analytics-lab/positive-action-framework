@@ -156,13 +156,10 @@ class AE(CommonModel):
 
         if self.feature_groups["discrete"]:
             # TODO: make this work with vae
-            recon_loss = (
-                mse_loss(
-                    index_by_s(recons, s)[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].sigmoid(),
-                    x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
-                    reduction="mean",
-                )
-                / x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]
+            recon_loss = mse_loss(
+                index_by_s(recons, s)[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].sigmoid(),
+                x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
+                reduction="mean",
             )
             _tmp_recon_loss = torch.zeros_like(recon_loss)
             for group_slice in self.feature_groups["discrete"]:
@@ -172,7 +169,6 @@ class AE(CommonModel):
                     reduction="mean",
                 )
             recon_loss += _tmp_recon_loss / len(self.feature_groups["discrete"])
-            recon_loss /= 2
         else:
             recon_loss = mse_loss(index_by_s(recons, s).sigmoid(), x, reduction="mean")
 
@@ -212,6 +208,9 @@ class AE(CommonModel):
     def invert(self, z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
         if self.feature_groups["discrete"]:
+            z[:, slice(self.feature_groups["discrete"][-1].stop, z.shape[1])] = z[
+                :, slice(self.feature_groups["discrete"][-1].stop, z.shape[1])
+            ].sigmoid()
             for group_slice in self.feature_groups["discrete"]:
                 one_hot = to_discrete(inputs=z[:, group_slice])
                 z[:, group_slice] = one_hot
