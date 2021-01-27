@@ -157,7 +157,10 @@ def run_aies(cfg: Config) -> None:
 
 def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: WandbLogger) -> None:
     """Get multiple metrics."""
-    label_plot(target.replace(y=preds.hard.to_frame()), logger, name)
+    try:
+        label_plot(target.replace(y=preds.hard.to_frame()), logger, name)
+    except IndexError:
+        pass
 
     for metric in [Accuracy(), ProbPos(), TPR(), TNR()]:
         general_str = f"Results/{name}/{metric.name}"

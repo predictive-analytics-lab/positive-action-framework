@@ -177,7 +177,10 @@ def analyse_selection_groups(
     reconstructed_1 = pd.DataFrame(recon_1.cpu().numpy(), columns=data.test_data.x.columns)
 
     for selection_group in [-1, 1, 2, 3, 4, 5, 6]:
-        selected_data = data.test_data.x.iloc[selected.hard[selected.hard == selection_group].index]
+        try:
+            selected_data = data.test_data.x.iloc[selected.hard[selected.hard == selection_group].index]
+        except IndexError:
+            continue
 
         for group_slice in data.feature_groups["discrete"]:
             (
