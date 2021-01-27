@@ -119,7 +119,7 @@ class Clf(CommonModel):
         pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=iw)
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
+            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean", weight=iw)
         ) / 2
         loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
 
