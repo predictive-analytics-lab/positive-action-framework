@@ -175,7 +175,7 @@ class AE(CommonModel):
         else:
             recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
 
-        if self.num_batches > 20:
+        if self.num_batches > 0:
             adv_loss = (
                 mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
                 + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
