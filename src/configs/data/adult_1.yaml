@@ -4,3 +4,4 @@ num_workers: 0
 seed: 0
 
 bin_nationality: true
+bin_race: true

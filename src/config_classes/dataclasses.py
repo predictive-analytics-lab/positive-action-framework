@@ -51,6 +51,7 @@ class AdultConfig(DataConfig):
     """Adult Dataset config schema."""
 
     bin_nationality: bool = MISSING
+    bin_race: bool = MISSING
 
 
 class KernelType(Enum):
