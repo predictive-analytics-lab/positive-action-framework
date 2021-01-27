@@ -18,6 +18,7 @@ class SimpleAdultDataModule(BaseDataModule):
         self._cf_available = False
         self.batch_size = cfg.batch_size
         self.bin_nat = cfg.bin_nationality
+        self.bin_race = cfg.bin_race
         self.seed = cfg.seed
         self.num_workers = cfg.num_workers
 
