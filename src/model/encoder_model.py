@@ -207,7 +207,7 @@ class AE(CommonModel):
     @torch.no_grad()
     def invert(self, z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
-        k = z.detach().copy()
+        k = z.detach().clone()
         if self.feature_groups["discrete"]:
             k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])] = k[
                 :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
