@@ -207,15 +207,16 @@ class AE(CommonModel):
     @torch.no_grad()
     def invert(self, z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
+        k = z.detach().copy()
         if self.feature_groups["discrete"]:
-            z[:, slice(self.feature_groups["discrete"][-1].stop, z.shape[1])] = z[
-                :, slice(self.feature_groups["discrete"][-1].stop, z.shape[1])
+            k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])] = k[
+                :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
             ].sigmoid()
             for group_slice in self.feature_groups["discrete"]:
-                one_hot = to_discrete(inputs=z[:, group_slice])
-                z[:, group_slice] = one_hot
+                one_hot = to_discrete(inputs=k[:, group_slice])
+                k[:, group_slice] = one_hot
 
-        return z
+        return k
 
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
@@ -256,6 +257,13 @@ class AE(CommonModel):
                 s=all_s,
                 logger=self.logger,
                 name="true_data",
+                cols=self.data_cols[slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
+            )
+            make_plot(
+                x=all_recon[:, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
+                s=all_s,
+                logger=self.logger,
+                name="recons",
                 cols=self.data_cols[slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
             )
             for group_slice in self.feature_groups["discrete"]:

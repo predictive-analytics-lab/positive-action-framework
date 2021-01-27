@@ -207,17 +207,13 @@ class Clf(CommonModel):
         all_z = torch.cat([_r["z"] for _r in output_results], 0)
         all_s = torch.cat([_r["s"] for _r in output_results], 0)
         all_preds = torch.cat([_r["preds"] for _r in output_results], 0)
-        torch.cat([_r["preds_0"] for _r in output_results], 0)
-        torch.cat([_r["preds_1"] for _r in output_results], 0)
+        preds_0 = torch.cat([_r["preds_0"] for _r in output_results], 0)
+        preds_1 = torch.cat([_r["preds_1"] for _r in output_results], 0)
 
-        make_plot(
-            x=all_y.unsqueeze(-1),
-            s=all_s,
-            logger=self.logger,
-            name="true_data",
-            cols=self.outcome_cols,
-        )
+        make_plot(x=all_y.unsqueeze(-1), s=all_s, logger=self.logger, name="true_data", cols=self.outcome_cols)
         make_plot(x=all_preds, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
+        make_plot(x=preds_0, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
+        make_plot(x=preds_1, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
         make_plot(x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)])
 
         if self.cf_model:
