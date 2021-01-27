@@ -168,7 +168,7 @@ class AE(CommonModel):
                     reduction="sum",
                 )
             # recon_loss += _tmp_recon_loss / len(self.feature_groups["discrete"])
-            recon_loss /= x.shape[1]
+            # recon_loss /= x.shape[1]
         else:
             recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
 
