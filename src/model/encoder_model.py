@@ -141,7 +141,7 @@ class AE(CommonModel):
         z = self.enc(_x)
         s_pred = self.adv(z)
         _z = torch.cat([z, s[..., None]], dim=1) if self.s_input else z
-        recons = [dec(_z).sigmoid() for dec in self.decoders]
+        recons = [dec(_z) for dec in self.decoders]
         return z, s_pred, recons
 
     @implements(LightningModule)
@@ -158,7 +158,7 @@ class AE(CommonModel):
             # TODO: make this work with vae
             recon_loss = (
                 mse_loss(
-                    index_by_s(recons, s)[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
+                    index_by_s(recons, s)[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].sigmoid(),
                     x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
                     reduction="mean",
                 )
@@ -174,7 +174,7 @@ class AE(CommonModel):
             recon_loss += _tmp_recon_loss / len(self.feature_groups["discrete"])
             recon_loss /= 2
         else:
-            recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
+            recon_loss = mse_loss(index_by_s(recons, s).sigmoid(), x, reduction="mean")
 
         if self.num_batches > 0:
             adv_loss = (
