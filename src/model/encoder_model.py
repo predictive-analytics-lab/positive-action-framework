@@ -166,7 +166,6 @@ class AE(CommonModel):
                     index_by_s(recons, s)[:, group_slice],
                     torch.argmax(x[:, group_slice], dim=-1),
                     reduction="sum",
-                    weight=iw.float(),
                 )
             # recon_loss += _tmp_recon_loss / len(self.feature_groups["discrete"])
             recon_loss /= x.shape[1]
@@ -176,7 +175,7 @@ class AE(CommonModel):
         if self.num_batches > 10:
             adv_loss = (
                 mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
-                + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean", weight=iw)
+                + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
             ) / 2
         else:
             adv_loss = torch.zeros_like(recon_loss)
