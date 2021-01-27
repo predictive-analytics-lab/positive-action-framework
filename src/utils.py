@@ -186,7 +186,7 @@ def analyse_selection_groups(
             (
                 reconstructed_1.iloc[selected_data.index].mean(axis=0)
                 - reconstructed_0.iloc[selected_data.index].mean(axis=0)
-            )[data.test_data.x.columns[group_slice]].plot(kind="bar")
+            )[data.test_data.x.columns[group_slice]].plot(kind="bar", rot=90)
             plt.tight_layout()
             do_log(
                 f"selection_group_{selection_group}_feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}/{data_name}",
@@ -199,7 +199,7 @@ def analyse_selection_groups(
             (
                 reconstructed_1.iloc[selected_data.index].mean(axis=0)
                 - reconstructed_0.iloc[selected_data.index].mean(axis=0)
-            )[[feature]].plot(kind="bar")
+            )[[feature]].plot(kind="bar", rot=90)
             plt.tight_layout()
             do_log(
                 f"selection_group_{selection_group}_feature_groups_0-1/{feature}/{data_name}", wandb.Image(plt), logger
