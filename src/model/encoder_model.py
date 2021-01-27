@@ -133,6 +133,7 @@ class AE(CommonModel):
         self.mmd_kernel = cfg.mmd_kernel
         self.scheduler_rate = cfg.scheduler_rate
         self.weight_decay = cfg.weight_decay
+        self.num_batches = 0
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
@@ -144,10 +145,12 @@ class AE(CommonModel):
 
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
+        if batch_idx == 0:
+            self.num_batches += 1
         if self.cf_model:
             x, s, _, cf_x, cf_s, _, _ = batch
         else:
-            x, s, y, _ = batch
+            x, s, y, iw = batch
         z, s_pred, recons = self(x, s)
 
         if self.feature_groups["discrete"]:
@@ -155,24 +158,28 @@ class AE(CommonModel):
             recon_loss = mse_loss(
                 index_by_s(recons, s)[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
                 x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
-                reduction="mean",
+                reduction="sum",
             )
             torch.zeros_like(recon_loss)
             for group_slice in self.feature_groups["discrete"]:
                 recon_loss += cross_entropy(
                     index_by_s(recons, s)[:, group_slice],
                     torch.argmax(x[:, group_slice], dim=-1),
-                    reduction="mean",
+                    reduction="sum",
+                    weight=iw,
                 )
             # recon_loss += _tmp_recon_loss / len(self.feature_groups["discrete"])
-            # recon_loss /= 2
+            recon_loss /= x.shape[1]
         else:
             recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
 
-        adv_loss = (
-            mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
-        ) / 2
+        if self.num_batches > 10:
+            adv_loss = (
+                mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
+                + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean", weight=iw)
+            ) / 2
+        else:
+            adv_loss = torch.zeros_like(recon_loss)
         loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
 
         to_log = {
