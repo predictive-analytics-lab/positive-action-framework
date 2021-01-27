@@ -113,7 +113,7 @@ class AE(CommonModel):
         self.decoders = nn.ModuleList(
             [
                 Decoder(
-                    latent_dim=cfg.latent_dims,
+                    latent_dim=cfg.latent_dims + s_dim if cfg.s_as_input else cfg.latent_dims,
                     in_size=data_dim,
                     blocks=cfg.blocks,
                     hid_multiplier=cfg.latent_multiplier,
@@ -140,7 +140,8 @@ class AE(CommonModel):
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_input else x
         z = self.enc(_x)
         s_pred = self.adv(z)
-        recons = [dec(z).sigmoid() for dec in self.decoders]
+        _z = torch.cat([z, s[..., None]], dim=1) if self.s_input else z
+        recons = [dec(_z).sigmoid() for dec in self.decoders]
         return z, s_pred, recons
 
     @implements(LightningModule)
