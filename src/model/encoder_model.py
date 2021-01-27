@@ -166,7 +166,7 @@ class AE(CommonModel):
                     index_by_s(recons, s)[:, group_slice],
                     torch.argmax(x[:, group_slice], dim=-1),
                     reduction="sum",
-                    weight=iw,
+                    weight=iw.float(),
                 )
             # recon_loss += _tmp_recon_loss / len(self.feature_groups["discrete"])
             recon_loss /= x.shape[1]
