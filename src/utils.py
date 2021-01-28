@@ -176,7 +176,7 @@ def analyse_selection_groups(
     reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_data.x.columns)
     reconstructed_1 = pd.DataFrame(recon_1.cpu().numpy(), columns=data.test_data.x.columns)
 
-    for selection_group in [-1, 1, 2, 3, 4, 5, 6]:
+    for selection_group in range(-1, 8):
         try:
             selected_data = data.test_data.x.iloc[selected.hard[selected.hard == selection_group].index]
         except IndexError:
@@ -184,9 +184,10 @@ def analyse_selection_groups(
 
         for group_slice in data.feature_groups["discrete"]:
             (
-                reconstructed_1.iloc[selected_data.index].mean(axis=0)
-                - reconstructed_0.iloc[selected_data.index].mean(axis=0)
+                reconstructed_1.iloc[selected_data.index].sum(axis=0)
+                - reconstructed_0.iloc[selected_data.index].sum(axis=0)
             )[data.test_data.x.columns[group_slice]].plot(kind="bar", rot=90)
+            plt.xticks(rotation=90)
             plt.tight_layout()
             do_log(
                 f"selection_group_{selection_group}_feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}/{data_name}",
@@ -196,10 +197,13 @@ def analyse_selection_groups(
             plt.clf()
 
         for feature in data.dataset.continuous_features:
-            (
-                reconstructed_1.iloc[selected_data.index].mean(axis=0)
-                - reconstructed_0.iloc[selected_data.index].mean(axis=0)
-            )[[feature]].plot(kind="bar", rot=90)
+            sns.distplot(reconstructed_1.iloc[selected_data.index][feature], color='b')
+            sns.distplot(reconstructed_0.iloc[selected_data.index][feature], color='g')
+            # (
+            #     reconstructed_1.iloc[selected_data.index].mean(axis=0)
+            #     - reconstructed_0.iloc[selected_data.index].mean(axis=0)
+            # )[[feature]].plot(kind="bar", rot=90)
+            plt.xticks(rotation=90)
             plt.tight_layout()
             do_log(
                 f"selection_group_{selection_group}_feature_groups_0-1/{feature}/{data_name}", wandb.Image(plt), logger
