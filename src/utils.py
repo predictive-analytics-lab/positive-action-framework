@@ -139,11 +139,11 @@ def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
 
 
 def produce_selection_groups(
-    data: BaseDataModule,
     outcomes: pd.DataFrame,
-    recon_0: Tensor,
-    recon_1: Tensor,
-    logger: Optional[LightningLoggerBase],
+    data: Optional[BaseDataModule] = None,
+    recon_0: Optional[Tensor] = None,
+    recon_1: Optional[Tensor] = None,
+    logger: Optional[LightningLoggerBase] = None,
     data_name: str = "Test",
 ) -> Prediction:
     """Follow Selection rules."""

@@ -83,7 +83,7 @@ def run_aies(cfg: Config) -> None:
     model_trainer.fit(model, datamodule=data)
     model_trainer.test(ckpt_path=None, datamodule=data)
 
-    preds = produce_selection_groups(data, model.pd_results, model.recon_0, model.recon_1, wandb_logger)
+    preds = produce_selection_groups(model.pd_results, data, model.recon_0, model.recon_1, wandb_logger)
     multiple_metrics(preds, data.test_data, "Ours-Post-Selection", wandb_logger)
 
     # === This is only for reporting ====
@@ -92,7 +92,7 @@ def run_aies(cfg: Config) -> None:
     _model_trainer = get_trainer(cfg.training.gpus, wandb_logger, 0)
     _model_trainer.fit(_model, datamodule=data)
     _model_trainer.test(ckpt_path=None, datamodule=data)
-    produce_selection_groups(data, _model.pd_results, _model.recon_0, _model.recon_1, wandb_logger, "Train")
+    produce_selection_groups(_model.pd_results, data, _model.recon_0, _model.recon_1, wandb_logger, "Train")
     data.flip_train_test()
     # === === ===
 

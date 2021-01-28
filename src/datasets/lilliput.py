@@ -329,7 +329,7 @@ def lilliput(*, seed, num_samples, alpha):
         axis=1,
     )
 
-    best_aim = produce_selection_groups(gt_results, None, "GroundTruth")
+    best_aim = produce_selection_groups(gt_results, data_name="GroundTruth")
 
     data["accepted"] = (data.where(passed_initial_screening.isin(data), 0)["admittance_score"] > 0).astype(int)
 
