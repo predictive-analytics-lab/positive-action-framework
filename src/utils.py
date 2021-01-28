@@ -182,7 +182,7 @@ def analyse_selection_groups(
     reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_data.x.columns)
     reconstructed_1 = pd.DataFrame(recon_1.cpu().numpy(), columns=data.test_data.x.columns)
 
-    for selection_group in range(outcomes.min(), outcomes.max()):
+    for selection_group in range(selected.hard.min(), selected.hard.max()):
         try:
             selected_data = data.test_data.x.iloc[selected.hard[selected.hard == selection_group].index]
         except IndexError:
