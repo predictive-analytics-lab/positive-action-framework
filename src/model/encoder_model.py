@@ -215,6 +215,8 @@ class AE(CommonModel):
             for group_slice in self.feature_groups["discrete"]:
                 one_hot = to_discrete(inputs=k[:, group_slice])
                 k[:, group_slice] = one_hot
+        else:
+            k = k.sigmoid()
 
         return k
 
