@@ -152,6 +152,11 @@ def produce_selection_groups(
     for idx, val in outcomes["decision"].value_counts().iteritems():
         do_log(f"Table3/Ours_{data_name}/pre_selection_rule_group_{idx}", val, logger)
 
+    if recon_1 is not None:
+        analyse_selection_groups(
+            data, outcomes, Prediction(hard=outcomes["decision"]), recon_0, recon_1, f"PreSelection_{data_name}", logger
+        )
+
     _to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
     for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
@@ -177,7 +182,7 @@ def analyse_selection_groups(
     reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_data.x.columns)
     reconstructed_1 = pd.DataFrame(recon_1.cpu().numpy(), columns=data.test_data.x.columns)
 
-    for selection_group in range(-1, 8):
+    for selection_group in range(outcomes.min(), outcomes.max()):
         try:
             selected_data = data.test_data.x.iloc[selected.hard[selected.hard == selection_group].index]
         except IndexError:
