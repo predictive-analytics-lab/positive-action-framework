@@ -11,7 +11,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 from src.model.aies_properties import AiesProperties
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
-from src.model.model_utils import index_by_s
+from src.model.model_utils import augment_recons, index_by_s
 
 
 class AiesModel(AiesProperties):
@@ -44,19 +44,23 @@ class AiesModel(AiesProperties):
 
         enc_z, enc_s_pred, recons = self.enc(x, s)
 
+        cf_recons = index_by_s(recons, 1 - s)
+
+        augmented_recons = augment_recons(x, cf_recons, s)
+
         to_return = {
             "enc_z": enc_z,
             "enc_s_pred": enc_s_pred,
             "x": x,
             "s": s,
             "y": y,
-            "recon": self.enc.invert(index_by_s(recons, s)),
+            "recon": self.enc.invert(index_by_s(augmented_recons, s)),
             "recons_0": self.enc.invert(recons[0]),
             "recons_1": self.enc.invert(recons[1]),
             "preds": self.clf.threshold(index_by_s(self.clf(x, s)[-1], s)),
         }
 
-        for i, recon in enumerate(recons):
+        for i, recon in enumerate(augmented_recons):
             clf_z, clf_s_pred, preds = self.clf(self.enc.invert(recon), torch.ones_like(s) * i)
             # to_return[f"preds_{i}"] = self.clf.threshold(index_by_s(preds, s))
             to_return[f"preds_{i}_0"] = self.clf.threshold(preds[0])

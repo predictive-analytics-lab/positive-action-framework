@@ -159,7 +159,7 @@ def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: Wa
     """Get multiple metrics."""
     try:
         label_plot(target.replace(y=preds.hard.to_frame()), logger, name)
-    except IndexError:
+    except (IndexError, KeyError):
         pass
 
     for metric in [Accuracy(), ProbPos(), TPR(), TNR()]:
