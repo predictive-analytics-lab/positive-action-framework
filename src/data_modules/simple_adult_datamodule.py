@@ -21,10 +21,13 @@ class SimpleAdultDataModule(BaseDataModule):
         self.bin_race = cfg.bin_race
         self.seed = cfg.seed
         self.num_workers = cfg.num_workers
+        self.sens = cfg.sens
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
-        self.dataset, self.factual_data = adult_data(bin_nationality=self.bin_nat, bin_race=self.bin_race)
+        self.dataset, self.factual_data = adult_data(
+            sens=self.sens, bin_nationality=self.bin_nat, bin_race=self.bin_race
+        )
         self.num_s = self.factual_data.s.nunique().values[0]
         self.data_dim = self.factual_data.x.shape[1]
         self.s_dim = self.factual_data.s.shape[1]

@@ -52,6 +52,7 @@ class AdultConfig(DataConfig):
 
     bin_nationality: bool = MISSING
     bin_race: bool = MISSING
+    sens: str = MISSING
 
 
 class KernelType(Enum):
