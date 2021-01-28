@@ -104,6 +104,7 @@ class Clf(CommonModel):
         self.outcome_cols = outcome_cols
         self.scheduler_rate = cfg.scheduler_rate
         self.weight_decay = cfg.weight_decay
+        self.use_iw = cfg.use_iw
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
@@ -122,10 +123,11 @@ class Clf(CommonModel):
             x, s, y, iw = batch
         # x, s, _s, y, iw = batch
         z, s_pred, preds = self(x, s)
-        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=iw)
+        _iw = iw if self.use_iw else None
+        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=_iw)
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean", weight=iw)
+            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean", weight=_iw)
         ) / 2
         loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
 
