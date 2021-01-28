@@ -92,7 +92,7 @@ def facct_mapper(facct_out: Prediction) -> Prediction:
         24: 8,
         25: 7,
         26: 8,
-        27: 7,
+        27: 8,
         28: 8,
         29: 7,
         30: 1,
