@@ -196,7 +196,7 @@ def analyse_selection_groups(
             plt.xticks(rotation=90)
             plt.tight_layout()
             do_log(
-                f"selection_group_{selection_group}_feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}/{data_name}",
+                f"{data_name}_selection_group_{selection_group}_feature_groups_0-1/{data.test_data.x.columns[group_slice][0]}",
                 wandb.Image(plt),
                 logger,
             )
