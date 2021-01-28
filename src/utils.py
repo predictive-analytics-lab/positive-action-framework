@@ -156,7 +156,8 @@ def produce_selection_groups(
     for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
 
-    analyse_selection_groups(data, outcomes, _to_return, recon_0, recon_1, data_name, logger)
+    if recon_1 is not None:
+        analyse_selection_groups(data, outcomes, _to_return, recon_0, recon_1, data_name, logger)
 
     mapped = facct_mapper_2(_to_return)
 
