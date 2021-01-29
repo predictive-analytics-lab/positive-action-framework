@@ -10,7 +10,7 @@ from scipy import stats
 from src.utils import produce_selection_groups
 
 
-def lilliput(*, seed, num_samples, alpha):
+def lilliput(*, seed, num_samples, alpha, gamma):
     """Make the `lilliput` dataset."""
     num_gen = np.random.default_rng(seed)
 
@@ -241,42 +241,42 @@ def lilliput(*, seed, num_samples, alpha):
         0.4 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
         + 0.4 * ((data["video_bane"] + data["video_wolf"]) / 2)
         + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
-        + 0.01 * ((2 * data["sens"]) - 1)
+        + gamma * ((2 * data["sens"]) - 1)
     ).round(2)
 
     cf_data["admittance_score"] = (
         0.4 * ((cf_data["potions_bane"] + cf_data["potions_wolf"]) / 2)
         + 0.4 * ((cf_data["video_bane"] + cf_data["video_wolf"]) / 2)
         + 0.2 * ((cf_data["essay_bane"] + cf_data["essay_wolf"]) / 2)
-        + 0.01 * ((2 * cf_data["sens"]) - 1)
+        + gamma * ((2 * cf_data["sens"]) - 1)
     ).round(2)
 
     data_all_0["Sy=0_admittance_score"] = (
         0.4 * ((data_all_0["potions_bane"] + data_all_0["potions_wolf"]) / 2)
         + 0.4 * ((data_all_0["video_bane"] + data_all_0["video_wolf"]) / 2)
         + 0.2 * ((data_all_0["essay_bane"] + data_all_0["essay_wolf"]) / 2)
-        + 0.01 * ((2 * data_all_0["sens"]) - 1)
+        + gamma * ((2 * data_all_0["sens"]) - 1)
     ).round(2)
 
     data_all_0["Sy=1_admittance_score"] = (
         0.4 * ((data_all_0["potions_bane"] + data_all_0["potions_wolf"]) / 2)
         + 0.4 * ((data_all_0["video_bane"] + data_all_0["video_wolf"]) / 2)
         + 0.2 * ((data_all_0["essay_bane"] + data_all_0["essay_wolf"]) / 2)
-        + 0.01 * ((2 * data_all_1["sens"]) - 1)
+        + gamma * ((2 * data_all_1["sens"]) - 1)
     ).round(2)
 
     data_all_1["Sy=0_admittance_score"] = (
         0.4 * ((data_all_1["potions_bane"] + data_all_1["potions_wolf"]) / 2)
         + 0.4 * ((data_all_1["video_bane"] + data_all_1["video_wolf"]) / 2)
         + 0.2 * ((data_all_1["essay_bane"] + data_all_1["essay_wolf"]) / 2)
-        + 0.01 * ((2 * data_all_0["sens"]) - 1)
+        + gamma * ((2 * data_all_0["sens"]) - 1)
     ).round(2)
 
     data_all_1["Sy=1_admittance_score"] = (
         0.4 * ((data_all_1["potions_bane"] + data_all_1["potions_wolf"]) / 2)
         + 0.4 * ((data_all_1["video_bane"] + data_all_1["video_wolf"]) / 2)
         + 0.2 * ((data_all_1["essay_bane"] + data_all_1["essay_wolf"]) / 2)
-        + 0.01 * ((2 * data_all_1["sens"]) - 1)
+        + gamma * ((2 * data_all_1["sens"]) - 1)
     ).round(2)
 
     graduation = []
