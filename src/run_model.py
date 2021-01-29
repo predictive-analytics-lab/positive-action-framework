@@ -84,8 +84,9 @@ def run_aies(cfg: Config) -> None:
     model_trainer.test(ckpt_path=None, datamodule=data)
 
     preds = produce_selection_groups(model.pd_results, data, model.recon_0, model.recon_1, wandb_logger)
-    preds = produce_selection_groups(model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True)
     multiple_metrics(preds, data.test_data, "Ours-Post-Selection", wandb_logger)
+    fair_preds = produce_selection_groups(model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True)
+    multiple_metrics(fair_preds, data.test_data, "Ours-Fair", wandb_logger)
 
     # === This is only for reporting ====
     data.flip_train_test()
@@ -132,7 +133,7 @@ def run_aies(cfg: Config) -> None:
         )
 
         multiple_metrics(
-            preds,
+            fair_preds,
             data.test_data,
             "Ours-Fair",
             wandb_logger,
