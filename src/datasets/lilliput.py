@@ -337,6 +337,11 @@ def lilliput(*, seed, num_samples, alpha, gamma):
         int
     )
 
+    data["graduation_grade>60%"] = (data["graduation_grade"] >= 0.60).astype(int)
+    data_all_0["graduation_grade>60%"] = (data_all_0["graduation_grade"] >= 0.60).astype(int)
+    data_all_1["graduation_grade>60%"] = (data_all_1["graduation_grade"] >= 0.60).astype(int)
+    cf_data["graduation_grade>60%"] = (cf_data["graduation_grade"] >= 0.60).astype(int)
+
     data["graduation_grade>70%"] = (data["graduation_grade"] >= 0.70).astype(int)
     data_all_0["graduation_grade>70%"] = (data_all_0["graduation_grade"] >= 0.70).astype(int)
     data_all_1["graduation_grade>70%"] = (data_all_1["graduation_grade"] >= 0.70).astype(int)
@@ -353,6 +358,7 @@ def lilliput(*, seed, num_samples, alpha, gamma):
         "accepted",
         "admittance_score",
         "graduation_grade",
+        "graduation_grade>60%",
         "graduation_grade>70%",
     ]
 
@@ -461,7 +467,7 @@ def lilliput(*, seed, num_samples, alpha, gamma):
         DataTuple(
             x=data[dataset.discrete_features + dataset.continuous_features],
             s=data[dataset.sens_attrs],
-            y=data[["graduation_grade>70%"]],
+            y=data[["graduation_grade>60%"]],
         ),
         best_aim,
         DataTuple(
