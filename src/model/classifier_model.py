@@ -74,7 +74,7 @@ class Clf(CommonModel):
     ):
         super().__init__(name="Clf")
         self.enc = Encoder(
-            in_size=data_dim + s_dim,
+            in_size=(data_dim + s_dim) if cfg.s_as_input else data_dim,
             latent_dim=cfg.latent_dims,
             blocks=cfg.encoder_blocks,
             hid_multiplier=cfg.latent_multiplier,
