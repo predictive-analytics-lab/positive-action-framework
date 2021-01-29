@@ -84,6 +84,7 @@ def run_aies(cfg: Config) -> None:
     model_trainer.test(ckpt_path=None, datamodule=data)
 
     preds = produce_selection_groups(model.pd_results, data, model.recon_0, model.recon_1, wandb_logger)
+    preds = produce_selection_groups(model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True)
     multiple_metrics(preds, data.test_data, "Ours-Post-Selection", wandb_logger)
 
     # === This is only for reporting ====
@@ -129,6 +130,14 @@ def run_aies(cfg: Config) -> None:
             "Ours-Post-Selection",
             wandb_logger,
         )
+
+        multiple_metrics(
+            preds,
+            data.test_data,
+            "Ours-Fair",
+            wandb_logger,
+        )
+
         multiple_metrics(
             our_clf_preds,
             data.test_data,

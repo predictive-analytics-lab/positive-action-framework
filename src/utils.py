@@ -113,9 +113,9 @@ def facct_mapper_2(facct_out: Prediction) -> Prediction:
     return Prediction(hard=preds, info=facct_out.info)
 
 
-def facct_mapper_outcomes(mapped: Prediction) -> Prediction:
+def facct_mapper_outcomes(mapped: Prediction, fair: bool) -> Prediction:
     """Make the final outcome."""
-    lookup = {0: 0, 1: 1, 2: 0}
+    lookup = {0: 0, 1: 1, 2: 1 if fair else 0}
 
     preds = pd.Series({i: lookup[d] for i, d in enumerate(mapped.hard)})
 
@@ -145,6 +145,7 @@ def produce_selection_groups(
     recon_1: Optional[Tensor] = None,
     logger: Optional[LightningLoggerBase] = None,
     data_name: str = "Test",
+    fair: bool = False,
 ) -> Prediction:
     """Follow Selection rules."""
     outcomes_hist(outcomes, logger)
@@ -166,7 +167,7 @@ def produce_selection_groups(
 
     mapped = facct_mapper_2(_to_return)
 
-    return facct_mapper_outcomes(mapped)
+    return facct_mapper_outcomes(mapped, fair)
 
 
 def analyse_selection_groups(
