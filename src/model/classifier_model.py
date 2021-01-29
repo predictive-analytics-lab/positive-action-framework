@@ -84,7 +84,7 @@ class Clf(CommonModel):
         )
         self.decoders = nn.ModuleList(
             [
-                Decoder(latent_dim=cfg.latent_dims + s_dim, in_size=1, blocks=0, hid_multiplier=cfg.latent_multiplier)
+                Decoder(latent_dim=cfg.latent_dims, in_size=1, blocks=0, hid_multiplier=cfg.latent_multiplier)
                 for _ in range(num_s)
             ]
         )
@@ -106,7 +106,7 @@ class Clf(CommonModel):
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_input else x
         z = self.enc(_x)
         s_pred = self.adv(z)
-        preds = [dec(torch.cat([z, s[..., None]], dim=1)) for dec in self.decoders]
+        preds = [dec(z) for dec in self.decoders]
         return z, s_pred, preds
 
     @implements(LightningModule)

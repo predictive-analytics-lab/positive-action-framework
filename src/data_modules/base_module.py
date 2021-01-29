@@ -220,13 +220,22 @@ class BaseDataModule(LightningDataModule):
 
     def make_data_plots(self, cf_available: bool, logger: Optional[WandbLogger]):
         """Make plots of the data."""
-        label_plot(self.train_data, logger, "train")
-        label_plot(self.test_data, logger, "test")
+        try:
+            label_plot(self.train_data, logger, "train")
+        except (IndexError, KeyError):
+            pass
+        try:
+            label_plot(self.test_data, logger, "test")
+        except (IndexError, KeyError):
+            pass
         if cf_available:
-            label_plot(self.factual_data.replace(y=self.best_guess.hard.to_frame()), logger, "best_guess")
-            label_plot(self.cf_train, logger, "cf_train")
-            label_plot(self.cf_test, logger, "cf_test")
-            label_plot(self.s0_s0, logger, "s0_s0")
-            label_plot(self.s0_s1, logger, "s0_s1")
-            label_plot(self.s1_s0, logger, "s1_s0")
-            label_plot(self.s1_s1, logger, "s1_s1")
+            try:
+                label_plot(self.factual_data.replace(y=self.best_guess.hard.to_frame()), logger, "best_guess")
+                label_plot(self.cf_train, logger, "cf_train")
+                label_plot(self.cf_test, logger, "cf_test")
+                label_plot(self.s0_s0, logger, "s0_s0")
+                label_plot(self.s0_s1, logger, "s0_s1")
+                label_plot(self.s1_s0, logger, "s1_s0")
+                label_plot(self.s1_s1, logger, "s1_s1")
+            except (IndexError, KeyError):
+                pass
