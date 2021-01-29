@@ -29,7 +29,7 @@ from src.model.aies_model import AiesModel
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
 from src.plotting import label_plot
-from src.scoring import produce_baselines
+from src.scoring import get_miri_metrics, produce_baselines
 from src.utils import get_trainer, get_wandb_logger, produce_selection_groups
 
 log = logging.getLogger(__name__)
@@ -104,12 +104,7 @@ def run_aies(cfg: Config) -> None:
     produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
 
     if cfg.training.all_baselines:
-        for model in [
-            LRCV(),
-            Oracle(),
-            DPOracle(),
-            EqOppOracle(),
-        ]:  # , Kamiran(), ZafarFairness(), Kamishima(), Agarwal()]:
+        for model in [LRCV(), Oracle(), DPOracle(), EqOppOracle(), Kamiran(), ZafarFairness(), Kamishima(), Agarwal()]:
             log.info(f"=== {model.name} ===")
             try:
                 results = model.run(data.train_data, data.test_data)
@@ -120,14 +115,14 @@ def run_aies(cfg: Config) -> None:
                 log.info(f"=== {model.name} and \"True\" Data ===")
                 results = model.run(data.train_data, data.test_data)
                 multiple_metrics(results, data.true_test_data, f"{model.name}-TrueLabels", wandb_logger)
-                # get_miri_metrics(
-                #     method=f"Miri/{model.name}",
-                #     acceptance=DataTuple(
-                #         x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=results.hard.to_frame()
-                #     ),
-                #     graduated=data.true_test_data,
-                #     logger=wandb_logger,
-                # )
+                get_miri_metrics(
+                    method=f"Miri/{model.name}",
+                    acceptance=DataTuple(
+                        x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=results.hard.to_frame()
+                    ),
+                    graduated=data.true_test_data,
+                    logger=wandb_logger,
+                )
         multiple_metrics(
             preds,
             data.test_data,
@@ -148,21 +143,21 @@ def run_aies(cfg: Config) -> None:
             "Ours-Real-World-Preds",
             wandb_logger,
         )
-        # if data.cf_available:
-        #     get_miri_metrics(
-        #         method="Miri/Ours-Post-Selection",
-        #         acceptance=DataTuple(x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=preds.hard.to_frame()),
-        #         graduated=data.true_test_data,
-        #         logger=wandb_logger,
-        #     )
-        #     get_miri_metrics(
-        #         method="Miri/Ours-Real-World-Preds",
-        #         acceptance=DataTuple(
-        #             x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=our_clf_preds.hard.to_frame()
-        #         ),
-        #         graduated=data.true_test_data,
-        #         logger=wandb_logger,
-        #     )
+        if data.cf_available:
+            get_miri_metrics(
+                method="Miri/Ours-Post-Selection",
+                acceptance=DataTuple(x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=preds.hard.to_frame()),
+                graduated=data.true_test_data,
+                logger=wandb_logger,
+            )
+            get_miri_metrics(
+                method="Miri/Ours-Real-World-Preds",
+                acceptance=DataTuple(
+                    x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=our_clf_preds.hard.to_frame()
+                ),
+                graduated=data.true_test_data,
+                logger=wandb_logger,
+            )
 
     if cfg.training.log:
         wandb_logger.experiment.finish()
