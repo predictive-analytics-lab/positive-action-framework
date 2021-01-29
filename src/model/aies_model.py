@@ -11,7 +11,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 from src.model.aies_properties import AiesProperties
 from src.model.classifier_model import Clf
 from src.model.encoder_model import AE
-from src.model.model_utils import index_by_s
+from src.model.model_utils import augment_recons, index_by_s
 
 
 class AiesModel(AiesProperties):
@@ -44,9 +44,9 @@ class AiesModel(AiesProperties):
 
         enc_z, enc_s_pred, recons = self.enc(x, s)
 
-        self.enc.invert(index_by_s(recons, 1 - s))
+        cf_recons = self.enc.invert(index_by_s(recons, 1 - s))
 
-        augmented_recons = recons  # augment_recons(x, cf_recons, s)
+        augmented_recons = augment_recons(x, cf_recons, s)
 
         to_return = {
             "enc_z": enc_z,
