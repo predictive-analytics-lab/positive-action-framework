@@ -1,5 +1,7 @@
 # @package _group_
-blocks: 0
+encoder_blocks: 0
+adv_blocks: 0
+decoder_blocks: 0
 latent_dims: 5
 latent_multiplier: 1
 lr: 1e-3
