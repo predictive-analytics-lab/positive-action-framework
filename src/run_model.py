@@ -111,7 +111,10 @@ def run_aies(cfg: Config) -> None:
             EqOppOracle(),
         ]:  # , Kamiran(), ZafarFairness(), Kamishima(), Agarwal()]:
             log.info(f"=== {model.name} ===")
-            results = model.run(data.train_data, data.test_data)
+            try:
+                results = model.run(data.train_data, data.test_data)
+            except ValueError:
+                continue
             multiple_metrics(results, data.test_data, model.name, wandb_logger)
             if data.cf_available:
                 log.info(f"=== {model.name} and \"True\" Data ===")
