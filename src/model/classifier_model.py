@@ -111,11 +111,11 @@ class Clf(CommonModel):
 
     @implements(LightningModule)
     def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        if self.cf_model:
-            x, s, y, cf_x, cf_s, cf_y, iw = batch
-        else:
-            x, s, y, iw = batch
-        # x, s, _s, y, iw = batch
+        # if self.cf_model:
+        #     x, s, y, cf_x, cf_s, cf_y, iw = batch
+        # else:
+        #     x, s, y, iw = batch
+        x, s, _s, y, iw = batch
         z, s_pred, preds = self(x, s)
         _iw = iw if self.use_iw else None
         pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=_iw)
