@@ -101,13 +101,13 @@ class AE(CommonModel):
         self.enc = Encoder(
             in_size=data_dim + s_dim if cfg.s_as_input else data_dim,
             latent_dim=cfg.latent_dims,
-            blocks=cfg.blocks,
+            blocks=cfg.encoder_blocks,
             hid_multiplier=cfg.latent_multiplier,
         )
         self.adv = Adversary(
             latent_dim=cfg.latent_dims,
             out_size=1,
-            blocks=cfg.blocks,
+            blocks=cfg.adv_blocks,
             hid_multiplier=cfg.latent_multiplier,
         )
         self.decoders = nn.ModuleList(
@@ -115,7 +115,7 @@ class AE(CommonModel):
                 Decoder(
                     latent_dim=cfg.latent_dims,
                     in_size=data_dim,
-                    blocks=cfg.blocks,
+                    blocks=cfg.decoder_blocks,
                     hid_multiplier=cfg.latent_multiplier,
                 )
                 for _ in range(num_s)

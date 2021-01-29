@@ -66,7 +66,9 @@ class KernelType(Enum):
 class ModelConfig:
     """Model Config Schema."""
 
-    blocks: int = MISSING
+    adv_blocks: int = MISSING
+    encoder_blocks: int = MISSING
+    decoder_blocks: int = MISSING
     latent_dims: int = MISSING
     latent_multiplier: int = MISSING
     lr: float = MISSING

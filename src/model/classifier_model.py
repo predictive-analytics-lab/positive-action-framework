@@ -76,15 +76,20 @@ class Clf(CommonModel):
         self.enc = Encoder(
             in_size=data_dim + s_dim,
             latent_dim=cfg.latent_dims,
-            blocks=cfg.blocks,
+            blocks=cfg.encoder_blocks,
             hid_multiplier=cfg.latent_multiplier,
         )
         self.adv = Adversary(
-            latent_dim=cfg.latent_dims, out_size=1, blocks=cfg.blocks, hid_multiplier=cfg.latent_multiplier
+            latent_dim=cfg.latent_dims, out_size=1, blocks=cfg.adv_blocks, hid_multiplier=cfg.latent_multiplier
         )
         self.decoders = nn.ModuleList(
             [
-                Decoder(latent_dim=cfg.latent_dims, in_size=1, blocks=0, hid_multiplier=cfg.latent_multiplier)
+                Decoder(
+                    latent_dim=cfg.latent_dims,
+                    in_size=1,
+                    blocks=cfg.decoder_blocks,
+                    hid_multiplier=cfg.latent_multiplier,
+                )
                 for _ in range(num_s)
             ]
         )
