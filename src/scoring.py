@@ -167,3 +167,15 @@ def get_miri_metrics(
                     result.sum() / result.count(),
                     logger,
                 )
+
+                result = (
+                    data.y[(data_y_true.y[data_y_true.y.columns[0]] == ty_val) & (data.s[data.s.columns[0]] == s_val)][
+                        data.y.columns[0]
+                    ]
+                    == y_val
+                )
+                do_log(
+                    f"{method}/P({y_denotation}={y_val}|{s_denotation}={s_val},{ty_denotation}={ty_val})",
+                    result.sum() / result.count(),
+                    logger,
+                )
