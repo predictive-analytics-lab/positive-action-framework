@@ -151,6 +151,14 @@ def run_aies(cfg: Config) -> None:
                 logger=wandb_logger,
             )
             get_miri_metrics(
+                method="Miri/Ours-Fair",
+                acceptance=DataTuple(
+                    x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=fair_preds.hard.to_frame()
+                ),
+                graduated=data.true_test_data,
+                logger=wandb_logger,
+            )
+            get_miri_metrics(
                 method="Miri/Ours-Real-World-Preds",
                 acceptance=DataTuple(
                     x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=our_clf_preds.hard.to_frame()
