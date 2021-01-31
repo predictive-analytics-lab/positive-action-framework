@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import scipy
 from ethicml import Dataset, DataTuple
 from sklearn import preprocessing
 
@@ -12,10 +13,9 @@ log = logging.getLogger(__name__)
 
 def make_x_bar(num_features: int, n: int, random_state: np.random.Generator) -> np.ndarray:
     """Initial potential."""
-    x_tilde = random_state.normal(0, 1, size=(n, 1))
-    x_tilde = np.zeros_like(x_tilde)
+    x_tilde = random_state.uniform(0, 1, size=(n, num_features))
 
-    return np.stack([random_state.normal(l, 1, num_features) for l in x_tilde])
+    return np.stack([scipy.stats.norm.ppf(l, loc=0, scale=1) for l in x_tilde])
 
 
 def make_s(alpha: float, n: int, random_state: np.random.Generator, binary_s: bool) -> np.ndarray:

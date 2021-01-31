@@ -1,7 +1,8 @@
 """Adult Dataset DataModule."""
 import numpy as np
-from ethicml import implements
+from ethicml import BalancedTestSplit, DataTuple, implements
 from pytorch_lightning import LightningDataModule
+from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
 from src.config_classes.dataclasses import AdultConfig
@@ -42,8 +43,25 @@ class SimpleAdultDataModule(BaseDataModule):
         val_indices = idx[num_train : num_train + num_val]
         test_indices = idx[num_train + num_val :]
 
-        self.train_data, self.val_data, self.test_data = self.scale_and_split(
-            self.factual_data, self.dataset, train_indices, val_indices, test_indices
+        # self.train_data, self.val_data, self.test_data = self.scale_and_split(
+        #     self.factual_data, self.dataset, train_indices, val_indices, test_indices
+        # )
+
+        self.train_data, self.test_data, split_info = BalancedTestSplit(train_percentage=0.8)(self.factual_data)
+
+        self.val = DataTuple(
+            x=self.train_data.x.iloc[val_indices].reset_index(drop=True),
+            s=self.train_data.s.iloc[val_indices].reset_index(drop=True),
+            y=self.train_data.y.iloc[val_indices].reset_index(drop=True),
+        )
+
+        scaler = MinMaxScaler()
+        scaler = scaler.fit(self.train_data.x[self.dataset.continuous_features])
+        self.train_data.x[self.dataset.continuous_features] = scaler.transform(
+            self.train_data.x[self.dataset.continuous_features]
+        )
+        self.test_data.x[self.dataset.continuous_features] = scaler.transform(
+            self.test_data.x[self.dataset.continuous_features]
         )
 
         self.make_feature_groups(self.dataset, self.factual_data)
