@@ -47,7 +47,11 @@ def make_x(dx: np.ndarray, s: np.ndarray, xi: float, n: int) -> np.ndarray:
 
 
 def make_y(
-    y_bar: np.ndarray, s: pd.DataFrame, beta: float, acceptance_rate: float, threshold: Optional[float] = None
+    y_bar: np.ndarray,
+    s: pd.DataFrame,
+    beta: float,
+    acceptance_rate: float,
+    threshold: Optional[float] = None,
 ) -> Tuple[pd.DataFrame, float]:
     """Go from y_bar to Y."""
     y_bar = y_bar + beta * (s.values * 2 - 1)
@@ -90,7 +94,9 @@ def third_way_data(
         tmp_cf_s = counterfactual_s
     else:
         temp_s = make_s(alpha, num_samples, np.random.default_rng(seed + 9), binary_s=binary_s == 1)
-        tmp_cf_s = np.ones_like(temp_s) - temp_s if binary_s == 1 else np.zeros_like(temp_s) - temp_s
+        tmp_cf_s = (
+            np.ones_like(temp_s) - temp_s if binary_s == 1 else np.zeros_like(temp_s) - temp_s
+        )
 
     dx = make_dx(x_bar=x_bar, s=temp_s, gamma=gamma, binary_s=binary_s == 1)
     counterfactual_dx = make_dx(x_bar, tmp_cf_s, gamma=gamma, binary_s=binary_s == 1)
@@ -141,15 +147,25 @@ def third_way_data(
 
     y_df, threshold = make_y(y_bar, s_df, beta=beta, acceptance_rate=acceptance_rate)
     y_df = y_df.rename(columns={"y": "outcome"})
-    cf_y_df, _ = make_y(cf_y_bar, cf_s_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold)
+    cf_y_df, _ = make_y(
+        cf_y_bar, cf_s_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold
+    )
     cf_y_df = cf_y_df.rename(columns={"y": "outcome"})
-    s1_0_s2_0_y_df, _ = make_y(s0_y_bar, s0_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold)
+    s1_0_s2_0_y_df, _ = make_y(
+        s0_y_bar, s0_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold
+    )
     s1_0_s2_0_y_df = s1_0_s2_0_y_df.rename(columns={"y": "outcome"})
-    s1_0_s2_1_y_df, _ = make_y(s0_y_bar, s1_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold)
+    s1_0_s2_1_y_df, _ = make_y(
+        s0_y_bar, s1_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold
+    )
     s1_0_s2_1_y_df = s1_0_s2_1_y_df.rename(columns={"y": "outcome"})
-    s1_1_s2_0_y_df, _ = make_y(s1_y_bar, s0_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold)
+    s1_1_s2_0_y_df, _ = make_y(
+        s1_y_bar, s0_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold
+    )
     s1_1_s2_0_y_df = s1_1_s2_0_y_df.rename(columns={"y": "outcome"})
-    s1_1_s2_1_y_df, _ = make_y(s1_y_bar, s1_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold)
+    s1_1_s2_1_y_df, _ = make_y(
+        s1_y_bar, s1_df, beta=beta, acceptance_rate=acceptance_rate, threshold=threshold
+    )
     s1_1_s2_1_y_df = s1_1_s2_1_y_df.rename(columns={"y": "outcome"})
 
     data = pd.concat([x_df, s_df, y_df, y_true], axis=1).sort_index()

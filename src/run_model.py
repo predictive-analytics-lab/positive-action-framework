@@ -1,4 +1,6 @@
 """Run the Autoencoder."""
+from __future__ import annotations
+
 import logging
 
 import pandas as pd
@@ -56,7 +58,9 @@ def run_aies(cfg: Config) -> None:
 
     # enc_early_stop_callback = EarlyStopping(monitor='val_mse', patience=30, mode="min")
     enc_trainer = get_trainer(
-        cfg.training.gpus, wandb_logger, cfg.training.enc_epochs  # , callbacks=[enc_early_stop_callback]
+        cfg.training.gpus,
+        wandb_logger,
+        cfg.training.enc_epochs,  # , callbacks=[enc_early_stop_callback]
     )
     enc_trainer.fit(encoder, datamodule=data)
     enc_trainer.test(ckpt_path=None, datamodule=data)
@@ -73,7 +77,9 @@ def run_aies(cfg: Config) -> None:
     )
     # clf_early_stop_callback = EarlyStopping(monitor='val_bce', patience=30, mode="min")
     clf_trainer = get_trainer(
-        cfg.training.gpus, wandb_logger, cfg.training.clf_epochs  # , callbacks=[clf_early_stop_callback]
+        cfg.training.gpus,
+        wandb_logger,
+        cfg.training.clf_epochs,  # , callbacks=[clf_early_stop_callback]
     )
     clf_trainer.fit(classifier, datamodule=data)
     clf_trainer.test(ckpt_path=None, datamodule=data)
@@ -83,9 +89,13 @@ def run_aies(cfg: Config) -> None:
     model_trainer.fit(model, datamodule=data)
     model_trainer.test(ckpt_path=None, datamodule=data)
 
-    preds = produce_selection_groups(model.pd_results, data, model.recon_0, model.recon_1, wandb_logger)
+    preds = produce_selection_groups(
+        model.pd_results, data, model.recon_0, model.recon_1, wandb_logger
+    )
     multiple_metrics(preds, data.test_data, "Ours-Post-Selection", wandb_logger)
-    fair_preds = produce_selection_groups(model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True)
+    fair_preds = produce_selection_groups(
+        model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True
+    )
     multiple_metrics(fair_preds, data.test_data, "Ours-Fair", wandb_logger)
 
     # === This is only for reporting ====
@@ -94,7 +104,9 @@ def run_aies(cfg: Config) -> None:
     _model_trainer = get_trainer(cfg.training.gpus, wandb_logger, 0)
     _model_trainer.fit(_model, datamodule=data)
     _model_trainer.test(ckpt_path=None, datamodule=data)
-    produce_selection_groups(_model.pd_results, data, _model.recon_0, _model.recon_1, wandb_logger, "Train")
+    produce_selection_groups(
+        _model.pd_results, data, _model.recon_0, _model.recon_1, wandb_logger, "Train"
+    )
     data.flip_train_test()
     # === === ===
 
@@ -104,7 +116,16 @@ def run_aies(cfg: Config) -> None:
     produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
 
     if cfg.training.all_baselines:
-        for model in [LRCV(), Oracle(), DPOracle(), EqOppOracle(), Kamiran(), ZafarFairness(), Kamishima(), Agarwal()]:
+        for model in [
+            LRCV(),
+            Oracle(),
+            DPOracle(),
+            EqOppOracle(),
+            Kamiran(),
+            ZafarFairness(),
+            Kamishima(),
+            Agarwal(),
+        ]:
             log.info(f"=== {model.name} ===")
             try:
                 results = model.run(data.train_data, data.test_data)
@@ -114,11 +135,15 @@ def run_aies(cfg: Config) -> None:
             if data.cf_available:
                 log.info(f"=== {model.name} and \"True\" Data ===")
                 results = model.run(data.train_data, data.test_data)
-                multiple_metrics(results, data.true_test_data, f"{model.name}-TrueLabels", wandb_logger)
+                multiple_metrics(
+                    results, data.true_test_data, f"{model.name}-TrueLabels", wandb_logger
+                )
                 get_miri_metrics(
                     method=f"Miri/{model.name}",
                     acceptance=DataTuple(
-                        x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=results.hard.to_frame()
+                        x=data.test_data.x.copy(),
+                        s=data.test_data.s.copy(),
+                        y=results.hard.to_frame(),
                     ),
                     graduated=data.true_test_data,
                     logger=wandb_logger,
@@ -146,14 +171,18 @@ def run_aies(cfg: Config) -> None:
         if data.cf_available:
             get_miri_metrics(
                 method="Miri/Ours-Post-Selection",
-                acceptance=DataTuple(x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=preds.hard.to_frame()),
+                acceptance=DataTuple(
+                    x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=preds.hard.to_frame()
+                ),
                 graduated=data.true_test_data,
                 logger=wandb_logger,
             )
             get_miri_metrics(
                 method="Miri/Ours-Fair",
                 acceptance=DataTuple(
-                    x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=fair_preds.hard.to_frame()
+                    x=data.test_data.x.copy(),
+                    s=data.test_data.s.copy(),
+                    y=fair_preds.hard.to_frame(),
                 ),
                 graduated=data.true_test_data,
                 logger=wandb_logger,
@@ -161,7 +190,9 @@ def run_aies(cfg: Config) -> None:
             get_miri_metrics(
                 method="Miri/Ours-Real-World-Preds",
                 acceptance=DataTuple(
-                    x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=our_clf_preds.hard.to_frame()
+                    x=data.test_data.x.copy(),
+                    s=data.test_data.s.copy(),
+                    y=our_clf_preds.hard.to_frame(),
                 ),
                 graduated=data.true_test_data,
                 logger=wandb_logger,
@@ -187,4 +218,8 @@ def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: Wa
         for key, result in diff_per_sensitive_attribute(per_group).items():
             do_log(f"{general_str}-Abs-Diff-{key}", result, logger)
         for key, result in ratio_per_sensitive_attribute(per_group).items():
-            do_log("{g_str}-Ratio-{k}".format(g_str=general_str, k=key.replace('/', '\\')), result, logger)
+            do_log(
+                "{g_str}-Ratio-{k}".format(g_str=general_str, k=key.replace('/', '\\')),
+                result,
+                logger,
+            )

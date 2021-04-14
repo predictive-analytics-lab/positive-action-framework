@@ -9,7 +9,9 @@ from ethicml.data.util import simple_spec
 def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> Tuple[Dataset, DataTuple]:
     """Get the Audlt dataset."""
     if sens == "Binary-Married":
-        dataset = adult(split="Custom", binarize_nationality=bin_nationality, binarize_race=bin_race)
+        dataset = adult(
+            split="Custom", binarize_nationality=bin_nationality, binarize_race=bin_race
+        )
         # discrete_features = reduce_feature_group(
         #     disc_feature_groups=dataset.disc_feature_groups,
         #     feature_group="marital-status",

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import wandb
 from ethicml import Prediction
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
@@ -15,7 +16,6 @@ from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
 from torch import Tensor
 
-import wandb
 from src.config_classes.dataclasses import Config
 from src.data_modules.base_module import BaseDataModule
 from src.logging import do_log
@@ -24,10 +24,16 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 
-def make_plot(*, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: List[str], cat_plot: bool = False) -> None:
+def make_plot(
+    *, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: List[str], cat_plot: bool = False
+) -> None:
     """Make plots for logging."""
     if cat_plot:
-        x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=cols).idxmax(axis=1).to_frame(cols[0].split("_")[0])
+        x_df = (
+            pd.DataFrame(x.detach().cpu().numpy(), columns=cols)
+            .idxmax(axis=1)
+            .to_frame(cols[0].split("_")[0])
+        )
         cols = [cols[0].split("_")[0]]
     else:
         x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
@@ -155,7 +161,13 @@ def produce_selection_groups(
 
     if recon_1 is not None:
         analyse_selection_groups(
-            data, outcomes, Prediction(hard=outcomes["decision"]), recon_0, recon_1, f"PreSelection_{data_name}", logger
+            data,
+            outcomes,
+            Prediction(hard=outcomes["decision"]),
+            recon_0,
+            recon_1,
+            f"PreSelection_{data_name}",
+            logger,
         )
 
     _to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
@@ -185,7 +197,9 @@ def analyse_selection_groups(
 
     for selection_group in range(selected.hard.min(), selected.hard.max()):
         try:
-            selected_data = data.test_data.x.iloc[selected.hard[selected.hard == selection_group].index]
+            selected_data = data.test_data.x.iloc[
+                selected.hard[selected.hard == selection_group].index
+            ]
         except IndexError:
             continue
 
@@ -213,14 +227,18 @@ def analyse_selection_groups(
             plt.xticks(rotation=90)
             plt.tight_layout()
             do_log(
-                f"selection_group_{selection_group}_feature_groups_0-1/{feature}/{data_name}", wandb.Image(plt), logger
+                f"selection_group_{selection_group}_feature_groups_0-1/{feature}/{data_name}",
+                wandb.Image(plt),
+                logger,
             )
             plt.clf()
 
 
 def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None:
     """Produce a distribution of the outcomes."""
-    val_counts = outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
+    val_counts = (
+        outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
+    )
     sns.barplot(val_counts.index, val_counts.values)
     if logger is not None:
         logger.experiment.log({"Debugging2/Outcomes": wandb.Plotly(plt)})
@@ -231,13 +249,20 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None
 
 
 def get_trainer(
-    gpus: int, logger: LightningLoggerBase, max_epochs: int, callbacks: Optional[List[EarlyStopping]] = None
+    gpus: int,
+    logger: LightningLoggerBase,
+    max_epochs: int,
+    callbacks: Optional[List[EarlyStopping]] = None,
 ) -> Trainer:
     """Get a trainer object set to the right device."""
     if gpus > 0:
-        return Trainer(gpus=gpus, max_epochs=max_epochs, deterministic=True, logger=logger, callbacks=callbacks)
+        return Trainer(
+            gpus=gpus, max_epochs=max_epochs, deterministic=True, logger=logger, callbacks=callbacks
+        )
     else:
-        return Trainer(max_epochs=max_epochs, deterministic=True, logger=logger, callbacks=callbacks)
+        return Trainer(
+            max_epochs=max_epochs, deterministic=True, logger=logger, callbacks=callbacks
+        )
 
 
 def get_wandb_logger(cfg: Config) -> Optional[WandbLogger]:

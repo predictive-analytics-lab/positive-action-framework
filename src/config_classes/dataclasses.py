@@ -55,6 +55,11 @@ class AdultConfig(DataConfig):
     sens: str = MISSING
 
 
+@dataclass
+class CompasConfig(DataConfig):
+    """Adult Dataset config schema."""
+
+
 class KernelType(Enum):
     """MMD Kernel Types."""
 

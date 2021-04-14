@@ -22,7 +22,12 @@ def main(raw_csv: Path):
     data = data.drop(["Name"], axis=1)
 
     data = pd.DataFrame(
-        [{a: f"{b:.2f} +/- {d:.2f}" for (a, b), (c, d) in zip(data.mean().iteritems(), data.std().iteritems())}]
+        [
+            {
+                a: f"{b:.2f} +/- {d:.2f}"
+                for (a, b), (c, d) in zip(data.mean().iteritems(), data.std().iteritems())
+            }
+        ]
     )
 
     data.columns = pd.MultiIndex.from_tuples(
@@ -55,7 +60,11 @@ def main(raw_csv: Path):
             'prob_pos-sens_0',
             'prob_pos-sens_1',
         ]
-        + [f"pre_selection_rule_group_{i}" for i in range(32) if f"pre_selection_rule_group_{i}" in data.columns]
+        + [
+            f"pre_selection_rule_group_{i}"
+            for i in range(32)
+            if f"pre_selection_rule_group_{i}" in data.columns
+        ]
     ]
 
     data.to_csv('./show.csv')

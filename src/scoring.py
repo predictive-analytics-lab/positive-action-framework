@@ -44,7 +44,9 @@ def lrcv_results(
         )
 
 
-def produce_baselines(*, encoder: CommonModel, dm: BaseDataModule, logger: LightningLoggerBase) -> None:
+def produce_baselines(
+    *, encoder: CommonModel, dm: BaseDataModule, logger: LightningLoggerBase
+) -> None:
     """Produce baselines for predictiveness."""
     latent_train = encoder.get_latent(dm.train_dataloader(shuffle=False, drop_last=False))
     latent_test = encoder.get_latent(dm.test_dataloader())
@@ -85,17 +87,33 @@ def get_miri_metrics(
     do_log(f"{method}/P({y_denotation}={ty_denotation})", sum_y_is_ty / num_points, logger)
 
     sum_y_is_ty_given_s0 = sum(
-        (data.y[data.s[data.s.columns[0]] == 0].values - data_y_true.y[data.s[data.s.columns[0]] == 0].values) == 0
+        (
+            data.y[data.s[data.s.columns[0]] == 0].values
+            - data_y_true.y[data.s[data.s.columns[0]] == 0].values
+        )
+        == 0
     )[0]
     num_s0 = data.y[data.s[data.s.columns[0]] == 0].shape[0]
 
     sum_y_is_ty_given_s1 = sum(
-        (data.y[data.s[data.s.columns[0]] == 1].values - data_y_true.y[data.s[data.s.columns[0]] == 1].values) == 0
+        (
+            data.y[data.s[data.s.columns[0]] == 1].values
+            - data_y_true.y[data.s[data.s.columns[0]] == 1].values
+        )
+        == 0
     )[0]
     num_s1 = data.y[data.s[data.s.columns[0]] == 1].shape[0]
 
-    do_log(f"{method}/P({y_denotation}={ty_denotation}|{s_denotation}=0)", sum_y_is_ty_given_s0 / num_s0, logger)
-    do_log(f"{method}/P({y_denotation}={ty_denotation}|{s_denotation}=1)", sum_y_is_ty_given_s1 / num_s1, logger)
+    do_log(
+        f"{method}/P({y_denotation}={ty_denotation}|{s_denotation}=0)",
+        sum_y_is_ty_given_s0 / num_s0,
+        logger,
+    )
+    do_log(
+        f"{method}/P({y_denotation}={ty_denotation}|{s_denotation}=1)",
+        sum_y_is_ty_given_s1 / num_s1,
+        logger,
+    )
 
     for val in [0, 1]:
         # P(y^=val)
@@ -117,7 +135,10 @@ def get_miri_metrics(
             )
 
             # P(y^=outer | Ty=inner)
-            result = data.y[data_y_true.y[data_y_true.y.columns[0]] == inner_val][data.y.columns[0]] == outer_val
+            result = (
+                data.y[data_y_true.y[data_y_true.y.columns[0]] == inner_val][data.y.columns[0]]
+                == outer_val
+            )
             do_log(
                 f"{method}/P({y_denotation}={outer_val}|{ty_denotation}={inner_val})",
                 result.sum() / result.count(),
@@ -125,14 +146,20 @@ def get_miri_metrics(
             )
 
             # P(Ty=outer | y^=inner)
-            result = data_y_true.y[data.y[data.y.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
+            result = (
+                data_y_true.y[data.y[data.y.columns[0]] == outer_val][data_y_true.y.columns[0]]
+                == inner_val
+            )
             do_log(
                 f"{method}/P({ty_denotation}={inner_val}|{y_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
 
-            result = data_y_true.y[data.s[data.s.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
+            result = (
+                data_y_true.y[data.s[data.s.columns[0]] == outer_val][data_y_true.y.columns[0]]
+                == inner_val
+            )
             do_log(
                 f"{method}/P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
                 result.sum() / result.count(),
@@ -146,7 +173,10 @@ def get_miri_metrics(
                 logger,
             )
 
-            result = data_y_true.y[data.s[data.s.columns[0]] == outer_val][data_y_true.y.columns[0]] == inner_val
+            result = (
+                data_y_true.y[data.s[data.s.columns[0]] == outer_val][data_y_true.y.columns[0]]
+                == inner_val
+            )
             do_log(
                 f"{method}/P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
                 result.sum() / result.count(),
@@ -157,9 +187,9 @@ def get_miri_metrics(
         for ty_val in [0, 1]:
             for y_val in [0, 1]:
                 result = (
-                    data_y_true.y[(data.y[data.y.columns[0]] == y_val) & (data.s[data.s.columns[0]] == s_val)][
-                        data_y_true.y.columns[0]
-                    ]
+                    data_y_true.y[
+                        (data.y[data.y.columns[0]] == y_val) & (data.s[data.s.columns[0]] == s_val)
+                    ][data_y_true.y.columns[0]]
                     == ty_val
                 )
                 do_log(
@@ -169,9 +199,10 @@ def get_miri_metrics(
                 )
 
                 result = (
-                    data.y[(data_y_true.y[data_y_true.y.columns[0]] == ty_val) & (data.s[data.s.columns[0]] == s_val)][
-                        data.y.columns[0]
-                    ]
+                    data.y[
+                        (data_y_true.y[data_y_true.y.columns[0]] == ty_val)
+                        & (data.s[data.s.columns[0]] == s_val)
+                    ][data.y.columns[0]]
                     == y_val
                 )
                 do_log(

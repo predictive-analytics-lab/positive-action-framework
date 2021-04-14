@@ -32,7 +32,9 @@ class BaseModel(nn.Module):
             self.hid = nn.Identity()
             self.out = nn.Linear(in_size, out_size)
         else:
-            _blocks = [block(in_dim=in_size, out_dim=hid_size)] + mid_blocks(latent_dim=hid_size, blocks=blocks)
+            _blocks = [block(in_dim=in_size, out_dim=hid_size)] + mid_blocks(
+                latent_dim=hid_size, blocks=blocks
+            )
             self.hid = nn.Sequential(*_blocks)
             self.out = nn.Linear(hid_size, out_size)
         # nn.init.xavier_normal_(self.out.weight)
@@ -156,7 +158,9 @@ class AE(CommonModel):
         if self.feature_groups["discrete"]:
             # TODO: make this work with vae
             recon_loss = mse_loss(
-                index_by_s(recons, s)[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].sigmoid(),
+                index_by_s(recons, s)[
+                    :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
+                ].sigmoid(),
                 x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
                 reduction="mean",
             )
@@ -258,14 +262,18 @@ class AE(CommonModel):
                 s=all_s,
                 logger=self.logger,
                 name="true_data",
-                cols=self.data_cols[slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
+                cols=self.data_cols[
+                    slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                ],
             )
             make_plot(
                 x=all_recon[:, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
                 s=all_s,
                 logger=self.logger,
                 name="recons",
-                cols=self.data_cols[slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
+                cols=self.data_cols[
+                    slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                ],
             )
             for group_slice in self.feature_groups["discrete"]:
                 make_plot(
@@ -287,11 +295,17 @@ class AE(CommonModel):
         else:
             make_plot(x=all_x, s=all_s, logger=self.logger, name="true_data", cols=self.data_cols)
             make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons", cols=self.data_cols)
-        make_plot(x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)])
+        make_plot(
+            x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)]
+        )
         recon_mse = (all_x - all_recon).mean(dim=0).abs()
         for i, feature_mse in enumerate(recon_mse):
             feature_name = self.data_cols[i]
-            do_log(f"Table6/Ours/recon_l1 - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
+            do_log(
+                f"Table6/Ours/recon_l1 - feature {feature_name}",
+                round(feature_mse.item(), 5),
+                self.logger,
+            )
 
         if self.cf_model:
             all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
@@ -303,12 +317,18 @@ class AE(CommonModel):
                 name="true_counterfactual",
                 cols=self.data_cols,
             )
-            make_plot(x=cf_recon, s=all_s, logger=self.logger, name="cf_recons", cols=self.data_cols)
+            make_plot(
+                x=cf_recon, s=all_s, logger=self.logger, name="cf_recons", cols=self.data_cols
+            )
 
             recon_mse = (all_cf_x - cf_recon).mean(dim=0).abs()
             for i, feature_mse in enumerate(recon_mse):
                 feature_name = self.data_cols[i]
-                do_log(f"Table6/Ours/cf_recon_l1 - feature {feature_name}", round(feature_mse.item(), 5), self.logger)
+                do_log(
+                    f"Table6/Ours/cf_recon_l1 - feature {feature_name}",
+                    round(feature_mse.item(), 5),
+                    self.logger,
+                )
 
     # @implements(LightningModule)
     # def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:

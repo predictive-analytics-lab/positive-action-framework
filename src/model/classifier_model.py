@@ -29,7 +29,9 @@ class BaseModel(nn.Module):
             self.hid = nn.Identity()
             self.out = nn.Linear(in_size, out_size)
         else:
-            _blocks = [block(in_dim=in_size, out_dim=hid_size)] + mid_blocks(latent_dim=hid_size, blocks=blocks)
+            _blocks = [block(in_dim=in_size, out_dim=hid_size)] + mid_blocks(
+                latent_dim=hid_size, blocks=blocks
+            )
             self.hid = nn.Sequential(*_blocks)
             self.out = nn.Linear(hid_size, out_size)
         # nn.init.xavier_normal_(self.out.weight)
@@ -44,14 +46,24 @@ class Encoder(BaseModel):
     """AE Shared Encoder."""
 
     def __init__(self, *, in_size: int, latent_dim: int, blocks: int, hid_multiplier: int):
-        super().__init__(in_size=in_size, hid_size=latent_dim * hid_multiplier, out_size=latent_dim, blocks=blocks)
+        super().__init__(
+            in_size=in_size,
+            hid_size=latent_dim * hid_multiplier,
+            out_size=latent_dim,
+            blocks=blocks,
+        )
 
 
 class Adversary(BaseModel):
     """AE Adversary head."""
 
     def __init__(self, *, latent_dim: int, out_size: int, blocks: int, hid_multiplier: int):
-        super().__init__(in_size=latent_dim, hid_size=latent_dim * hid_multiplier, out_size=out_size, blocks=blocks)
+        super().__init__(
+            in_size=latent_dim,
+            hid_size=latent_dim * hid_multiplier,
+            out_size=out_size,
+            blocks=blocks,
+        )
 
     @implements(nn.Module)
     def forward(self, z: Tensor) -> Tensor:
@@ -63,14 +75,25 @@ class Decoder(BaseModel):
     """Decoder."""
 
     def __init__(self, *, latent_dim: int, in_size: int, blocks: int, hid_multiplier: int) -> None:
-        super().__init__(in_size=latent_dim, hid_size=latent_dim * hid_multiplier, out_size=in_size, blocks=blocks)
+        super().__init__(
+            in_size=latent_dim,
+            hid_size=latent_dim * hid_multiplier,
+            out_size=in_size,
+            blocks=blocks,
+        )
 
 
 class Clf(CommonModel):
     """Main Autoencoder."""
 
     def __init__(
-        self, cfg: ModelConfig, num_s: int, data_dim: int, s_dim: int, cf_available: bool, outcome_cols: List[str]
+        self,
+        cfg: ModelConfig,
+        num_s: int,
+        data_dim: int,
+        s_dim: int,
+        cf_available: bool,
+        outcome_cols: List[str],
     ):
         super().__init__(name="Clf")
         self.enc = Encoder(
@@ -80,7 +103,10 @@ class Clf(CommonModel):
             hid_multiplier=cfg.latent_multiplier,
         )
         self.adv = Adversary(
-            latent_dim=cfg.latent_dims, out_size=1, blocks=cfg.adv_blocks, hid_multiplier=cfg.latent_multiplier
+            latent_dim=cfg.latent_dims,
+            out_size=1,
+            blocks=cfg.adv_blocks,
+            hid_multiplier=cfg.latent_multiplier,
         )
         self.decoders = nn.ModuleList(
             [
@@ -123,7 +149,9 @@ class Clf(CommonModel):
         # x, s, _s, y, iw = batch
         z, s_pred, preds = self(x, s)
         _iw = iw if self.use_iw else None
-        pred_loss = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=_iw)
+        pred_loss = binary_cross_entropy_with_logits(
+            index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=_iw
+        )
         adv_loss = (
             mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean", weight=_iw)
@@ -211,11 +239,19 @@ class Clf(CommonModel):
         preds_0 = torch.cat([_r["preds_0"] for _r in output_results], 0)
         preds_1 = torch.cat([_r["preds_1"] for _r in output_results], 0)
 
-        make_plot(x=all_y.unsqueeze(-1), s=all_s, logger=self.logger, name="true_data", cols=self.outcome_cols)
+        make_plot(
+            x=all_y.unsqueeze(-1),
+            s=all_s,
+            logger=self.logger,
+            name="true_data",
+            cols=self.outcome_cols,
+        )
         make_plot(x=all_preds, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
         make_plot(x=preds_0, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
         make_plot(x=preds_1, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
-        make_plot(x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)])
+        make_plot(
+            x=all_z, s=all_s, logger=self.logger, name="z", cols=[str(i) for i in range(self.ld)]
+        )
 
         if self.cf_model:
             all_cf_y = torch.cat([_r["cf_y"] for _r in output_results], 0)
@@ -227,7 +263,9 @@ class Clf(CommonModel):
                 name="true_counterfactual_outcome",
                 cols=self.outcome_cols,
             )
-            make_plot(x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=self.outcome_cols)
+            make_plot(
+                x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=self.outcome_cols
+            )
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:

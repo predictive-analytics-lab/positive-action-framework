@@ -8,6 +8,7 @@ from omegaconf import OmegaConf
 
 from src.config_classes.dataclasses import (
     AdultConfig,
+    CompasConfig,
     Config,
     LilliputConfig,
     SimpleXConfig,
@@ -23,6 +24,7 @@ cs.store(name="hydra", node=Config)  # General Schema
 data_package: Final[str] = "data"  # package:dir_within_config_path
 data_group: Final[str] = "data/schema"  # group
 cs.store(name="adult", node=AdultConfig, package=data_package, group=data_group)
+cs.store(name="compas", node=CompasConfig, package=data_package, group=data_group)
 cs.store(name="lilliput", node=LilliputConfig, package=data_package, group=data_group)
 cs.store(name="synth", node=SimpleXConfig, package=data_package, group=data_group)
 cs.store(name="third", node=ThirdWayConfig, package=data_package, group=data_group)

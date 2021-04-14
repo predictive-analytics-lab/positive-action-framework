@@ -19,7 +19,10 @@ def test_selection_rule_first_4():
     all_p = torch.tensor([[1], [0], [0], [1], [1], [1], [1], [1], [1], [1]])
 
     pd_results = pd.DataFrame(
-        torch.cat([all_s0_s0_preds, all_s0_s1_preds, all_s1_s0_preds, all_s1_s1_preds, all_s, all_p], dim=1)
+        torch.cat(
+            [all_s0_s0_preds, all_s0_s1_preds, all_s1_s0_preds, all_s1_s1_preds, all_s, all_p],
+            dim=1,
+        )
         .cpu()
         .numpy(),
         columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
@@ -53,7 +56,10 @@ def test_selection_rule_four_to_eight():
     all_p = torch.tensor([[1], [0], [0], [1], [1], [1], [1], [1], [1], [1]])
 
     pd_results = pd.DataFrame(
-        torch.cat([all_s0_s0_preds, all_s0_s1_preds, all_s1_s0_preds, all_s1_s1_preds, all_s, all_p], dim=1)
+        torch.cat(
+            [all_s0_s0_preds, all_s0_s1_preds, all_s1_s0_preds, all_s1_s1_preds, all_s, all_p],
+            dim=1,
+        )
         .cpu()
         .numpy(),
         columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
@@ -1935,12 +1941,82 @@ def test_selection_rule():
 
     pd.testing.assert_series_equal(
         next_up.hard,
-        pd.Series([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]),
+        pd.Series(
+            [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+            ]
+        ),
     )
 
     preds = produce_selection_groups(pd_results, None)
 
     pd.testing.assert_series_equal(
         preds.hard,
-        pd.Series([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]),
+        pd.Series(
+            [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+            ]
+        ),
     )

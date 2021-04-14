@@ -83,11 +83,15 @@ class ThirdWayDataModule(BaseDataModule):
 
         self.make_feature_groups(dataset, factual_data)
 
-        self.train_data, self.test_data = self.scale_and_split(self.factual_data, dataset, train_indices, test_indices)
+        self.train_data, self.test_data = self.scale_and_split(
+            self.factual_data, dataset, train_indices, test_indices
+        )
         self.true_train_data, self.true_test_data = self.scale_and_split(
             data_true_outcome, dataset, train_indices, test_indices
         )
-        self.cf_train, self.cf_test = self.scale_and_split(self.cf_data, dataset, train_indices, test_indices)
+        self.cf_train, self.cf_test = self.scale_and_split(
+            self.cf_data, dataset, train_indices, test_indices
+        )
         self.s1_0_s2_0_train, self.s1_0_s2_0_test = self.scale_and_split(
             self.s1_0_s2_0_data, dataset, train_indices, test_indices
         )
@@ -120,7 +124,11 @@ class ThirdWayDataModule(BaseDataModule):
         log.info(asdfasdf.info)
 
     def scale_and_split(
-        self, datatuple: DataTuple, dataset: Dataset, train_indices: np.ndarray, test_indices: np.ndarray
+        self,
+        datatuple: DataTuple,
+        dataset: Dataset,
+        train_indices: np.ndarray,
+        test_indices: np.ndarray,
     ) -> Tuple[DataTuple, DataTuple]:
         """Scale a datatuple and split to train/test."""
         train = DataTuple(
@@ -136,7 +144,9 @@ class ThirdWayDataModule(BaseDataModule):
 
         scaler = MinMaxScaler()
         scaler = scaler.fit(train.x[dataset.continuous_features])
-        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        train.x[dataset.continuous_features] = scaler.transform(
+            train.x[dataset.continuous_features]
+        )
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
         return train, test
 

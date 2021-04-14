@@ -85,7 +85,9 @@ class DataTupleDataset(DataTupleDatasetBase):
 
     def __init__(self, dataset: DataTuple, disc_features: List[str], cont_features: List[str]):
         super().__init__(dataset, disc_features, cont_features)
-        self.instance_weight = torch.tensor(compute_instance_weights(dataset)["instance weights"].values)
+        self.instance_weight = torch.tensor(
+            compute_instance_weights(dataset)["instance weights"].values
+        )
 
     def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         return (self._x(index), self._s(index), self._y(index), self.instance_weight[index])
@@ -94,13 +96,23 @@ class DataTupleDataset(DataTupleDatasetBase):
 class CFDataTupleDataset(DataTupleDatasetBase):
     """Wrapper for EthicML datasets."""
 
-    def __init__(self, dataset: DataTuple, cf_dataset: DataTuple, disc_features: List[str], cont_features: List[str]):
+    def __init__(
+        self,
+        dataset: DataTuple,
+        cf_dataset: DataTuple,
+        disc_features: List[str],
+        cont_features: List[str],
+    ):
         """Create DataTupleDataset."""
         super().__init__(dataset, disc_features, cont_features)
         self.cf_x_disc, self.cf_x_cont, self.cf_s, self.cf_y = self.split_tuple(cf_dataset)
-        self.instance_weight = torch.tensor(compute_instance_weights(dataset)["instance weights"].values)
+        self.instance_weight = torch.tensor(
+            compute_instance_weights(dataset)["instance weights"].values
+        )
 
-    def split_tuple(self, datatuple: DataTuple) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def split_tuple(
+        self, datatuple: DataTuple
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Split a datatuple to components."""
         x_disc = datatuple.x[self.disc_features].to_numpy(dtype=np.float32)
         x_cont = datatuple.x[self.cont_features].to_numpy(dtype=np.float32)
@@ -130,7 +142,9 @@ class CFDataTupleDataset(DataTupleDatasetBase):
     def _cf_y(self, index: int) -> Tensor:
         return self._make_from_arr(self.cf_y, index)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+    def __getitem__(
+        self, index: int
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         return (
             super()._x(index),
             super()._s(index),

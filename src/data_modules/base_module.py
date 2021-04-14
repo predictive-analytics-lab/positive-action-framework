@@ -213,7 +213,9 @@ class BaseDataModule(LightningDataModule):
 
         scaler = MinMaxScaler()
         scaler = scaler.fit(train.x[dataset.continuous_features])
-        train.x[dataset.continuous_features] = scaler.transform(train.x[dataset.continuous_features])
+        train.x[dataset.continuous_features] = scaler.transform(
+            train.x[dataset.continuous_features]
+        )
         # val.x[dataset.continuous_features] = scaler.transform(val.x[dataset.continuous_features])
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
         return train, val, test
@@ -230,7 +232,11 @@ class BaseDataModule(LightningDataModule):
             pass
         if cf_available:
             try:
-                label_plot(self.factual_data.replace(y=self.best_guess.hard.to_frame()), logger, "best_guess")
+                label_plot(
+                    self.factual_data.replace(y=self.best_guess.hard.to_frame()),
+                    logger,
+                    "best_guess",
+                )
                 label_plot(self.cf_train, logger, "cf_train")
                 label_plot(self.cf_test, logger, "cf_test")
                 label_plot(self.s0_s0, logger, "s0_s0")

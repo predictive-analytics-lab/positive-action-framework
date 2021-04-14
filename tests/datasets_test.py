@@ -84,7 +84,9 @@ CLF = ModelConfig(
 )
 
 
-@pytest.mark.parametrize("cfg,cf_available", [(THIRD, True), (LILLIPUT, True), (SIMPLE, True), (ADULT, False)])
+@pytest.mark.parametrize(
+    "cfg,cf_available", [(THIRD, True), (LILLIPUT, True), (SIMPLE, True), (ADULT, False)]
+)
 def test_data(cfg, cf_available):
     """Test the data module."""
     seed_everything(0)

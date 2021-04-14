@@ -50,11 +50,15 @@ class SimpleXDataModule(BaseDataModule):
 
         self.make_feature_groups(dataset, true_data)
 
-        self.train_data, self.test_data = self.scale_and_split(true_data, dataset, train_indices, test_indices)
+        self.train_data, self.test_data = self.scale_and_split(
+            true_data, dataset, train_indices, test_indices
+        )
         self.true_train_data, self.true_test_data = self.scale_and_split(
             data_true_outcome, dataset, train_indices, test_indices
         )
-        self.cf_train, self.cf_test = self.scale_and_split(cf_data, dataset, train_indices, test_indices)
+        self.cf_train, self.cf_test = self.scale_and_split(
+            cf_data, dataset, train_indices, test_indices
+        )
 
     @implements(BaseDataModule)
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:

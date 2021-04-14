@@ -2,11 +2,11 @@
 from typing import Optional
 
 import matplotlib as mpl
+import wandb
 from ethicml import DataTuple
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import WandbLogger
 
-import wandb
 from src.logging import do_log
 
 
@@ -26,8 +26,12 @@ def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
     s_1_label = s_values.index.max()
 
     y_col = data.y.columns[0]
-    y_s0 = data.y[y_col][data.s[s_col] == 0].value_counts() / data.y[y_col][data.s[s_col] == 0].count()
-    y_s1 = data.y[y_col][data.s[s_col] == 1].value_counts() / data.y[y_col][data.s[s_col] == 1].count()
+    y_s0 = (
+        data.y[y_col][data.s[s_col] == 0].value_counts() / data.y[y_col][data.s[s_col] == 0].count()
+    )
+    y_s1 = (
+        data.y[y_col][data.s[s_col] == 1].value_counts() / data.y[y_col][data.s[s_col] == 1].count()
+    )
 
     if len(y_s1) == 0:
         y_s1[0] = 0

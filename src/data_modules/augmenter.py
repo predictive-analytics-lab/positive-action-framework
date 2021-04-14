@@ -26,7 +26,9 @@ class AugDataset(Dataset):
             s=pd.DataFrame(sens.detach().cpu().numpy()),
             y=pd.DataFrame(labels.detach().cpu().numpy()),
         )
-        self.instance_weight = torch.tensor(compute_instance_weights(dataset)["instance weights"].values)
+        self.instance_weight = torch.tensor(
+            compute_instance_weights(dataset)["instance weights"].values
+        )
 
     def __len__(self) -> int:
         return self.sens.shape[0]
