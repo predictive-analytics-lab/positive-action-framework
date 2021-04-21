@@ -215,5 +215,6 @@ cython_debug/
 /lightning_logs/*
 /multirun/*
 /outputs/*
+paf/outputs/*
 /uncategorized/*
 /wandb/*
