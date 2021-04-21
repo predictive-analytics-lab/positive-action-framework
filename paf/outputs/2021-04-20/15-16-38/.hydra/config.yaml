@@ -1,0 +1,47 @@
+_target_: paf.main.Config
+data:
+  _target_: paf.data_modules.SimpleAdultDataModule
+  batch_size: 64
+  bin_nat: true
+  bin_race: true
+  seed: 0
+  num_workers: 0
+  sens: Sex
+  cf_available: false
+enc:
+  encoder_blocks: 0
+  adv_blocks: 0
+  decoder_blocks: 0
+  latent_dims: 5
+  latent_multiplier: 1
+  lr: 0.001
+  adv_weight: 1.0
+  target_weight: 1.0
+  reg_weight: 0.001
+  s_as_input: true
+  mmd_kernel: linear
+  scheduler_rate: 0.999
+  weight_decay: 1.0e-06
+  use_iw: false
+clf:
+  encoder_blocks: 1
+  adv_blocks: 1
+  decoder_blocks: 1
+  latent_dims: 1
+  latent_multiplier: 1
+  lr: 0.01
+  adv_weight: 1.0
+  target_weight: 1.0
+  reg_weight: 0.001
+  s_as_input: true
+  mmd_kernel: linear
+  scheduler_rate: 0.99
+  weight_decay: 1.0e-06
+  use_iw: false
+training:
+  enc_epochs: 50
+  clf_epochs: 50
+  all_baselines: true
+  gpus: -1
+  log: true
+exp_group: null

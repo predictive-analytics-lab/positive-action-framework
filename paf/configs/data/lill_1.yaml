@@ -1,0 +1,9 @@
+defaults:
+  - /schema/data: lilliput
+batch_size: 256
+num_workers: 0
+seed: 0
+
+alpha: 0.5
+gamma: 0.01
+num_samples: 20_000

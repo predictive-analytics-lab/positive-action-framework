@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "src"
+name = "paf"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Oliver Thomas <ot@example.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -13,7 +13,7 @@ wandb = "^0.10.5"
 plotly = "^4.11.0"
 ethicml = {git = "https://github.com/predictive-analytics-lab/EthicML.git", extras = ["all"]}
 pytorch-lightning = "*"
-hydra-core = "^1.0.3"
+neoconfigen = {git = "https://github.com/predictive-analytics-lab/neoconfigen.git", branch = "master"}
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
@@ -30,7 +30,7 @@ requires = ["poetry-core>=1.0.0a5"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-run = "src.main:aies"
+run = "paf.main:launcher"
 
 [tool.black]
 line-length = 100

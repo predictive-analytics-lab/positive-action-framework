@@ -1,0 +1,3 @@
+lr: 1.0e-3
+seed: 2410
+weight_decay: 1.0e-3

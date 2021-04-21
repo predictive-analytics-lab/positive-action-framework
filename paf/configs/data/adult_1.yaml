@@ -1,0 +1,10 @@
+defaults:
+  - /schema/data: adult
+
+batch_size: 64
+num_workers: 0
+seed: 0
+
+bin_nat: true
+bin_race: true
+sens: "Sex"

@@ -1,0 +1,10 @@
+defaults:
+  - /schema/data: synth
+
+batch_size: 64
+num_workers: 0
+seed: 0
+
+alpha: 0.5
+gamma: 2.0
+num_samples: 10_000

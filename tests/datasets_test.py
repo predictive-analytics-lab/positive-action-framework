@@ -3,7 +3,7 @@ import pytest
 import torch
 from pytorch_lightning import Trainer, seed_everything
 
-from src.config_classes.dataclasses import (
+from paf.config_classes.dataclasses import (
     AdultConfig,
     DataConfig,
     KernelType,
@@ -12,10 +12,10 @@ from src.config_classes.dataclasses import (
     SimpleXConfig,
     ThirdWayConfig,
 )
-from src.data_modules.create import create_data_module
-from src.model.aies_model import AiesModel
-from src.model.classifier_model import Clf
-from src.model.encoder_model import AE
+from paf.data_modules.create import create_data_module
+from paf.model.aies_model import AiesModel
+from paf.model.classifier_model import Clf
+from paf.model.encoder_model import AE
 
 THIRD = ThirdWayConfig(
     batch_size=32,

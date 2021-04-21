@@ -1,8 +1,0 @@
-# @package _group_
-batch_size: 64
-num_workers: 0
-seed: 0
-
-bin_nationality: true
-bin_race: true
-sens: "Sex"

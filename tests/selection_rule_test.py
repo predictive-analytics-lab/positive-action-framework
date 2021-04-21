@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from ethicml import Prediction
 
-from src.utils import facct_mapper, facct_mapper_2, produce_selection_groups, selection_rules
+from paf.utils import facct_mapper, facct_mapper_2, produce_selection_groups, selection_rules
 
 
 def test_selection_rule_first_4():
