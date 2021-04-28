@@ -117,7 +117,7 @@ def make_plot(
             .idxmax(axis=1)
             .to_frame(cols[0].split("_")[0])
         )
-        cols = [cols[0].split("_")[0]]
+        cols = sorted([cols[0].split("_")[0]])
     else:
         x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
 
