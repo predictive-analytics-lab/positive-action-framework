@@ -3,7 +3,7 @@ import copy
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import Any, Dict, Final, List, Optional
+from typing import Any, Dict, Final, Optional
 
 import hydra
 import pandas as pd
@@ -54,7 +54,7 @@ class ExpConfig:
     momentum: float = 0.9
     seed: int = 42
     log_offline: Optional[bool] = False
-    tags: Optional[List[str]] = None
+    tags: str = "/"
     baseline: bool = False
 
 
