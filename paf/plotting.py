@@ -131,7 +131,9 @@ def make_plot(
         # plt.clf()
 
         if cat_plot:
-            x_df[col] = x_df[col].map(lambda x: ''.join(x.split("_")[1:]))
+            x_df[col] = (
+                x_df[col].map(lambda x: ''.join(x.split("_")[1:])).sort_values(ascending=True)
+            )
             sns.countplot(data=x_df, x=col, color='b', hue="s", palette={1: 'b', 0: 'g'})
         else:
             sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
