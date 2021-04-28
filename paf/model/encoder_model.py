@@ -243,9 +243,9 @@ class AE(CommonModel):
         """Go from soft to discrete features."""
         k = z.detach().clone()
         if self.feature_groups["discrete"]:
-            # k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])] = k[
-            #     :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
-            # ].sigmoid()
+            k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])] = k[
+                :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
+            ].sigmoid()
             for group_slice in self.feature_groups["discrete"]:
                 # one_hot = to_discrete(inputs=k[:, group_slice])
                 # k[:, group_slice] = one_hot
