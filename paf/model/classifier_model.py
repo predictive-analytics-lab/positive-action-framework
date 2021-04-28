@@ -303,10 +303,11 @@ class Clf(CommonModel):
     @implements(LightningModule)
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
         optimizer = Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        scheduler = CosineAnnealingLR(optimizer, 10)
+        CosineAnnealingLR(optimizer, 10)
         # scheduler = ReduceLROnPlateau(optimizer, "min", patience=5)
         # ExponentialLR(optimizer, gamma=self.scheduler_rate)
-        return [optimizer], [scheduler]
+        # return [optimizer], [scheduler]
+        return optimizer
         # return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_bce'}
 
     @implements(CommonModel)
