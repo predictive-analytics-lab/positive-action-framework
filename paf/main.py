@@ -130,6 +130,7 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
     data.make_data_plots(data.cf_available, cfg.trainer.logger)
 
     enc_trainer = cfg.trainer
+    enc_trainer.tune(model=encoder, datamodule=data)
     enc_trainer.fit(model=encoder, datamodule=data)
     enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
 
@@ -142,6 +143,7 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
         feature_groups=data.feature_groups,
         outcome_cols=data.outcome_columns,
     )
+    clf_trainer.tune(model=classifier, datamodule=data)
     clf_trainer.fit(model=classifier, datamodule=data)
     clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
 
