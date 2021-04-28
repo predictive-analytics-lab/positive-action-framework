@@ -131,15 +131,15 @@ def make_plot(
         # plt.clf()
 
         if cat_plot:
-            x_df[col] = (
-                x_df[col].map(lambda x: ''.join(x.split("_")[1:])).sort_values(ascending=True)
-            )
+            x_df[col] = x_df[col].map(lambda x: ''.join(x.split("_")[1:]))
+            x_df[col] = x_df.sort_values(by=[col])
             sns.countplot(data=x_df, x=col, color='b', hue="s", palette={1: 'b', 0: 'g'})
-            plt.xticks(rotation=90)
         else:
             sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
             sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
-            plt.xticks(rotation=90)
+
+        plt.xticks(rotation=90)
+        plt.tight_layout()
         do_log(f"distplot_image_{name}/{col}", wandb.Image(plt), logger)
         plt.clf()
 
