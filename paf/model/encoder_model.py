@@ -17,7 +17,7 @@ from paf.logging_i_guess import do_log
 from paf.mmd import mmd2
 from paf.model.blocks import block, mid_blocks
 from paf.model.common_model import CommonModel
-from paf.model.model_utils import grad_reverse, index_by_s
+from paf.model.model_utils import grad_reverse, index_by_s, to_discrete
 from paf.plotting import make_plot
 
 logger = logging.getLogger(__name__)
@@ -195,10 +195,10 @@ class AE(CommonModel):
             _tmp_recon_loss = torch.zeros_like(recon_loss)
             for group_slice in self.feature_groups["discrete"]:
                 recon_loss += cross_entropy(
-                    # index_by_s(recons, s)[:, group_slice],
-                    torch.nn.functional.gumbel_softmax(
-                        index_by_s(recons, s)[:, group_slice], hard=False, tau=1e-3
-                    ),
+                    index_by_s(recons, s)[:, group_slice],
+                    # torch.nn.functional.gumbel_softmax(
+                    #     index_by_s(recons, s)[:, group_slice], hard=False, tau=1e-3
+                    # ),
                     torch.argmax(x[:, group_slice], dim=-1),
                     reduction="mean",
                 )
@@ -247,11 +247,11 @@ class AE(CommonModel):
                 :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
             ].sigmoid()
             for group_slice in self.feature_groups["discrete"]:
-                # one_hot = to_discrete(inputs=k[:, group_slice])
-                # k[:, group_slice] = one_hot
-                k[:, group_slice] = torch.nn.functional.gumbel_softmax(
-                    k[:, group_slice], hard=True, tau=1e-3
-                )
+                one_hot = to_discrete(inputs=k[:, group_slice])
+                k[:, group_slice] = one_hot
+                # k[:, group_slice] = torch.nn.functional.gumbel_softmax(
+                #     k[:, group_slice], hard=True, tau=1e-3
+                # )
         else:
             k = k.sigmoid()
 
