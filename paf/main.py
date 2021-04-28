@@ -54,7 +54,7 @@ class ExpConfig:
     momentum: float = 0.9
     seed: int = 42
     log_offline: Optional[bool] = False
-    tags: str = "/"
+    tags: str = ""
     baseline: bool = False
 
 
