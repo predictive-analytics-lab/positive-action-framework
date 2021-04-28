@@ -282,8 +282,8 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
                 logger=wandb_logger,
             )
 
-    if not cfg.exp.log_offline:
-        wandb_logger.experiment.finish()
+    # if not cfg.exp.log_offline:
+    #     wandb_logger.experiment.finish()
 
 
 def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: WandbLogger) -> None:
