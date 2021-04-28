@@ -197,7 +197,7 @@ class AE(CommonModel):
                 recon_loss += cross_entropy(
                     # index_by_s(recons, s)[:, group_slice],
                     torch.nn.functional.gumbel_softmax(
-                        index_by_s(recons, s)[:, group_slice], hard=True
+                        index_by_s(recons, s)[:, group_slice], hard=True, tau=1e-3
                     ),
                     torch.argmax(x[:, group_slice], dim=-1),
                     reduction="mean",
@@ -249,7 +249,9 @@ class AE(CommonModel):
             for group_slice in self.feature_groups["discrete"]:
                 # one_hot = to_discrete(inputs=k[:, group_slice])
                 # k[:, group_slice] = one_hot
-                k[:, group_slice] = torch.nn.functional.gumbel_softmax(k[:, group_slice], hard=True)
+                k[:, group_slice] = torch.nn.functional.gumbel_softmax(
+                    k[:, group_slice], hard=True, tau=1e-3
+                )
         else:
             k = k.sigmoid()
 
