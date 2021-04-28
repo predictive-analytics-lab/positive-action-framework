@@ -154,9 +154,9 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
     multiple_metrics(
         preds,
         DataTuple(
-            x=pd.DataFrame(model.all_x, columns=data.test_data.x.columns),
-            s=pd.DataFrame(model.all_s, columns=data.test_data.s.columns),
-            y=pd.DataFrame(model.all_y, columns=data.test_data.y.columns),
+            x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
+            s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
+            y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
         ),
         "Ours-Post-Selection",
         wandb_logger,
@@ -167,9 +167,9 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
     multiple_metrics(
         fair_preds,
         DataTuple(
-            x=pd.DataFrame(model.all_x, columns=data.test_data.x.columns),
-            s=pd.DataFrame(model.all_s, columns=data.test_data.s.columns),
-            y=pd.DataFrame(model.all_y, columns=data.test_data.y.columns),
+            x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
+            s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
+            y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
         ),
         "Ours-Fair",
         wandb_logger,
@@ -189,9 +189,9 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
     multiple_metrics(
         our_clf_preds,
         DataTuple(
-            x=pd.DataFrame(model.all_x, columns=data.test_data.x.columns),
-            s=pd.DataFrame(model.all_s, columns=data.test_data.s.columns),
-            y=pd.DataFrame(model.all_y, columns=data.test_data.y.columns),
+            x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
+            s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
+            y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
         ),
         "Ours-Real-World-Preds",
         wandb_logger,
