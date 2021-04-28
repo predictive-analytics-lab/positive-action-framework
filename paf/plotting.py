@@ -1,11 +1,14 @@
 """Plotting related functions."""
-from typing import Optional
+from typing import List, Optional
 
 import matplotlib as mpl
+import pandas as pd
+import seaborn as sns
 import wandb
 from ethicml import DataTuple
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import WandbLogger
+from torch import Tensor
 
 from paf.logging_i_guess import do_log
 
@@ -101,4 +104,50 @@ def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
 
     do_log(f"label_plot/{name}", wandb.Image(plt), logger)
 
+    plt.clf()
+
+
+def make_plot(
+    *, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: List[str], cat_plot: bool = False
+) -> None:
+    """Make plots for logging."""
+    if cat_plot:
+        x_df = (
+            pd.DataFrame(x.detach().cpu().numpy(), columns=cols)
+            .idxmax(axis=1)
+            .to_frame(cols[0].split("_")[0])
+        )
+        cols = [cols[0].split("_")[0]]
+    else:
+        x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
+
+    x_df["s"] = s.int().detach().cpu().numpy()
+
+    for idx, col in enumerate(cols):
+        # sns.histplot(x_df[x_df["s"] > 0][idx], kde=True, color='b')
+        # sns.histplot(x_df[x_df["s"] <= 0][idx], kde=True, color='g')
+        # do_log(f"histplot_image_{name}/{col}", wandb.Image(plt), logger)
+        # do_log(f"histplot_plot_{name}/{col}", wandb.Plotly(plt), logger)
+        # plt.clf()
+
+        if cat_plot:
+            sns.countplot(data=x_df, x=col, color='b', hue="s", palette={1: 'b', 0: 'g'})
+        else:
+            sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
+            sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
+        do_log(f"distplot_image_{name}/{col}", wandb.Image(plt), logger)
+        plt.clf()
+
+
+def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None:
+    """Produce a distribution of the outcomes."""
+    val_counts = (
+        outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
+    )
+    sns.barplot(val_counts.index, val_counts.values)
+    if logger is not None:
+        logger.experiment.log({"Debugging2/Outcomes": wandb.Plotly(plt)})
+        plt.clf()
+    for idx, val in val_counts.iteritems():
+        do_log(f"Debugging2/Ours/Outcomes-{idx}", val, logger)
     plt.clf()

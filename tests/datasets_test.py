@@ -1,214 +1,219 @@
 """Basic tests."""
+import copy
+from typing import Final, List
+
 import pytest
 import torch
-from pytorch_lightning import Trainer, seed_everything
+from hydra.core.config_store import ConfigStore
+from hydra.experimental import compose, initialize
+from hydra.utils import instantiate
+from omegaconf import OmegaConf
+from pytorch_lightning import seed_everything
 
-from paf.config_classes.dataclasses import (
-    AdultConfig,
-    DataConfig,
-    KernelType,
-    LilliputConfig,
-    ModelConfig,
-    SimpleXConfig,
-    ThirdWayConfig,
+from paf.config_classes.paf.data_modules.configs import (
+    LilliputDataModuleConf,
+    SimpleAdultDataModuleConf,
+    SimpleXDataModuleConf,
+    ThirdWayDataModuleConf,
 )
-from paf.data_modules.create import create_data_module
+from paf.config_classes.pytorch_lightning.trainer.configs import TrainerConf
+from paf.main import Config, data_group, data_package, run_aies
 from paf.model.aies_model import AiesModel
-from paf.model.classifier_model import Clf
-from paf.model.encoder_model import AE
 
-THIRD = ThirdWayConfig(
-    batch_size=32,
-    num_workers=1,
-    seed=0,
-    acceptance_rate=0.4,
-    alpha=0.6,
-    gamma=0.1,
-    num_samples=100,
-    num_features=5,
-    beta=0.1,
-    xi=0.01,
-    num_hidden_features=30,
-)
+cs = ConfigStore.instance()
+cs.store(name="config_schema", node=Config)  # General Schema
+cs.store(name="trainer_schema", node=TrainerConf, package="trainer")
 
-LILLIPUT = LilliputConfig(
-    batch_size=32,
-    num_workers=1,
-    seed=0,
-    alpha=0.6,
-    gamma=0.1,
-    num_samples=100,
-)
+cs.store(name="adult", node=SimpleAdultDataModuleConf, package=data_package, group=data_group)
+cs.store(name="lilliput", node=LilliputDataModuleConf, package=data_package, group=data_group)
+cs.store(name="synth", node=SimpleXDataModuleConf, package=data_package, group=data_group)
+cs.store(name="third", node=ThirdWayDataModuleConf, package=data_package, group=data_group)
 
-SIMPLE = SimpleXConfig(
-    batch_size=32,
-    num_workers=1,
-    seed=0,
-    alpha=0.6,
-    gamma=0.1,
-    num_samples=100,
-)
+CFG_PTH: Final[str] = "../paf/configs"
+SCHEMAS: Final[List[str]] = [
+    "enc=basic",
+    "clf=basic",
+    "exp=unit_test",
+    "trainer=unit_test",
+]
 
-ADULT = AdultConfig(
-    batch_size=32,
-    num_workers=1,
-    seed=0,
-)
 
-ENC = ModelConfig(
-    blocks=0,
-    latent_dims=5,
-    latent_multiplier=1,
-    lr=1e-3,
-    adv_weight=1.0,
-    target_weight=1.0,
-    reg_weight=1e-3,
-    s_as_input=True,
-    mmd_kernel=KernelType.linear,
-    scheduler_rate=0.999,
-    weight_decay=1e-6,
-)
-
-CLF = ModelConfig(
-    blocks=0,
-    latent_dims=5,
-    latent_multiplier=1,
-    lr=1e-3,
-    adv_weight=1.0,
-    target_weight=1.0,
-    reg_weight=1e-3,
-    s_as_input=True,
-    mmd_kernel=KernelType.linear,
-    scheduler_rate=0.999,
-    weight_decay=1e-6,
-)
+@pytest.mark.parametrize("dm_schema", ["lill", "synth", "adult"])
+def test_with_initialize(dm_schema: str) -> None:
+    """Quick run on models to check nothing's broken."""
+    with initialize(config_path=CFG_PTH):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=[f"data={dm_schema}"] + SCHEMAS,
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        run_aies(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
 
 
 @pytest.mark.parametrize(
-    "cfg,cf_available", [(THIRD, True), (LILLIPUT, True), (SIMPLE, True), (ADULT, False)]
+    "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("adult", False)]
 )
-def test_data(cfg, cf_available):
+def test_data(dm_schema, cf_available):
     """Test the data module."""
-    seed_everything(0)
 
-    data = create_data_module(cfg)
-    data.prepare_data()
+    with initialize(config_path="../paf/configs"):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=[f"data={dm_schema}"] + SCHEMAS,
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        seed_everything(0)
 
-    assert cf_available == data.cf_available
+        cfg.data.prepare_data()
 
-    for batch in data.train_dataloader():
-        if data.cf_available:
-            x, s, y, cf_x, cf_s, cf_y = batch
+        assert cf_available == cfg.data.cf_available
+
+        for batch in cfg.data.train_dataloader():
+            if cfg.data.cf_available:
+                x, s, y, cf_x, cf_s, cf_y, _ = batch
+                with pytest.raises(AssertionError):
+                    torch.testing.assert_allclose(x, cf_x)
+                with pytest.raises(AssertionError):
+                    torch.testing.assert_allclose(s, cf_s)
+                with pytest.raises(AssertionError):
+                    torch.testing.assert_allclose(y, cf_y)
+            else:
+                x, s, y, _ = batch
+                torch.testing.assert_allclose(x, x)
+                torch.testing.assert_allclose(s, s)
+                torch.testing.assert_allclose(y, y)
+
+
+@pytest.mark.parametrize(
+    "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("adult", False)]
+)
+def test_data(dm_schema, cf_available):
+    """Test the flip dataset function."""
+
+    with initialize(config_path=CFG_PTH):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=[f"data={dm_schema}"] + SCHEMAS,
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        seed_everything(0)
+        data = cfg.data
+        data.prepare_data()
+
+        training_dl = data.train_dataloader(shuffle=False, drop_last=False)
+        test_dl = data.test_dataloader(shuffle=False, drop_last=False)
+        data.flip_train_test()
+        training_dl2 = data.train_dataloader(shuffle=False, drop_last=False)
+        test_dl2 = data.test_dataloader(shuffle=False, drop_last=False)
+
+        for (tr_batch, te_batch) in zip(training_dl, training_dl2):
+            if data.cf_available:
+                tr_x, tr_s, tr_y, _, _, _, _ = tr_batch
+                te_x, te_s, te_y, _, _, _, _ = te_batch
+            else:
+                tr_x, tr_s, tr_y, _ = tr_batch
+                te_x, te_s, te_y, _ = te_batch
+
             with pytest.raises(AssertionError):
-                torch.testing.assert_allclose(x, cf_x)
-            with pytest.raises(AssertionError):
-                torch.testing.assert_allclose(s, cf_s)
-            with pytest.raises(AssertionError):
-                torch.testing.assert_allclose(y, cf_y)
-        else:
-            x, s, y, _ = batch
-            torch.testing.assert_allclose(x, x)
-            torch.testing.assert_allclose(s, s)
-            torch.testing.assert_allclose(y, y)
+                torch.testing.assert_allclose(tr_x, te_x)
 
 
-# @pytest.mark.parametrize("cfg,cf_available", [(THIRD, True), (LILLIPUT, True), (SIMPLE, True), (ADULT, False)])
-# def test_data_flip(cfg, cf_available):
-#     """Test the flip dataset function."""
-#     seed_everything(0)
-#     data = create_data_module(cfg)
-#     data.prepare_data()
-#
-#     training_dl = data.train_dataloader(shuffle=False, drop_last=False)
-#     test_dl = data.test_dataloader(shuffle=False, drop_last=False)
-#     data.flip_train_test()
-#     training_dl2 = data.train_dataloader(shuffle=False, drop_last=False)
-#     test_dl2 = data.test_dataloader(shuffle=False, drop_last=False)
-#
-#     for (tr_batch, te_batch) in zip(training_dl, training_dl2):
-#         if data.cf_available:
-#             tr_x, tr_s, tr_y, _, _, _ = tr_batch
-#             te_x, te_s, te_y, _, _, _ = te_batch
-#         else:
-#             tr_x, tr_s, tr_y = tr_batch
-#             te_x, te_s, te_y = te_batch
-#
-#         with pytest.raises(AssertionError):
-#             torch.testing.assert_allclose(tr_x, te_x)
-
-
-def test_enc():
+@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
+def test_enc(dm_schema):
     """Test the encoder network runs."""
-    data = create_data_module(SIMPLE)
-    data.prepare_data()
-    encoder = AE(
-        ENC,
-        num_s=data.num_s,
-        data_dim=data.data_dim,
-        s_dim=data.s_dim,
-        cf_available=data.cf_available,
-        feature_groups=data.feature_groups,
-        column_names=data.column_names,
-    )
+    with initialize(config_path=CFG_PTH):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=[f"data={dm_schema}"] + SCHEMAS,
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
 
-    enc_trainer = Trainer(fast_dev_run=True, logger=False)
-    enc_trainer.fit(encoder, datamodule=data)
-    enc_trainer.test(ckpt_path=None, datamodule=data)
+        cfg.data.prepare_data()
+        encoder = cfg.enc
+        encoder.build(
+            num_s=cfg.data.num_s,
+            data_dim=cfg.data.data_dim,
+            s_dim=cfg.data.s_dim,
+            cf_available=cfg.data.cf_available,
+            feature_groups=cfg.data.feature_groups,
+            outcome_cols=cfg.data.column_names,
+        )
+        cfg.trainer.fit(model=encoder, datamodule=cfg.data)
+        cfg.trainer.test(model=encoder, ckpt_path=None, datamodule=cfg.data)
 
 
-def test_clf():
+@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
+def test_clf(dm_schema):
     """Test the classifier network runs."""
-    data = create_data_module(SIMPLE)
-    data.prepare_data()
+    with initialize(config_path=CFG_PTH):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=[f"data={dm_schema}"] + SCHEMAS,
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
 
-    classifier = Clf(
-        CLF,
-        num_s=data.num_s,
-        data_dim=data.data_dim,
-        s_dim=data.s_dim,
-        cf_available=data.cf_available,
-        outcome_cols=data.outcome_columns,
-    )
+        cfg.data.prepare_data()
+        classifier = cfg.clf
+        classifier.build(
+            num_s=cfg.data.num_s,
+            data_dim=cfg.data.data_dim,
+            s_dim=cfg.data.s_dim,
+            cf_available=cfg.data.cf_available,
+            feature_groups=cfg.data.feature_groups,
+            outcome_cols=cfg.data.column_names,
+        )
+        cfg.trainer.fit(model=classifier, datamodule=cfg.data)
+        cfg.trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
 
-    clf_trainer = Trainer(fast_dev_run=True, logger=False)
-    clf_trainer.fit(classifier, datamodule=data)
-    clf_trainer.test(ckpt_path=None, datamodule=data)
 
-
-def test_all():
+@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
+def test_clf(dm_schema):
     """Test the end to end."""
-    data = create_data_module(SIMPLE)
-    data.prepare_data()
-    encoder = AE(
-        ENC,
-        num_s=data.num_s,
-        data_dim=data.data_dim,
-        s_dim=data.s_dim,
-        cf_available=data.cf_available,
-        feature_groups=data.feature_groups,
-        column_names=data.column_names,
-    )
+    with initialize(config_path=CFG_PTH):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=[f"data={dm_schema}"] + SCHEMAS,
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
 
-    enc_trainer = Trainer(fast_dev_run=True, logger=False)
-    enc_trainer.fit(encoder, datamodule=data)
-    enc_trainer.test(ckpt_path=None, datamodule=data)
+        enc_trainer = copy.deepcopy(cfg.trainer)
+        clf_trainer = copy.deepcopy(cfg.trainer)
+        model_trainer = copy.deepcopy(cfg.trainer)
 
-    classifier = Clf(
-        CLF,
-        num_s=data.num_s,
-        data_dim=data.data_dim,
-        s_dim=data.s_dim,
-        cf_available=data.cf_available,
-        outcome_cols=data.outcome_columns,
-    )
+        data = cfg.data
+        data.prepare_data()
+        encoder = cfg.enc
+        encoder.build(
+            num_s=data.num_s,
+            data_dim=data.data_dim,
+            s_dim=data.s_dim,
+            cf_available=data.cf_available,
+            feature_groups=data.feature_groups,
+            outcome_cols=data.column_names,
+        )
+        enc_trainer.fit(model=encoder, datamodule=data)
+        enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
 
-    clf_trainer = Trainer(fast_dev_run=True, logger=False)
-    clf_trainer.fit(classifier, datamodule=data)
-    clf_trainer.test(ckpt_path=None, datamodule=data)
+        classifier = cfg.clf
+        classifier.build(
+            num_s=data.num_s,
+            data_dim=data.data_dim,
+            s_dim=data.s_dim,
+            cf_available=data.cf_available,
+            feature_groups=data.feature_groups,
+            outcome_cols=data.outcome_columns,
+        )
+        clf_trainer.fit(model=classifier, datamodule=data)
+        clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
 
-    model = AiesModel(encoder=encoder, classifier=classifier)
-    model_trainer = Trainer(fast_dev_run=True, logger=False)
-    model_trainer.fit(model, datamodule=data)
-    model_trainer.test(ckpt_path=None, datamodule=data)
+        model = AiesModel(encoder=encoder, classifier=classifier)
+        model_trainer.fit(model=model, datamodule=data)
+        model_trainer.test(model=model, ckpt_path=None, datamodule=data)
 
-    print(model.pd_results)
+        print(model.pd_results)

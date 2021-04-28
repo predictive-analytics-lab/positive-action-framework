@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from torch.utils.data.dataset import T_co
 
-from paf.data_modules.base_module import BaseDataModule
+from paf.base_templates.base_module import BaseDataModule
 from paf.model.encoder_model import AE
 
 

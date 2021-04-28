@@ -6,7 +6,7 @@ import scipy
 from ethicml import Dataset, DataTuple
 from scipy import stats
 
-from paf.utils import produce_selection_groups
+from paf.selection import produce_selection_groups
 
 
 def lilliput(*, seed, num_samples, alpha, gamma):
@@ -21,20 +21,9 @@ def lilliput(*, seed, num_samples, alpha, gamma):
 
     potions_percent = num_gen.random(len(s))
 
-    # q_plot = pd.DataFrame(potions_percent, columns=["construct"])
-    # q_sens = pd.DataFrame(s, columns=["sens"])
-    #
-    # sns.distplot(q_plot[(q_sens['sens'] == 1)]["construct"], color='b')
-    # sns.distplot(q_plot[(q_sens['sens'] == 0)]["construct"], color='g')
-    # plt.ylim(0, 7)
-    # plt.xlim(-0.1, 1.1)
-    # plt.savefig((Path(__file__).parent / "construct.pdf"))
-    # plt.clf()
-
     potions_score_nrm = (
         scipy.stats.norm.ppf(potions_percent, loc=0.65, scale=0.15).round(2).clip(0, 1)
     )
-    # potions_score_skw = stats.skewnorm.ppf(potions_percent, a=4, loc=0.35, scale=0.2).round(2).clip(0, 0.95)
     potions_score_skw = (
         stats.johnsonsu.ppf(potions_percent, a=-2, b=3, loc=0.35, scale=0.2).round(2).clip(0, 1)
     )
@@ -43,16 +32,6 @@ def lilliput(*, seed, num_samples, alpha, gamma):
     cf_potions_score = np.where(s == 1, potions_score_skw, potions_score_nrm)
     potions_score_all_0 = potions_score_skw
     potions_score_all_1 = potions_score_nrm
-
-    # q_plot = pd.DataFrame(potions_score, columns=["lifetime"])
-    # q_sens = pd.DataFrame(s, columns=["sens"])
-    #
-    # sns.distplot(q_plot[(q_sens['sens'] == 1)]["lifetime"], color='b')
-    # sns.distplot(q_plot[(q_sens['sens'] == 0)]["lifetime"], color='g')
-    # plt.ylim(0, 7)
-    # plt.xlim(-0.1, 1.1)
-    # plt.savefig((Path(__file__).parent / "lifetime.pdf"))
-    # plt.clf()
 
     pot_bane_err = num_gen.normal(0.03, 0.02, len(s)).clip(0, 1)
     potions_bane = (potions_score + pot_bane_err * ((2 * s) - 1)).round(2).clip(0, 1)
@@ -74,24 +53,6 @@ def lilliput(*, seed, num_samples, alpha, gamma):
         (potions_score_all_1 + pot_wolf_err * ((2 * s_all_1) - 1)).round(2).clip(0, 1)
     )
 
-    # q_plot = pd.DataFrame(potions_wolf, columns=["measurement"])
-    # q_sens = pd.DataFrame(s, columns=["sens"])
-    # sns.distplot(q_plot[(q_sens['sens'] == 1)]["measurement"], color='b')
-    # sns.distplot(q_plot[(q_sens['sens'] == 0)]["measurement"], color='g')
-    # plt.ylim(0, 7)
-    # plt.xlim(-0.1, 1.1)
-    # plt.savefig((Path(__file__).parent / "measurement.pdf"))
-    # plt.clf()
-
-    # potions_bane = [
-    #     (b + a * (1 - c)).round(2).clip(0, 1)
-    #     for (a, b, c) in zip(num_gen.normal(0.03, 0.02, len(s)).clip(0, 1), potions_score, s)
-    # ]
-    # potions_wolf = [
-    #     (b + a * c).round(2).clip(0, 1)
-    #     for (a, b, c) in zip(num_gen.normal(0.01, 0.04, len(s)).clip(0, 1), potions_score, s)
-    # ]
-
     video_mean = 0.4 + 0.01 * (s * 2 - 1)
     cf_video_mean = 0.4 + 0.01 * (cf_s * 2 - 1)
     video_mean_all_0 = 0.4 + 0.01 * (s_all_0 * 2 - 1)
@@ -103,7 +64,6 @@ def lilliput(*, seed, num_samples, alpha, gamma):
     video_score_all_0 = video_mean_all_0 + vid_score_nrm
     video_score_all_1 = video_mean_all_1 + vid_score_nrm
 
-    # video_score = num_gen.normal(0.4 + 0.01 * -(s * 2 - 1), 0.2).round(2).clip(0, 1)
     vid_bane_err = num_gen.normal(0, 0.02, len(s)).clip(0, 1)
     video_bane = (video_score + vid_bane_err).round(2).clip(0, 1)
     cf_video_bane = (cf_video_score + vid_bane_err).round(2).clip(0, 1)
@@ -116,16 +76,7 @@ def lilliput(*, seed, num_samples, alpha, gamma):
     video_wolf_all_0 = (video_score_all_0 + vid_wolf_err).round(2).clip(0, 1)
     video_wolf_all_1 = (video_score_all_1 + vid_wolf_err).round(2).clip(0, 1)
 
-    # video_bane = [
-    #     (v + r).round(2).clip(0, 1) for (r, v) in zip(num_gen.normal(0, 0.02, len(s)).clip(0, 1), video_score)
-    # ]
-    # video_wolf = [
-    #     (v + r).round(2).clip(0, 1) for (r, v) in zip(num_gen.normal(0, 0.05, len(s)).clip(0, 1), video_score)
-    # ]
-
     random_nums = num_gen.random(len(s))
-    # essay_score_vnm = (np.exp(60 * np.cos(random_nums - 0.4)) / (2 * np.pi * sc.i0(60))).round(2).clip(0, 1)
-    # essay_score_lap = (np.exp(-abs(random_nums - 0.5) / 0.075) / (2.0 * 0.075)).round(2).clip(0, 1)
 
     essay_score_vnm = (
         scipy.stats.t.ppf(random_nums, df=100, loc=0.4, scale=0.15).round(2).clip(0, 1)
@@ -148,20 +99,6 @@ def lilliput(*, seed, num_samples, alpha, gamma):
     cf_essay_wolf = (cf_essay_score + ess_wolf_err).round(2).clip(0, 1)
     essay_wolf_all_0 = (essay_score_all_0 + ess_wolf_err).round(2).clip(0, 1)
     essay_wolf_all_1 = (essay_score_all_1 + ess_wolf_err).round(2).clip(0, 1)
-
-    # essay_score = []
-    # for _s in s:
-    #     if _s == 0:
-    #         essay_score.append(num_gen.vonmises(0.4, 60, 1).round(2).clip(0, 1))
-    #     else:
-    #         essay_score.append(num_gen.laplace(0.5, 0.075, 1).round(2).clip(0, 1))
-
-    # essay_bane = [
-    #     (b + a).round(2).clip(0, 1) for (a, b, c) in zip(num_gen.normal(0.03, 0.02, len(s)).clip(0, 1), essay_score, s)
-    # ]
-    # essay_wolf = [
-    #     (b + a).round(2).clip(0, 1) for (a, b, c) in zip(num_gen.normal(0.01, 0.01, len(s)).clip(0, 1), essay_score, s)
-    # ]
 
     potions_score = pd.DataFrame(potions_score, columns=["potions_score"])
     potions_bane = pd.DataFrame(potions_bane, columns=["potions_bane"])
@@ -437,141 +374,6 @@ def lilliput(*, seed, num_samples, alpha, gamma):
     sens_attr = "sens"
     class_label = "accepted"
     class_prefix = ["accepted", "graduation", "admittance", "Sy=0", "Sy=1"]
-
-    # for subject in ["potions", "video", "essay"]:
-    #     sns.distplot(data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane")
-    #     sns.distplot(data[(data['sens'] == 1)][f"{subject}_bane"], color='g', kde_kws={'linestyle': '--'}, label="bane")
-    #     sns.distplot(data[(data['sens'] == 0)][f'{subject}_wolf'], color='b', kde_kws={'linestyle': ':'}, label="wolf")
-    #     sns.distplot(data[(data['sens'] == 1)][f"{subject}_wolf"], color='g', kde_kws={'linestyle': ':'}, label="wolf")
-    #     plt.legend()
-    #     plt.savefig((Path(__file__).parent / f"{subject}.png"))
-    #     plt.clf()
-    #
-    #     sns.distplot(
-    #         cf_data[(data['sens'] == 0)][f'{subject}_bane'], color='b', kde_kws={'linestyle': '--'}, label="bane"
-    #     )
-    #     sns.distplot(
-    #         cf_data[(data['sens'] == 1)][f"{subject}_bane"], color='g', kde_kws={'linestyle': '--'}, label="bane"
-    #     )
-    #     sns.distplot(
-    #         cf_data[(data['sens'] == 0)][f'{subject}_wolf'], color='b', kde_kws={'linestyle': ':'}, label="wolf"
-    #     )
-    #     sns.distplot(
-    #         cf_data[(data['sens'] == 1)][f"{subject}_wolf"], color='g', kde_kws={'linestyle': ':'}, label="wolf"
-    #     )
-    #     plt.legend()
-    #     plt.savefig((Path(__file__).parent / f"cf_{subject}.png"))
-    #     plt.clf()
-
-    # q_plot = pd.DataFrame((
-    #     0.6 * (data["potions_score"])
-    #     + 0.2 * (data["video_score"])
-    #     + 0.2 * (data["essay_score"])
-    # ), columns=["accepted"])
-    # q_sens = pd.DataFrame(s, columns=["sens"])
-    # sns.distplot(q_plot[(q_sens['sens'] == 1)]["accepted"], color='b')
-    # sns.distplot(q_plot[(q_sens['sens'] == 0)]["accepted"], color='g')
-    # plt.ylim(0, 7)
-    # plt.xlim(-0.1, 1.1)
-    # plt.savefig((Path(__file__).parent / "lifetime.pdf"))
-    # plt.clf()
-    #
-    # q_plot = pd.DataFrame((
-    #                            0.6 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
-    #                            + 0.2 * ((data["video_bane"] + data["video_wolf"]) / 2)
-    #                            + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
-    #                            # + gamma * ((2 * data["sens"]) - 1)
-    #                        ), columns=["accepted"])
-    # q_sens = pd.DataFrame(s, columns=["sens"])
-    # sns.distplot(q_plot[(q_sens['sens'] == 1)]["accepted"], color='b')
-    # sns.distplot(q_plot[(q_sens['sens'] == 0)]["accepted"], color='g')
-    # plt.ylim(0, 7)
-    # plt.xlim(-0.1, 1.1)
-    # plt.savefig((Path(__file__).parent / "outcomes_pre_bias.pdf"))
-    # plt.clf()
-    #
-    # q_plot = pd.DataFrame((
-    #     0.6 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
-    #     + 0.2 * ((data["video_bane"] + data["video_wolf"]) / 2)
-    #     + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
-    #     + gamma * ((2 * data["sens"]) - 1)
-    # ), columns=["accepted"])
-    # q_sens = pd.DataFrame(s, columns=["sens"])
-    # sns.distplot(q_plot[(q_sens['sens'] == 1)]["accepted"], color='b')
-    # sns.distplot(q_plot[(q_sens['sens'] == 0)]["accepted"], color='g')
-    # plt.ylim(0, 7)
-    # plt.xlim(-0.1, 1.1)
-    # plt.savefig((Path(__file__).parent / "outcomes_post_bias.pdf"))
-    # plt.clf()
-    #
-    # q_plot = pd.DataFrame(((
-    #                           0.6 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
-    #                           + 0.2 * ((data["video_bane"] + data["video_wolf"]) / 2)
-    #                           + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
-    #                           # + gamma * ((2 * data["sens"]) - 1)
-    #                       ) >= passed_threshold), columns=["accepted"])
-    # q_sens = pd.DataFrame(s, columns=["sens"])
-    # q_plot["sens"] = q_sens
-    # df1 = q_plot.groupby("sens")["accepted"].value_counts(normalize=True)
-    # df1 = df1.mul(100)
-    # df1 = df1.rename('percent').reset_index()
-    # sns.catplot(x="accepted", y='percent', hue="sens", kind='bar', data=df1, palette=sns.color_palette(['green', 'blue']))
-    # plt.ylim(0, 100)
-    # plt.savefig((Path(__file__).parent / "label_construct_hist.pdf"))
-    # plt.clf()
-    #
-    # q_plot = pd.DataFrame(((
-    #                            0.6 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
-    #                            + 0.2 * ((data["video_bane"] + data["video_wolf"]) / 2)
-    #                            + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
-    #                            + gamma * ((2 * data["sens"]) - 1)
-    #                        ) >= passed_threshold), columns=["accepted"])
-    # q_sens = pd.DataFrame(s, columns=["sens"])
-    # q_plot["sens"] = q_sens
-    # df1 = q_plot.groupby("sens")["accepted"].value_counts(normalize=True)
-    # df1 = df1.mul(100)
-    # df1 = df1.rename('percent').reset_index()
-    #
-    # sns.catplot(x="accepted", y='percent', hue="sens", kind='bar', data=df1,
-    #             palette=sns.color_palette(['green', 'blue']))
-    # plt.ylim(0, 100)
-    # plt.savefig((Path(__file__).parent / "post_label_bias_hist.pdf"))
-    # plt.clf()
-    #
-    # for subject, lecturer in itertools.product(["potions", "video", "essay"], ["bane", "wolf"]):
-    #     sns.distplot(data[(data['sens'] == 1)][f"{subject}_{lecturer}"], color='g')
-    #     sns.distplot(data[(data['sens'] == 0)][f"{subject}_{lecturer}"], color='b')
-    #     plt.savefig((Path(__file__).parent / f"{subject}_{lecturer}.png"))
-    #     plt.clf()
-    #
-    # sns.distplot(cf_data[(data['sens'] == 1)]["potions_bane"], color='g')
-    # sns.distplot(cf_data[(data['sens'] == 0)]['potions_bane'], color='b')
-    # plt.savefig((Path(__file__).parent / "cf_potions_bane.png"))
-    # plt.clf()
-    #
-    # sns.distplot(data[(data['sens'] == 1)]["graduation_grade"], color='g')
-    # sns.distplot(data[(data['sens'] == 0)]['graduation_grade'], color='b')
-    # plt.savefig((Path(__file__).parent / "grad_grade.png"))
-    # plt.clf()
-    # sns.histplot(data=data, x="accepted", hue="sens", multiple="dodge")
-    # plt.savefig((Path(__file__).parent / "accepted.png"))
-    # plt.clf()
-    # sns.distplot(data[(data['sens'] == 1)]["admittance_score"], color='g')
-    # sns.distplot(data[(data['sens'] == 0)]['admittance_score'], color='b')
-    # plt.savefig((Path(__file__).parent / "admittance.png"))
-    # plt.clf()
-    #
-    # sns.distplot(cf_data[(data['sens'] == 1)]["graduation_grade"], color='g')
-    # sns.distplot(cf_data[(data['sens'] == 0)]['graduation_grade'], color='b')
-    # plt.savefig((Path(__file__).parent / "cf_grad_grade.png"))
-    # plt.clf()
-    # sns.histplot(data=cf_data, x="accepted", hue="sens", multiple="dodge")
-    # plt.savefig((Path(__file__).parent / "cf_accepted.png"))
-    # plt.clf()
-    # sns.distplot(cf_data[(data['sens'] == 1)]["admittance_score"], color='g')
-    # sns.distplot(cf_data[(data['sens'] == 0)]['admittance_score'], color='b')
-    # plt.savefig((Path(__file__).parent / "cf_admittance.png"))
-    # plt.clf()
 
     dataset = Dataset(
         name=f"University of Lilliput",

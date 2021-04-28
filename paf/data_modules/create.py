@@ -3,6 +3,7 @@ from typing import cast
 
 from omegaconf import OmegaConf
 
+from paf.base_templates.base_module import BaseDataModule
 from paf.config_classes.dataclasses import (
     AdultConfig,
     DataConfig,
@@ -10,7 +11,6 @@ from paf.config_classes.dataclasses import (
     SimpleXConfig,
     ThirdWayConfig,
 )
-from paf.data_modules.base_module import BaseDataModule
 from paf.data_modules.lilliput_datamodule import LilliputDataModule
 from paf.data_modules.simple_adult_datamodule import SimpleAdultDataModule
 from paf.data_modules.simple_x_datamodule import SimpleXDataModule

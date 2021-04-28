@@ -6,8 +6,8 @@ from ethicml import implements
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
-from paf.data_modules.base_module import BaseDataModule
-from paf.data_modules.dataset_utils import CFDataTupleDataset
+from paf.base_templates.base_module import BaseDataModule
+from paf.base_templates.dataset_utils import CFDataTupleDataset
 from paf.datasets.lilliput import lilliput
 
 

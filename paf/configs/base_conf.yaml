@@ -1,7 +1,7 @@
 # this is the main config file
 defaults:
   - config_schema
-  - data: synthetic_1 # `configs/data/synthetic_1.yaml`
+  - data: synth # `configs/data/synthetic_1.yaml`
   - enc: basic  # `configs/model/basic.yaml`
   - clf: basic  # `configs/model/basic.yaml`
   - exp: local

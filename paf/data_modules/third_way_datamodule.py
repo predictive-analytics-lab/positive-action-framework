@@ -4,15 +4,15 @@ from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from ethicml import Dataset, DataTuple, Prediction, implements
+from ethicml import Prediction, implements
 from pytorch_lightning import LightningDataModule
-from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
-from paf.data_modules.base_module import BaseDataModule
-from paf.data_modules.dataset_utils import CFDataTupleDataset
+from paf.base_templates.base_module import BaseDataModule
+from paf.base_templates.dataset_utils import CFDataTupleDataset
 from paf.datasets.third_way import third_way_data
-from paf.utils import facct_mapper, selection_rules
+from paf.selection import selection_rules
+from paf.utils import facct_mapper
 
 log = logging.getLogger(__name__)
 
@@ -90,33 +90,35 @@ class ThirdWayDataModule(BaseDataModule):
         self.outcome_columns = factual_data.y.columns
 
         num_train = int(self.factual_data.x.shape[0] * 0.8)
+        num_val = 0  # int(self.factual_data.x.shape[0] * 0.1)
         rng = np.random.RandomState(self.seed)
         idx = rng.permutation(self.factual_data.x.index)
         train_indices = idx[:num_train]
-        test_indices = idx[num_train:]
+        val_indices = idx[num_train : num_train + num_val]
+        test_indices = idx[num_train + num_val :]
 
         self.make_feature_groups(dataset, factual_data)
 
-        self.train_data, self.test_data = self.scale_and_split(
-            self.factual_data, dataset, train_indices, test_indices
+        self.train_data, self.val_data, self.test_data = self.scale_and_split(
+            self.factual_data, dataset, train_indices, val_indices, test_indices
         )
-        self.true_train_data, self.true_test_data = self.scale_and_split(
-            data_true_outcome, dataset, train_indices, test_indices
+        self.true_train_data, self.true_val_data, self.true_test_data = self.scale_and_split(
+            data_true_outcome, dataset, train_indices, val_indices, test_indices
         )
-        self.cf_train, self.cf_test = self.scale_and_split(
-            self.cf_data, dataset, train_indices, test_indices
+        self.cf_train, self.cf_val, self.cf_test = self.scale_and_split(
+            self.cf_data, dataset, train_indices, val_indices, test_indices
         )
-        self.s1_0_s2_0_train, self.s1_0_s2_0_test = self.scale_and_split(
-            self.s1_0_s2_0_data, dataset, train_indices, test_indices
+        self.s1_0_s2_0_train, self.s1_0_s2_0_val, self.s1_0_s2_0_test = self.scale_and_split(
+            self.s1_0_s2_0_data, dataset, train_indices, val_indices, test_indices
         )
-        self.s1_0_s2_1_train, self.s1_0_s2_1_test = self.scale_and_split(
-            self.s1_0_s2_1_data, dataset, train_indices, test_indices
+        self.s1_0_s2_1_train, self.s1_0_s2_1_val, self.s1_0_s2_1_test = self.scale_and_split(
+            self.s1_0_s2_1_data, dataset, train_indices, val_indices, test_indices
         )
-        self.s1_1_s2_0_train, self.s1_1_s2_0_test = self.scale_and_split(
-            self.s1_1_s2_0_data, dataset, train_indices, test_indices
+        self.s1_1_s2_0_train, self.s1_1_s2_0_val, self.s1_1_s2_0_test = self.scale_and_split(
+            self.s1_1_s2_0_data, dataset, train_indices, val_indices, test_indices
         )
-        self.s1_1_s2_1_train, self.s1_1_s2_1_test = self.scale_and_split(
-            self.s1_1_s2_1_data, dataset, train_indices, test_indices
+        self.s1_1_s2_1_train, self.s1_1_s2_1_val, self.s1_1_s2_1_test = self.scale_and_split(
+            self.s1_1_s2_1_data, dataset, train_indices, val_indices, test_indices
         )
 
         pd_results = pd.concat(
@@ -137,32 +139,32 @@ class ThirdWayDataModule(BaseDataModule):
         asdfasdf = facct_mapper(Prediction(hard=pd_results["decision"]))
         log.info(asdfasdf.info)
 
-    def scale_and_split(
-        self,
-        datatuple: DataTuple,
-        dataset: Dataset,
-        train_indices: np.ndarray,
-        test_indices: np.ndarray,
-    ) -> Tuple[DataTuple, DataTuple]:
-        """Scale a datatuple and split to train/test."""
-        train = DataTuple(
-            x=datatuple.x.iloc[train_indices].reset_index(drop=True),
-            s=datatuple.s.iloc[train_indices].reset_index(drop=True),
-            y=datatuple.y.iloc[train_indices].reset_index(drop=True),
-        )
-        test = DataTuple(
-            x=datatuple.x.iloc[test_indices].reset_index(drop=True),
-            s=datatuple.s.iloc[test_indices].reset_index(drop=True),
-            y=datatuple.y.iloc[test_indices].reset_index(drop=True),
-        )
-
-        scaler = MinMaxScaler()
-        scaler = scaler.fit(train.x[dataset.continuous_features])
-        train.x[dataset.continuous_features] = scaler.transform(
-            train.x[dataset.continuous_features]
-        )
-        test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
-        return train, test
+    # def scale_and_split(
+    #     self,
+    #     datatuple: DataTuple,
+    #     dataset: Dataset,
+    #     train_indices: np.ndarray,
+    #     test_indices: np.ndarray,
+    # ) -> Tuple[DataTuple, DataTuple]:
+    #     """Scale a datatuple and split to train/test."""
+    #     train = DataTuple(
+    #         x=datatuple.x.iloc[train_indices].reset_index(drop=True),
+    #         s=datatuple.s.iloc[train_indices].reset_index(drop=True),
+    #         y=datatuple.y.iloc[train_indices].reset_index(drop=True),
+    #     )
+    #     test = DataTuple(
+    #         x=datatuple.x.iloc[test_indices].reset_index(drop=True),
+    #         s=datatuple.s.iloc[test_indices].reset_index(drop=True),
+    #         y=datatuple.y.iloc[test_indices].reset_index(drop=True),
+    #     )
+    #
+    #     scaler = MinMaxScaler()
+    #     scaler = scaler.fit(train.x[dataset.continuous_features])
+    #     train.x[dataset.continuous_features] = scaler.transform(
+    #         train.x[dataset.continuous_features]
+    #     )
+    #     test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
+    #     return train, test
 
     @implements(BaseDataModule)
     def _train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
@@ -170,6 +172,21 @@ class ThirdWayDataModule(BaseDataModule):
             CFDataTupleDataset(
                 self.train_data,
                 cf_dataset=self.cf_train,
+                disc_features=self.dataset.discrete_features,
+                cont_features=self.dataset.continuous_features,
+            ),
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=shuffle,
+            drop_last=drop_last,
+        )
+
+    @implements(BaseDataModule)
+    def _val_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+        return DataLoader(
+            CFDataTupleDataset(
+                self.val_data,
+                cf_dataset=self.cf_val,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),

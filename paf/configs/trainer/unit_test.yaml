@@ -1,0 +1,7 @@
+defaults:
+  - base
+
+max_epochs: 50
+gpus: 0
+deterministic: False
+fast_dev_run: True

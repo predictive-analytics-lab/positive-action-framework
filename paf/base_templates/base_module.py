@@ -11,7 +11,7 @@ from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
-from paf.data_modules.dataset_utils import grouped_features_indexes
+from paf.base_templates.dataset_utils import grouped_features_indexes
 from paf.plotting import label_plot
 
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
@@ -172,6 +172,10 @@ class BaseDataModule(LightningDataModule):
         ...
 
     @abstractmethod
+    def _val_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+        ...
+
+    @abstractmethod
     def _test_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         ...
 
@@ -181,6 +185,10 @@ class BaseDataModule(LightningDataModule):
             return self._train_dataloader(shuffle, drop_last)
         else:
             return self._test_dataloader(shuffle, drop_last)
+
+    @implements(LightningDataModule)
+    def val_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+        return self._val_dataloader(shuffle, drop_last)
 
     @implements(LightningDataModule)
     def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
@@ -233,7 +241,7 @@ class BaseDataModule(LightningDataModule):
             label_plot(self.test_data, logger, "test")
         except (IndexError, KeyError):
             pass
-        if cf_available:
+        if cf_available and self.best_guess is not None:
             try:
                 label_plot(
                     self.factual_data.replace(y=self.best_guess.hard.to_frame()),

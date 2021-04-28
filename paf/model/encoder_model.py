@@ -18,7 +18,7 @@ from paf.mmd import mmd2
 from paf.model.blocks import block, mid_blocks
 from paf.model.common_model import CommonModel
 from paf.model.model_utils import grad_reverse, index_by_s, to_discrete
-from paf.utils import make_plot
+from paf.plotting import make_plot
 
 logger = logging.getLogger(__name__)
 

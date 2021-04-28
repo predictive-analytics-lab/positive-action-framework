@@ -8,7 +8,7 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import KFold
 
-from paf.data_modules.base_module import BaseDataModule
+from paf.base_templates.base_module import BaseDataModule
 from paf.logging_i_guess import do_log
 from paf.model.common_model import CommonModel
 from paf.model.encoder_model import AE

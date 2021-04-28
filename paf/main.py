@@ -25,6 +25,7 @@ from omegaconf import MISSING, DictConfig, OmegaConf
 from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import WandbLogger
 
+from paf.base_templates.base_module import BaseDataModule
 from paf.config_classes.paf.data_modules.configs import (
     LilliputDataModuleConf,
     SimpleAdultDataModuleConf,
@@ -33,14 +34,13 @@ from paf.config_classes.paf.data_modules.configs import (
 )
 from paf.config_classes.paf.model.configs import AEConf, ClfConf
 from paf.config_classes.pytorch_lightning.trainer.configs import TrainerConf
-from paf.data_modules.base_module import BaseDataModule
 from paf.ethicml_extension.oracle import DPOracle
 from paf.logging_i_guess import do_log
 from paf.model import AE
 from paf.model.aies_model import AiesModel
 from paf.plotting import label_plot
 from paf.scoring import get_miri_metrics, produce_baselines
-from paf.utils import produce_selection_groups
+from paf.selection import produce_selection_groups
 
 log = logging.getLogger(__name__)
 
@@ -151,11 +151,29 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
     preds = produce_selection_groups(
         model.pd_results, data, model.recon_0, model.recon_1, wandb_logger
     )
-    multiple_metrics(preds, data.test_data, "Ours-Post-Selection", wandb_logger)
+    multiple_metrics(
+        preds,
+        DataTuple(
+            x=pd.DataFrame(model.all_x, columns=data.test_data.x.columns),
+            s=pd.DataFrame(model.all_s, columns=data.test_data.s.columns),
+            y=pd.DataFrame(model.all_y, columns=data.test_data.y.columns),
+        ),
+        "Ours-Post-Selection",
+        wandb_logger,
+    )
     fair_preds = produce_selection_groups(
         model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True
     )
-    multiple_metrics(fair_preds, data.test_data, "Ours-Fair", wandb_logger)
+    multiple_metrics(
+        fair_preds,
+        DataTuple(
+            x=pd.DataFrame(model.all_x, columns=data.test_data.x.columns),
+            s=pd.DataFrame(model.all_s, columns=data.test_data.s.columns),
+            y=pd.DataFrame(model.all_y, columns=data.test_data.y.columns),
+        ),
+        "Ours-Fair",
+        wandb_logger,
+    )
 
     # === This is only for reporting ====
     data.flip_train_test()
@@ -168,7 +186,16 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
     # === === ===
 
     our_clf_preds = Prediction(hard=pd.Series(model.all_preds.squeeze(-1).detach().cpu().numpy()))
-    multiple_metrics(our_clf_preds, data.test_data, "Ours-Real-World-Preds", wandb_logger)
+    multiple_metrics(
+        our_clf_preds,
+        DataTuple(
+            x=pd.DataFrame(model.all_x, columns=data.test_data.x.columns),
+            s=pd.DataFrame(model.all_s, columns=data.test_data.s.columns),
+            y=pd.DataFrame(model.all_y, columns=data.test_data.y.columns),
+        ),
+        "Ours-Real-World-Preds",
+        wandb_logger,
+    )
     produce_baselines(encoder=encoder, dm=data, logger=wandb_logger)
     produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
 

@@ -5,8 +5,8 @@ from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
-from paf.data_modules.base_module import BaseDataModule
-from paf.data_modules.dataset_utils import DataTupleDataset
+from paf.base_templates.base_module import BaseDataModule
+from paf.base_templates.dataset_utils import DataTupleDataset
 from paf.datasets.ethicml_datasets import adult_data
 
 

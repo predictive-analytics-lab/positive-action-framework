@@ -1,0 +1,6 @@
+defaults:
+  - base
+
+lr: 1.0e-3
+weight_decay: 1.0e-3
+log_offline: true
