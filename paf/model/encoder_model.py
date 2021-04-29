@@ -206,11 +206,16 @@ class AE(CommonModel):
             #     reduction="mean",
             # )
             _tmp_recon_loss = torch.zeros_like(recon_loss)
-            for group_slice in self.feature_groups["discrete"]:
-                recon_loss += cross_entropy(
-                    index_by_s(recons, s)[:, group_slice],
-                    torch.argmax(x[:, group_slice], dim=-1),
-                    reduction="mean",
+            for group_slice, feature_weight in zip(
+                self.feature_groups["discrete"], [1e0, 1e0, 1e5, 1e0, 1e5, 1e0, 1e0]
+            ):
+                recon_loss += (
+                    cross_entropy(
+                        index_by_s(recons, s)[:, group_slice],
+                        torch.argmax(x[:, group_slice], dim=-1),
+                        reduction="mean",
+                    )
+                    * feature_weight
                 )
             recon_loss += _tmp_recon_loss / len(self.feature_groups["discrete"])
         else:
