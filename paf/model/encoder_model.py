@@ -184,7 +184,7 @@ class AE(CommonModel):
         z, s_pred, recons = self(x, s)
 
         if self.feature_groups["discrete"]:
-            recon_loss = torch.tensor(0.0)
+            recon_loss = x.new_tensor(0.0)
             for i, feature_weight in zip(
                 range(x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]),
                 [1.0, 2.0, 3.0, 4.0, 5.0],
