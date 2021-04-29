@@ -1,3 +1,5 @@
+"""Selection process."""
+
 import itertools
 from typing import Optional
 
@@ -92,10 +94,16 @@ def analyse_selection_groups(
             continue
 
         for group_slice in data.feature_groups["discrete"]:
-            (
-                reconstructed_1.iloc[selected_data.index].sum(axis=0)
-                - reconstructed_0.iloc[selected_data.index].sum(axis=0)
-            )[data.test_data.x.columns[group_slice]].plot(kind="bar", rot=90)
+            if selection_group % 2 == 0:
+                (
+                    reconstructed_0.iloc[selected_data.index].sum(axis=0)
+                    - reconstructed_1.iloc[selected_data.index].sum(axis=0)
+                )[data.test_data.x.columns[group_slice]].plot(kind="bar", rot=90)
+            else:
+                (
+                    reconstructed_1.iloc[selected_data.index].sum(axis=0)
+                    - reconstructed_0.iloc[selected_data.index].sum(axis=0)
+                )[data.test_data.x.columns[group_slice]].plot(kind="bar", rot=90)
             plt.xticks(rotation=90)
             plt.tight_layout()
             do_log(
@@ -116,7 +124,7 @@ def analyse_selection_groups(
             plt.xticks(rotation=90)
             plt.tight_layout()
             do_log(
-                f"selection_group_{selection_group}_feature_groups_0-1/{feature}/{data_name}",
+                f"{data_name}_selection_group_{selection_group}_feature_groups_0-1/{feature}",
                 wandb.Image(plt),
                 logger,
             )
