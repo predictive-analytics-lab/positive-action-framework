@@ -124,12 +124,6 @@ def make_plot(
     x_df["s"] = s.int().detach().cpu().numpy()
 
     for idx, col in enumerate(cols):
-        # sns.histplot(x_df[x_df["s"] > 0][idx], kde=True, color='b')
-        # sns.histplot(x_df[x_df["s"] <= 0][idx], kde=True, color='g')
-        # do_log(f"histplot_image_{name}/{col}", wandb.Image(plt), logger)
-        # do_log(f"histplot_plot_{name}/{col}", wandb.Plotly(plt), logger)
-        # plt.clf()
-
         if cat_plot:
             x_df[col] = x_df[col].map(lambda x: ''.join(x.split("_")[1:]))
             x_df = x_df.sort_values(by=[col])

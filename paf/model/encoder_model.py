@@ -184,21 +184,31 @@ class AE(CommonModel):
         z, s_pred, recons = self(x, s)
 
         if self.feature_groups["discrete"]:
-            # TODO: make this work with vae
-            recon_loss = mse_loss(
-                index_by_s(recons, s)[
-                    :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
-                ].sigmoid(),
-                x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
-                reduction="mean",
-            )
+            recon_loss = torch.tensor(0.0)
+            for i, feature_weight in zip(
+                range(x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]),
+                [1.0, 2.0, 3.0, 4.0, 5.0],
+            ):
+                recon_loss += (
+                    mse_loss(
+                        index_by_s(recons, s)[
+                            :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
+                        ][:, i].sigmoid(),
+                        x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])][:, i],
+                    )
+                    * feature_weight
+                )
+            # recon_loss = mse_loss(
+            #     index_by_s(recons, s)[
+            #         :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
+            #     ].sigmoid(),
+            #     x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
+            #     reduction="mean",
+            # )
             _tmp_recon_loss = torch.zeros_like(recon_loss)
             for group_slice in self.feature_groups["discrete"]:
                 recon_loss += cross_entropy(
                     index_by_s(recons, s)[:, group_slice],
-                    # torch.nn.functional.gumbel_softmax(
-                    #     index_by_s(recons, s)[:, group_slice], hard=False, tau=1e-3
-                    # ),
                     torch.argmax(x[:, group_slice], dim=-1),
                     reduction="mean",
                 )
@@ -249,9 +259,6 @@ class AE(CommonModel):
             for group_slice in self.feature_groups["discrete"]:
                 one_hot = to_discrete(inputs=k[:, group_slice])
                 k[:, group_slice] = one_hot
-                # k[:, group_slice] = torch.nn.functional.gumbel_softmax(
-                #     k[:, group_slice], hard=True, tau=1e-3
-                # )
         else:
             k = k.sigmoid()
 
