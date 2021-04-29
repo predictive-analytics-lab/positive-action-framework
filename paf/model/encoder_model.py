@@ -217,7 +217,7 @@ class AE(CommonModel):
                     )
                     * feature_weight
                 )
-            recon_loss += _tmp_recon_loss / len(self.feature_groups["discrete"])
+            recon_loss += _tmp_recon_loss  # / len(self.feature_groups["discrete"])
         else:
             recon_loss = mse_loss(index_by_s(recons, s).sigmoid(), x, reduction="mean")
 
