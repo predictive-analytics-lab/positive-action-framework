@@ -44,7 +44,7 @@ class AiesModel(AiesProperties):
 
         enc_z, enc_s_pred, recons = self.enc(x, s)
 
-        cf_recons = self.enc.invert(index_by_s(recons, 1 - s))
+        cf_recons = self.enc.invert(index_by_s(recons, 1 - s), x)
 
         augmented_recons = augment_recons(x, cf_recons, s)
 
@@ -55,8 +55,8 @@ class AiesModel(AiesProperties):
             "s": s,
             "y": y,
             "recon": index_by_s(augmented_recons, s),
-            "recons_0": self.enc.invert(recons[0]),
-            "recons_1": self.enc.invert(recons[1]),
+            "recons_0": self.enc.invert(recons[0], x),
+            "recons_1": self.enc.invert(recons[1], x),
             "preds": self.clf.threshold(index_by_s(self.clf(x, s)[-1], s)),
         }
 

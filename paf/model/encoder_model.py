@@ -187,7 +187,7 @@ class AE(CommonModel):
             recon_loss = x.new_tensor(0.0)
             for i, feature_weight in zip(
                 range(x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]),
-                [1e5, 1e0, 1e0, 1e0, 1e0],
+                [0, 1e0, 1e0, 1e0, 1e0],
             ):
                 recon_loss += (
                     mse_loss(
@@ -207,7 +207,7 @@ class AE(CommonModel):
             # )
             _tmp_recon_loss = torch.zeros_like(recon_loss)
             for group_slice, feature_weight in zip(
-                self.feature_groups["discrete"], [1e0, 1e0, 1e5, 1e0, 1e5, 1e0, 1e0]
+                self.feature_groups["discrete"], [1e0, 1e0, 0, 1e0, 0, 1e0, 1e0]
             ):
                 recon_loss += (
                     cross_entropy(
@@ -254,16 +254,27 @@ class AE(CommonModel):
         return loss
 
     @torch.no_grad()
-    def invert(self, z: Tensor) -> Tensor:
+    def invert(self, z: Tensor, x: Tensor) -> Tensor:
         """Go from soft to discrete features."""
         k = z.detach().clone()
         if self.feature_groups["discrete"]:
-            k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])] = k[
-                :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
-            ].sigmoid()
-            for group_slice in self.feature_groups["discrete"]:
-                one_hot = to_discrete(inputs=k[:, group_slice])
-                k[:, group_slice] = one_hot
+            for i in range(
+                k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
+            ):
+                if i == 0:
+                    k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = x[
+                        :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
+                    ][:, i]
+                else:
+                    k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = k[
+                        :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
+                    ][:, i].sigmoid()
+            for i, group_slice in enumerate(self.feature_groups["discrete"]):
+                if i in [2, 4]:
+                    k[:, group_slice] = x[:, group_slice]
+                else:
+                    one_hot = to_discrete(inputs=k[:, group_slice])
+                    k[:, group_slice] = one_hot
         else:
             k = k.sigmoid()
 
@@ -282,14 +293,14 @@ class AE(CommonModel):
             "x": x,
             "z": z,
             "s": s,
-            "recon": self.invert(index_by_s(recons, s)),
-            "recons_0": self.invert(recons[0]),
-            "recons_1": self.invert(recons[1]),
+            "recon": self.invert(index_by_s(recons, s), x),
+            "recons_0": self.invert(recons[0], x),
+            "recons_1": self.invert(recons[1], x),
         }
 
         if self.cf_model:
             to_return["cf_x"] = cf_x
-            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s))
+            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s), x)
 
         return to_return
 
@@ -426,7 +437,7 @@ class AE(CommonModel):
             x = x.to(self.device)
             s = s.to(self.device)
             _, _, _r = self(x, s)
-            r = self.invert(index_by_s(_r, s))
+            r = self.invert(index_by_s(_r, s), x)
             recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
         assert recons is not None
         return recons.detach().cpu().numpy()
@@ -444,8 +455,8 @@ class AE(CommonModel):
             x = x.to(self.device)
             s = s.to(self.device)
             _, _, _r = self(x, s)
-            r0 = self.invert(_r[0])
-            r1 = self.invert(_r[1])
+            r0 = self.invert(_r[0], x)
+            r1 = self.invert(_r[1], x)
             recons = torch.stack([r0, r1]) if recons is None else cat([recons, torch.stack([r0, r1])], dim=1)  # type: ignore[unreachable]
             sens = s if sens is None else cat([sens, s], dim=0)
             labels = y if labels is None else cat([labels, y], dim=0)
