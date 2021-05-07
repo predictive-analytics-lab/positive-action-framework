@@ -38,7 +38,7 @@ SCHEMAS: Final[List[str]] = [
 ]
 
 
-@pytest.mark.parametrize("dm_schema", ["lill", "synth", "adult"])
+@pytest.mark.parametrize("dm_schema", ["semi", "lill", "synth", "adult"])
 def test_with_initialize(dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
     with initialize(config_path=CFG_PTH):
@@ -56,7 +56,6 @@ def test_with_initialize(dm_schema: str) -> None:
 )
 def test_data(dm_schema, cf_available):
     """Test the data module."""
-
     with initialize(config_path="../paf/configs"):
         # config is relative to a module
         hydra_cfg = compose(
@@ -91,7 +90,6 @@ def test_data(dm_schema, cf_available):
 )
 def test_data(dm_schema, cf_available):
     """Test the flip dataset function."""
-
     with initialize(config_path=CFG_PTH):
         # config is relative to a module
         hydra_cfg = compose(

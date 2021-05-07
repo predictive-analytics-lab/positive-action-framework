@@ -22,6 +22,7 @@ configen:
         - ThirdWayDataModule
         - SimpleXDataModule
         - SimpleAdultDataModule
+        - SemiAdultDataModule
     - name: paf.model
       classes:
         - AE

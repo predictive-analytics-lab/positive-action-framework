@@ -28,6 +28,7 @@ from pytorch_lightning.loggers import WandbLogger
 from paf.base_templates.base_module import BaseDataModule
 from paf.config_classes.paf.data_modules.configs import (
     LilliputDataModuleConf,
+    SemiAdultDataModuleConf,
     SimpleAdultDataModuleConf,
     SimpleXDataModuleConf,
     ThirdWayDataModuleConf,
@@ -82,6 +83,7 @@ cs.store(name="clf_schema", node=ClfConf, package="clf")
 data_package: Final[str] = "data"  # package:dir_within_config_path
 data_group: Final[str] = "schema/data"  # group
 cs.store(name="adult", node=SimpleAdultDataModuleConf, package=data_package, group=data_group)
+cs.store(name="semi-synth", node=SemiAdultDataModuleConf, package=data_package, group=data_group)
 cs.store(name="lilliput", node=LilliputDataModuleConf, package=data_package, group=data_group)
 cs.store(name="synth", node=SimpleXDataModuleConf, package=data_package, group=data_group)
 cs.store(name="third", node=ThirdWayDataModuleConf, package=data_package, group=data_group)

@@ -51,13 +51,13 @@ def produce_selection_groups(
 
     if recon_1 is not None:
         analyse_selection_groups(
-            data,
-            outcomes,
-            Prediction(hard=outcomes["decision"]),
-            recon_0,
-            recon_1,
-            f"PreSelection_{data_name}",
-            logger,
+            data=data,
+            outcomes=outcomes,
+            selected=Prediction(hard=outcomes["decision"]),
+            recon_0=recon_0,
+            recon_1=recon_1,
+            data_name=f"PreSelection_{data_name}",
+            logger=logger,
         )
 
     _to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
@@ -65,7 +65,15 @@ def produce_selection_groups(
         do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
 
     if recon_1 is not None:
-        analyse_selection_groups(data, outcomes, _to_return, recon_0, recon_1, data_name, logger)
+        analyse_selection_groups(
+            data=data,
+            outcomes=outcomes,
+            selected=_to_return,
+            recon_0=recon_0,
+            recon_1=recon_1,
+            data_name=data_name,
+            logger=logger,
+        )
 
     mapped = facct_mapper_2(_to_return)
 
