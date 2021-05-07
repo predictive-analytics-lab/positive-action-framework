@@ -187,7 +187,7 @@ class AE(CommonModel):
             recon_loss = x.new_tensor(0.0)
             for i, feature_weight in zip(
                 range(x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]),
-                [0, 1e0, 1e0, 1e0, 1e0],
+                [1e0, 1e0, 1e0, 1e0, 1e0, 1e0, 1e0],
             ):
                 recon_loss += (
                     mse_loss(
@@ -207,7 +207,7 @@ class AE(CommonModel):
             # )
             _tmp_recon_loss = torch.zeros_like(recon_loss)
             for group_slice, feature_weight in zip(
-                self.feature_groups["discrete"], [1e0, 1e0, 0, 1e0, 0, 1e0, 1e0]
+                self.feature_groups["discrete"], [1e0, 1e0, 1e0, 1e0, 1e0, 1e0, 1e0]
             ):
                 recon_loss += (
                     cross_entropy(
