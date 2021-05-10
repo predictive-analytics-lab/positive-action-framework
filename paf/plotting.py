@@ -116,7 +116,7 @@ def make_plot(
     name: str,
     cols: List[str],
     cat_plot: bool = False,
-    scaler: Optional[MinMaxScaler],
+    scaler: Optional[MinMaxScaler] = None,
 ) -> None:
     """Make plots for logging."""
     if cat_plot:
