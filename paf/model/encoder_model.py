@@ -188,7 +188,7 @@ class AE(CommonModel):
         if self.feature_groups["discrete"]:
             recon_loss = x.new_tensor(0.0)
             c_feats = {
-                "age": 1e1,
+                "age": 1e0,
                 "capital-gain": 1e0,
                 "capital-loss": 1e0,
                 "education-num": 1e0,
@@ -213,8 +213,8 @@ class AE(CommonModel):
             d_feats = {
                 "education": 1e0,
                 "marital-status": 1e0,
-                "native-country": 1e1,
-                "race": 1e1,
+                "native-country": 1e0,
+                "race": 1e0,
                 "relationship": 1e0,
                 "workclass": 1e0,
             }

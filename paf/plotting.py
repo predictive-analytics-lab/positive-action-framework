@@ -129,7 +129,7 @@ def make_plot(
     else:
         x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
         if scaler is not None:
-            x_df[list(range(x.shape[1]))] = scaler.inverse_transform(x_df).astype("int")
+            x_df[list(range(x.shape[1]))] = scaler.inverse_transform(x_df).round().astype("int")
 
     x_df["s"] = s.int().detach().cpu().numpy()
 
