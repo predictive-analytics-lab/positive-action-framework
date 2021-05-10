@@ -187,9 +187,18 @@ class AE(CommonModel):
 
         if self.feature_groups["discrete"]:
             recon_loss = x.new_tensor(0.0)
+            c_feats = {
+                "age": 1e1,
+                "capital-gain": 1e0,
+                "capital-loss": 1e0,
+                "education-num": 1e0,
+                "hours-per-week": 1e0,
+                "directness": 1e0,
+                "caring": 1e0,
+            }  # TODO: Hardcoded for Semi-synthetic Adult Dataset
             for i, feature_weight in zip(
                 range(x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]),
-                [1e0, 1e0, 1e0, 1e0, 1e0, 1e0, 1e0],
+                [c_feats[k] for k in sorted(c_feats)],
             ):
                 recon_loss += (
                     mse_loss(
@@ -201,8 +210,16 @@ class AE(CommonModel):
                     * feature_weight
                 )
             _tmp_recon_loss = torch.zeros_like(recon_loss)
+            d_feats = {
+                "education": 1e0,
+                "marital-status": 1e0,
+                "native-country": 1e1,
+                "race": 1e1,
+                "relationship": 1e0,
+                "workclass": 1e0,
+            }
             for group_slice, feature_weight in zip(
-                self.feature_groups["discrete"], [1e0, 1e0, 1e0, 1e0, 1e0, 1e0, 1e0]
+                self.feature_groups["discrete"], [d_feats[k] for k in sorted(d_feats)]
             ):
                 recon_loss += (
                     cross_entropy(
