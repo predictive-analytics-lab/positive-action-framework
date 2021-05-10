@@ -8,9 +8,10 @@ import wandb
 from ethicml import DataTuple
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import WandbLogger
+from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor
 
-from paf.logging_i_guess import do_log
+from paf.log_progress import do_log
 
 
 def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
@@ -108,7 +109,14 @@ def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
 
 
 def make_plot(
-    *, x: Tensor, s: Tensor, logger: WandbLogger, name: str, cols: List[str], cat_plot: bool = False
+    *,
+    x: Tensor,
+    s: Tensor,
+    logger: WandbLogger,
+    name: str,
+    cols: List[str],
+    cat_plot: bool = False,
+    scaler: Optional[MinMaxScaler],
 ) -> None:
     """Make plots for logging."""
     if cat_plot:
@@ -120,6 +128,8 @@ def make_plot(
         cols = sorted([cols[0].split("_")[0]])
     else:
         x_df = pd.DataFrame(x.detach().cpu().numpy(), columns=range(x.shape[1]))
+        if scaler is not None:
+            x_df[list(range(x.shape[1]))] = scaler.inverse_transform(x_df).astype("int")
 
     x_df["s"] = s.int().detach().cpu().numpy()
 

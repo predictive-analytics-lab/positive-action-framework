@@ -36,7 +36,7 @@ from paf.config_classes.paf.data_modules.configs import (
 from paf.config_classes.paf.model.configs import AEConf, ClfConf
 from paf.config_classes.pytorch_lightning.trainer.configs import TrainerConf
 from paf.ethicml_extension.oracle import DPOracle
-from paf.logging_i_guess import do_log
+from paf.log_progress import do_log
 from paf.model import AE
 from paf.model.aies_model import AiesModel
 from paf.plotting import label_plot
@@ -112,6 +112,7 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
         cf_available=data.cf_available,
         feature_groups=data.feature_groups,
         outcome_cols=data.column_names,
+        scaler=data.scaler,
     )
     wandb_logger = (
         None

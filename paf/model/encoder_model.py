@@ -6,14 +6,14 @@ import numpy as np
 import torch
 from ethicml import implements
 from pytorch_lightning import LightningModule
+from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor, cat, nn, no_grad
 from torch.nn.functional import binary_cross_entropy_with_logits, cross_entropy, l1_loss, mse_loss
 from torch.optim import Adam
-from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
 from torch.utils.data import DataLoader
 
 from paf.config_classes.dataclasses import KernelType
-from paf.logging_i_guess import do_log
+from paf.log_progress import do_log
 from paf.mmd import mmd2
 from paf.model.blocks import block, mid_blocks
 from paf.model.common_model import CommonModel
@@ -133,10 +133,12 @@ class AE(CommonModel):
         cf_available: bool,
         feature_groups: Dict[str, List[slice]],
         outcome_cols: List[str],
+        scaler: MinMaxScaler,
     ):
         self.cf_model = cf_available
         self.feature_groups = feature_groups
         self.data_cols = outcome_cols
+        self.scaler = scaler
 
         self.enc = Encoder(
             in_size=data_dim + s_dim if self.s_as_input else data_dim,
@@ -198,13 +200,6 @@ class AE(CommonModel):
                     )
                     * feature_weight
                 )
-            # recon_loss = mse_loss(
-            #     index_by_s(recons, s)[
-            #         :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
-            #     ].sigmoid(),
-            #     x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])],
-            #     reduction="mean",
-            # )
             _tmp_recon_loss = torch.zeros_like(recon_loss)
             for group_slice, feature_weight in zip(
                 self.feature_groups["discrete"], [1e0, 1e0, 1e0, 1e0, 1e0, 1e0, 1e0]
@@ -217,7 +212,7 @@ class AE(CommonModel):
                     )
                     * feature_weight
                 )
-            recon_loss += _tmp_recon_loss  # / len(self.feature_groups["discrete"])
+            recon_loss += _tmp_recon_loss
         else:
             recon_loss = mse_loss(index_by_s(recons, s).sigmoid(), x, reduction="mean")
 
@@ -235,9 +230,6 @@ class AE(CommonModel):
             "training_enc/recon_loss": recon_loss,
             "training_enc/adv_loss": adv_loss,
             "training_enc/z_norm": z.detach().norm(dim=1).mean(),
-            # "training_enc/z_dim_0": wandb.Histogram(z.detach().cpu().numpy()[:, 0]),
-            # "training_enc/z_dim_0_s0": wandb.Histogram(z[s <= 0].detach().cpu().numpy()[:, 0]),
-            # "training_enc/z_dim_0_s1": wandb.Histogram(z[s > 0].detach().cpu().numpy()[:, 0]),
             "training_enc/z_mean_abs_diff": (z[s <= 0].mean() - z[s > 0].mean()).abs(),
         }
 
@@ -261,7 +253,7 @@ class AE(CommonModel):
             for i in range(
                 k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
             ):
-                if i == 0:
+                if i in []:  # [0]: Features to transplant to the reconstrcution
                     k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = x[
                         :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
                     ][:, i]
@@ -270,7 +262,7 @@ class AE(CommonModel):
                         :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
                     ][:, i].sigmoid()
             for i, group_slice in enumerate(self.feature_groups["discrete"]):
-                if i in [2, 4]:
+                if i in []:  # [2, 4]: Features to transplant
                     k[:, group_slice] = x[:, group_slice]
                 else:
                     one_hot = to_discrete(inputs=k[:, group_slice])
@@ -323,6 +315,7 @@ class AE(CommonModel):
                 cols=self.data_cols[
                     slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])
                 ],
+                scaler=self.scaler,
             )
             make_plot(
                 x=all_recon[:, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
@@ -332,6 +325,7 @@ class AE(CommonModel):
                 cols=self.data_cols[
                     slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])
                 ],
+                scaler=self.scaler,
             )
             for group_slice in self.feature_groups["discrete"]:
                 make_plot(
@@ -392,39 +386,9 @@ class AE(CommonModel):
                     self.logger,
                 )
 
-    # @implements(LightningModule)
-    # def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
-    #
-    #     if self.cf_model:
-    #         x, s, _, cf_x, cf_s, _, _ = batch
-    #     else:
-    #         x, s, _ = batch
-    #     z, s_pred, recons = self(x, s)
-    #
-    #     recon_loss = mse_loss(index_by_s(recons, s), x, reduction="mean")
-    #     adv_loss = (
-    #         mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
-    #         + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
-    #     ) / 2
-    #     loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
-    #
-    #     to_return = {"x": x, "z": z, "s": s, "recon": self.invert(index_by_s(recons, s)), "val_mse": loss}
-    #
-    #     if self.cf_model:
-    #         to_return["cf_x"] = cf_x
-    #         to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s))
-    #
-    #     return to_return
-
     @implements(LightningModule)
-    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
-        optimizer = Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        CosineAnnealingLR(optimizer, 10)
-        # scheduler = ReduceLROnPlateau(optimizer, "min", patience=5)
-        # ExponentialLR(optimizer, gamma=self.scheduler_rate)
-        return optimizer
-        # return [optimizer], [scheduler]
-        # return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_mse'}
+    def configure_optimizers(self) -> torch.optim.Optimizer:
+        return Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:

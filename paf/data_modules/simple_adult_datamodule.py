@@ -65,12 +65,12 @@ class SimpleAdultDataModule(BaseDataModule):
             y=self.train_data.y.iloc[val_indices].reset_index(drop=True),
         )
 
-        scaler = MinMaxScaler()
-        scaler = scaler.fit(self.train_data.x[self.dataset.continuous_features])
-        self.train_data.x[self.dataset.continuous_features] = scaler.transform(
+        self.scaler = MinMaxScaler()
+        self.scaler = self.scaler.fit(self.train_data.x[self.dataset.continuous_features])
+        self.train_data.x[self.dataset.continuous_features] = self.scaler.transform(
             self.train_data.x[self.dataset.continuous_features]
         )
-        self.test_data.x[self.dataset.continuous_features] = scaler.transform(
+        self.test_data.x[self.dataset.continuous_features] = self.scaler.transform(
             self.test_data.x[self.dataset.continuous_features]
         )
 

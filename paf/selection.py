@@ -13,7 +13,7 @@ from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
 from torch import Tensor
 
 from paf.base_templates.base_module import BaseDataModule
-from paf.logging_i_guess import do_log
+from paf.log_progress import do_log
 from paf.plotting import outcomes_hist
 from paf.utils import facct_mapper, facct_mapper_2, facct_mapper_outcomes
 

@@ -11,7 +11,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from paf.config_classes.dataclasses import KernelType
-from paf.logging_i_guess import do_log
+from paf.log_progress import do_log
 from paf.mmd import mmd2
 from paf.model.blocks import block, mid_blocks
 from paf.model.common_model import CommonModel
