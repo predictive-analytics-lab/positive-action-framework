@@ -3,11 +3,12 @@ from typing import Dict, List, Tuple
 
 import pandas as pd
 import torch
-from ethicml import implements
+from kit import implements
 from pytorch_lightning import LightningModule
 from torch import Tensor, nn
 from torch.optim.lr_scheduler import ExponentialLR
 
+from paf.log_progress import do_log
 from paf.model.aies_properties import AiesProperties
 from paf.model.classifier_model import Clf
 from paf.model.encoder_model import AE
@@ -43,10 +44,15 @@ class AiesModel(AiesProperties):
             x, s, y, _ = batch
 
         enc_z, enc_s_pred, recons = self.enc(x, s)
-
         cf_recons = self.enc.invert(index_by_s(recons, 1 - s), x)
-
         augmented_recons = augment_recons(x, cf_recons, s)
+
+        cfs = index_by_s(augmented_recons, 1 - s)
+        _enc_z, _enc_s_pred, _recons = self.enc(x, s)
+        _cf_recons = self.enc.invert(index_by_s(_recons, 1 - s), cfs)
+        _augmented_recons = augment_recons(cfs, _cf_recons, s)
+
+        cycle_loss = nn.MSELoss()(index_by_s(_augmented_recons, s), x)
 
         to_return = {
             "enc_z": enc_z,
@@ -58,6 +64,7 @@ class AiesModel(AiesProperties):
             "recons_0": self.enc.invert(recons[0], x),
             "recons_1": self.enc.invert(recons[1], x),
             "preds": self.clf.threshold(index_by_s(self.clf(x, s)[-1], s)),
+            "cycle_loss": cycle_loss,
         }
 
         for i, recon in enumerate(augmented_recons):
@@ -103,4 +110,10 @@ class AiesModel(AiesProperties):
             .cpu()
             .numpy(),
             columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
+        )
+
+        do_log(
+            "cycle_loss",
+            (sum(_r["cycle_loss"] for _r in output_results) / self.all_y.shape[0]).item(),
+            self.logger,
         )

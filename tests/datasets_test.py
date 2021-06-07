@@ -139,6 +139,7 @@ def test_enc(dm_schema):
             cf_available=cfg.data.cf_available,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.column_names,
+            scaler=cfg.data.scaler,
         )
         cfg.trainer.fit(model=encoder, datamodule=cfg.data)
         cfg.trainer.test(model=encoder, ckpt_path=None, datamodule=cfg.data)
@@ -194,6 +195,7 @@ def test_clf(dm_schema):
             cf_available=data.cf_available,
             feature_groups=data.feature_groups,
             outcome_cols=data.column_names,
+            scaler=cfg.data.scaler,
         )
         enc_trainer.fit(model=encoder, datamodule=data)
         enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)

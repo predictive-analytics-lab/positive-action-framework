@@ -3,7 +3,8 @@ from abc import abstractmethod
 from typing import Tuple
 
 import numpy as np
-from ethicml import DataTuple, PostAlgorithm, Prediction, TestTuple, implements
+from ethicml import DataTuple, PostAlgorithm, Prediction, TestTuple
+from kit import implements
 
 
 class FlipBase(PostAlgorithm):

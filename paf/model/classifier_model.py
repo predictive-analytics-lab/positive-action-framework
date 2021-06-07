@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from ethicml import implements
+from kit import implements
 from pytorch_lightning import LightningModule
 from torch import Tensor, cat, nn
 from torch.nn.functional import binary_cross_entropy_with_logits

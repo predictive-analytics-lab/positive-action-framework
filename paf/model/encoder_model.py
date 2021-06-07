@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from ethicml import implements
+from kit import implements
 from pytorch_lightning import LightningModule
 from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor, cat, nn, no_grad

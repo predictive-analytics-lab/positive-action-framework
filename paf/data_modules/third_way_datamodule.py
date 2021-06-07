@@ -4,7 +4,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from ethicml import Prediction, implements
+from ethicml import Prediction
+from kit import implements
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
@@ -50,6 +51,7 @@ class ThirdWayDataModule(BaseDataModule):
         self.num_features = num_features
         self.xi = xi
         self.num_hidden_features = num_hidden_features
+        self.scaler = None
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:

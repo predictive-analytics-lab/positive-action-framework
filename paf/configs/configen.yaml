@@ -27,6 +27,6 @@ configen:
       classes:
         - AE
         - Clf
-#    - name: pytorch_lightning.trainer
-#      classes:
-#        - Trainer
+    - name: pytorch_lightning.trainer
+      classes:
+        - Trainer

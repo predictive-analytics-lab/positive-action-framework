@@ -5,7 +5,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from ethicml import Dataset, DataTuple, implements
+from ethicml import Dataset, DataTuple
+from kit import implements
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler

@@ -2,7 +2,7 @@
 from typing import Optional, Tuple
 
 import numpy as np
-from ethicml import implements
+from kit import implements
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
@@ -34,6 +34,7 @@ class SimpleXDataModule(BaseDataModule):
         self.train_dims = train_dims
         self.num_workers = num_workers
         self.batch_size = batch_size
+        self.scaler = None
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:

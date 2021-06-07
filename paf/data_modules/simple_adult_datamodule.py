@@ -1,6 +1,7 @@
 """Adult Dataset DataModule."""
 import numpy as np
-from ethicml import DataTuple, ProportionalSplit, implements
+from ethicml import DataTuple, ProportionalSplit
+from kit import implements
 from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
