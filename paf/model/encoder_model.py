@@ -7,9 +7,9 @@ import torch
 from kit import implements
 from pytorch_lightning import LightningModule
 from sklearn.preprocessing import MinMaxScaler
-from torch import Tensor, cat, nn, no_grad
+from torch import Tensor, cat, nn, no_grad, optim
 from torch.nn.functional import binary_cross_entropy_with_logits, cross_entropy, l1_loss, mse_loss
-from torch.optim import Adam
+from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
 from paf.config_classes.dataclasses import KernelType
@@ -404,8 +404,12 @@ class AE(CommonModel):
                 )
 
     @implements(LightningModule)
-    def configure_optimizers(self) -> torch.optim.Optimizer:
-        return Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+    def configure_optimizers(
+        self,
+    ) -> Tuple[List[optim.Optimizer], List[optim.lr_scheduler.ExponentialLR]]:
+        opt = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        sched = optim.lr_scheduler.ExponentialLR(opt, gamma=0.999)
+        return [opt], [sched]
 
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
