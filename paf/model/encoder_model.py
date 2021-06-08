@@ -383,7 +383,7 @@ class AE(CommonModel):
             name="z",
             cols=[str(i) for i in range(self.latent_dims)],
         )
-        recon_mse = (all_x - all_recon).mean(dim=0).abs()
+        recon_mse = (all_x - all_recon).abs().mean(dim=0)
         for i, feature_mse in enumerate(recon_mse):
             feature_name = self.data_cols[i]
             do_log(
@@ -410,7 +410,7 @@ class AE(CommonModel):
                 cols=self.data_cols,
             )
 
-            recon_mse = (all_cf_x - cf_recon).mean(dim=0).abs()
+            recon_mse = (all_cf_x - cf_recon).abs().mean(dim=0)
             for i, feature_mse in enumerate(recon_mse):
                 feature_name = self.data_cols[i]
                 do_log(
