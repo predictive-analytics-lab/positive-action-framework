@@ -209,7 +209,6 @@ class AE(CommonModel):
                     )
                     * feature_weight
                 )
-            _tmp_recon_loss = torch.zeros_like(recon_loss)
             d_feats = {
                 "education": 1e0,
                 "marital-status": 1e0,
@@ -229,7 +228,6 @@ class AE(CommonModel):
                     )
                     * feature_weight
                 )
-            recon_loss += _tmp_recon_loss
         else:
             recon_loss = mse_loss(index_by_s(recons, s).sigmoid(), x, reduction="mean")
 
@@ -325,8 +323,8 @@ class AE(CommonModel):
         logger.info(self.data_cols)
         if self.feature_groups["discrete"]:
             make_plot(
-                x=all_x[:, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
-                s=all_s,
+                x=all_x[:, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])].clone(),
+                s=all_s.clone(),
                 logger=self.logger,
                 name="true_data",
                 cols=self.data_cols[
@@ -335,8 +333,10 @@ class AE(CommonModel):
                 scaler=self.scaler,
             )
             make_plot(
-                x=all_recon[:, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])],
-                s=all_s,
+                x=all_recon[
+                    :, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                ].clone(),
+                s=all_s.clone(),
                 logger=self.logger,
                 name="recons",
                 cols=self.data_cols[
@@ -346,27 +346,39 @@ class AE(CommonModel):
             )
             for group_slice in self.feature_groups["discrete"]:
                 make_plot(
-                    x=all_x[:, group_slice],
-                    s=all_s,
+                    x=all_x[:, group_slice].clone(),
+                    s=all_s.clone(),
                     logger=self.logger,
                     name="true_data",
                     cols=self.data_cols[group_slice],
                     cat_plot=True,
                 )
                 make_plot(
-                    x=all_recon[:, group_slice],
-                    s=all_s,
+                    x=all_recon[:, group_slice].clone(),
+                    s=all_s.clone(),
                     logger=self.logger,
                     name="recons",
                     cols=self.data_cols[group_slice],
                     cat_plot=True,
                 )
         else:
-            make_plot(x=all_x, s=all_s, logger=self.logger, name="true_data", cols=self.data_cols)
-            make_plot(x=all_recon, s=all_s, logger=self.logger, name="recons", cols=self.data_cols)
+            make_plot(
+                x=all_x.clone(),
+                s=all_s.clone(),
+                logger=self.logger,
+                name="true_data",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=all_recon.clone(),
+                s=all_s.clone(),
+                logger=self.logger,
+                name="recons",
+                cols=self.data_cols,
+            )
         make_plot(
-            x=all_z,
-            s=all_s,
+            x=all_z.clone(),
+            s=all_s.clone(),
             logger=self.logger,
             name="z",
             cols=[str(i) for i in range(self.latent_dims)],
@@ -384,14 +396,18 @@ class AE(CommonModel):
             all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
             cf_recon = torch.cat([_r["cf_recon"] for _r in output_results], 0)
             make_plot(
-                x=all_cf_x,
-                s=all_s,
+                x=all_cf_x.clone(),
+                s=all_s.clone(),
                 logger=self.logger,
                 name="true_counterfactual",
                 cols=self.data_cols,
             )
             make_plot(
-                x=cf_recon, s=all_s, logger=self.logger, name="cf_recons", cols=self.data_cols
+                x=cf_recon.clone(),
+                s=all_s.clone(),
+                logger=self.logger,
+                name="cf_recons",
+                cols=self.data_cols,
             )
 
             recon_mse = (all_cf_x - cf_recon).mean(dim=0).abs()
