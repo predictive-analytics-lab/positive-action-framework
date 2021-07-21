@@ -6,6 +6,8 @@ from typing import Tuple, Union
 from ethicml import Dataset, DataTuple, adult, compas, credit
 from ethicml.data.util import LabelSpec, flatten_dict, simple_spec
 
+TGT_NAME = "salary_>50K"
+
 
 def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> Tuple[Dataset, DataTuple]:
     """Get the Audlt dataset."""
@@ -13,16 +15,6 @@ def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> Tuple[Dat
         dataset = adult(
             split="Custom", binarize_nationality=bin_nationality, binarize_race=bin_race
         )
-        # discrete_features = reduce_feature_group(
-        #     disc_feature_groups=dataset.disc_feature_groups,
-        #     feature_group="marital-status",
-        #     to_keep=simple_spec({sens: [
-        #         "marital-status_Married-AF-spouse",
-        #         "marital-status_Married-civ-spouse",
-        #         "marital-status_Married-spouse-absent",
-        #     ]}),
-        #     remaining_feature_name="_not_Married",
-        # )
         dataset = replace(
             dataset,
             sens_attr_spec=simple_spec(
@@ -39,7 +31,7 @@ def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> Tuple[Dat
                 }
             ),
             s_prefix=["marital-status"],
-            class_label_spec="salary_>50K",
+            class_label_spec=TGT_NAME,
             class_label_prefix=["salary"],
         )
 
@@ -105,7 +97,7 @@ def semi_adult_data(
             "relationship_Unmarried",
             "relationship_Wife",
         ],
-        "salary": ["salary_<=50K", "salary_>50K"],
+        "salary": ["salary_<=50K", TGT_NAME],
         "sex": ["sex_Female", "sex_Male"],
         "workclass": [
             "workclass_Federal-gov",
@@ -132,7 +124,7 @@ def semi_adult_data(
     sens_attr_spec: Union[str, LabelSpec]
     sens_attr_spec = "sex_Male"
     s_prefix = ["sex"]
-    class_label_spec = "salary_>50K"
+    class_label_spec = TGT_NAME
     class_label_prefix = ["salary"]
 
     name = f"SemiSynthetic Adult"

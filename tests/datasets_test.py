@@ -2,21 +2,23 @@
 import copy
 from typing import Final, List
 
-import pytest
-import torch
 from hydra.core.config_store import ConfigStore
 from hydra.experimental import compose, initialize
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
+import pytest
 from pytorch_lightning import seed_everything
+import torch
 
-from paf.config_classes.paf.data_modules.configs import (
+from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import]
     LilliputDataModuleConf,
     SimpleAdultDataModuleConf,
     SimpleXDataModuleConf,
     ThirdWayDataModuleConf,
 )
-from paf.config_classes.pytorch_lightning.trainer.configs import TrainerConf
+from paf.config_classes.pytorch_lightning.trainer.configs import (
+    TrainerConf,  # type: ignore[import]
+)
 from paf.main import Config, data_group, data_package, run_aies
 from paf.model.aies_model import AiesModel
 
@@ -54,7 +56,7 @@ def test_with_initialize(dm_schema: str) -> None:
 @pytest.mark.parametrize(
     "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("adult", False)]
 )
-def test_data(dm_schema, cf_available):
+def test_data(dm_schema: str, cf_available: bool) -> None:
     """Test the data module."""
     with initialize(config_path="../paf/configs"):
         # config is relative to a module
@@ -88,7 +90,7 @@ def test_data(dm_schema, cf_available):
 @pytest.mark.parametrize(
     "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("adult", False)]
 )
-def test_data(dm_schema, cf_available):
+def test_datamods(dm_schema: str, cf_available: bool) -> None:
     """Test the flip dataset function."""
     with initialize(config_path=CFG_PTH):
         # config is relative to a module
@@ -102,10 +104,8 @@ def test_data(dm_schema, cf_available):
         data.prepare_data()
 
         training_dl = data.train_dataloader(shuffle=False, drop_last=False)
-        test_dl = data.test_dataloader(shuffle=False, drop_last=False)
         data.flip_train_test()
         training_dl2 = data.train_dataloader(shuffle=False, drop_last=False)
-        test_dl2 = data.test_dataloader(shuffle=False, drop_last=False)
 
         for (tr_batch, te_batch) in zip(training_dl, training_dl2):
             if data.cf_available:
@@ -120,7 +120,7 @@ def test_data(dm_schema, cf_available):
 
 
 @pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
-def test_enc(dm_schema):
+def test_enc(dm_schema: str) -> None:
     """Test the encoder network runs."""
     with initialize(config_path=CFG_PTH):
         # config is relative to a module
@@ -146,7 +146,7 @@ def test_enc(dm_schema):
 
 
 @pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
-def test_clf(dm_schema):
+def test_clf(dm_schema: str) -> None:
     """Test the classifier network runs."""
     with initialize(config_path=CFG_PTH):
         # config is relative to a module
@@ -171,7 +171,7 @@ def test_clf(dm_schema):
 
 
 @pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
-def test_clf(dm_schema):
+def test_clfmod(dm_schema: str) -> None:
     """Test the end to end."""
     with initialize(config_path=CFG_PTH):
         # config is relative to a module

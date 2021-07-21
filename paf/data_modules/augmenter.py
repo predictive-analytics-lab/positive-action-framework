@@ -1,7 +1,9 @@
 """Augmented dataset."""
+from typing import List
+
+from ethicml import DataTuple, compute_instance_weights
 import pandas as pd
 import torch
-from ethicml import DataTuple, compute_instance_weights
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
@@ -33,7 +35,7 @@ class AugDataset(Dataset):
     def __len__(self) -> int:
         return self.sens.shape[0]
 
-    def __getitem__(self, index) -> T_co:
+    def __getitem__(self, index: int) -> T_co:
         return (
             (
                 self.recons[0][index],
@@ -60,11 +62,11 @@ class AugmentedDataModule(BaseDataModule):
         self.recons, self.sens, self.labels = model.run_through(data.train_dataloader())
 
     @staticmethod
-    def collate_tuples(batch):
+    def collate_tuples(batch: Tensor) -> List[Tensor]:
         """Callate functin returning outpusts concatenated."""
         it = iter(batch)
         elem_size = len(next(it))
-        if not all(len(elem) == elem_size for elem in it):
+        if any(len(elem) != elem_size for elem in it):
             raise RuntimeError('each element in list of batch should be of equal size')
         transposed = zip(*batch)
         collated = [default_collate(samples) for samples in transposed]
@@ -81,4 +83,4 @@ class AugmentedDataModule(BaseDataModule):
         )
 
     def _test_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
-        pass
+        """This is only here to appease super. It's never used."""

@@ -1,14 +1,19 @@
 """Encoder model."""
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
-import numpy as np
-import torch
 from kit import implements
+import numpy as np
 from pytorch_lightning import LightningModule
 from sklearn.preprocessing import MinMaxScaler
+import torch
 from torch import Tensor, cat, nn, no_grad, optim
-from torch.nn.functional import binary_cross_entropy_with_logits, cross_entropy, l1_loss, mse_loss
+from torch.nn.functional import (
+    binary_cross_entropy_with_logits,
+    cross_entropy,
+    l1_loss,
+    mse_loss,
+)
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
@@ -134,7 +139,7 @@ class AE(CommonModel):
         feature_groups: Dict[str, List[slice]],
         outcome_cols: List[str],
         scaler: MinMaxScaler,
-    ):
+    ) -> None:
         self.cf_model = cf_available
         self.feature_groups = feature_groups
         self.data_cols = outcome_cols
@@ -439,15 +444,15 @@ class AE(CommonModel):
             s = s.to(self.device)
             _, _, _r = self(x, s)
             r = self.invert(index_by_s(_r, s), x)
-            recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
+            recons = r if recons is None else cat([recons, r], dim=0)
         assert recons is not None
         return recons.detach().cpu().numpy()
 
-    def run_through(self, dataloader: DataLoader) -> Tensor:
+    def run_through(self, dataloader: DataLoader) -> Tuple[Tensor, Tensor, Tensor]:
         """Run through a dataloader and record the outputs with labels."""
-        recons = None
-        sens = None
-        labels = None
+        recons: Optional[Tensor] = None
+        sens: Optional[Tensor] = None
+        labels: Optional[Tensor] = None
         for batch in dataloader:
             if self.cf_model:
                 x, s, y, cf_x, cf_s, cf_y, _ = batch
@@ -458,8 +463,14 @@ class AE(CommonModel):
             _, _, _r = self(x, s)
             r0 = self.invert(_r[0], x)
             r1 = self.invert(_r[1], x)
-            recons = torch.stack([r0, r1]) if recons is None else cat([recons, torch.stack([r0, r1])], dim=1)  # type: ignore[unreachable]
+            recons = (
+                torch.stack([r0, r1])
+                if recons is None
+                else cat([recons, torch.stack([r0, r1])], dim=1)
+            )
             sens = s if sens is None else cat([sens, s], dim=0)
             labels = y if labels is None else cat([labels, y], dim=0)
         assert recons is not None
+        assert sens is not None
+        assert labels is not None
         return recons.detach(), sens.detach(), labels.detach()

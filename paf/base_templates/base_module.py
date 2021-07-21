@@ -1,12 +1,12 @@
 """Base Data Module."""
-import warnings
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple
+import warnings
 
-import numpy as np
-import pandas as pd
 from ethicml import Dataset, DataTuple
 from kit import implements
+import numpy as np
+import pandas as pd
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
@@ -34,7 +34,7 @@ class BaseDataModule(LightningDataModule):
         self._x_dim: Optional[int] = None
         self._feature_groups: Optional[Dict[str, List[slice]]] = None
         self.train_means_train = True
-        self._dataset = None
+        self._dataset: Optional[Dataset] = None
 
     @property
     def outcome_columns(self) -> List[str]:
@@ -57,7 +57,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def column_names(self) -> List[str]:
         assert self._columns is not None
-        return self._columns  # type: ignore[unreachable]
+        return self._columns
 
     @column_names.setter
     def column_names(self, col_names: pd.Index) -> None:
@@ -66,7 +66,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def cf_available(self) -> bool:
         assert self._cf_available is not None
-        return self._cf_available  # type: ignore[unreachable]
+        return self._cf_available
 
     @cf_available.setter
     def cf_available(self, true_cf_available: bool) -> None:
@@ -75,7 +75,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def dataset(self) -> Dataset:
         assert self._dataset is not None
-        return self._dataset  # type: ignore[unreachable]
+        return self._dataset
 
     @dataset.setter
     def dataset(self, dataset: Dataset) -> None:
@@ -84,7 +84,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def data_dim(self) -> int:
         assert self._x_dim is not None
-        return self._x_dim  # type: ignore[unreachable]
+        return self._x_dim
 
     @data_dim.setter
     def data_dim(self, dim: int) -> None:
@@ -93,7 +93,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def num_s(self) -> int:
         assert self._num_s is not None
-        return self._num_s  # type: ignore[unreachable]
+        return self._num_s
 
     @num_s.setter
     def num_s(self, dim: int) -> None:
@@ -102,7 +102,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def s_dim(self) -> int:
         assert self._s_dim is not None
-        return self._s_dim  # type: ignore[unreachable]
+        return self._s_dim
 
     @s_dim.setter
     def s_dim(self, dim: int) -> None:
@@ -111,7 +111,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def y_dim(self) -> int:
         assert self._y_dim is not None
-        return self._y_dim  # type: ignore[unreachable]
+        return self._y_dim
 
     @y_dim.setter
     def y_dim(self, dim: int) -> None:
@@ -129,7 +129,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def train_data(self) -> DataTuple:
         assert self._train_tuple is not None
-        return self._train_tuple  # type: ignore[unreachable]
+        return self._train_tuple
 
     @train_data.setter
     def train_data(self, datatuple: DataTuple) -> None:
@@ -139,7 +139,7 @@ class BaseDataModule(LightningDataModule):
     def true_train_data(self) -> DataTuple:
         assert self._true_train_tuple is not None
         assert self.cf_available
-        return self._true_train_tuple  # type: ignore[unreachable]
+        return self._true_train_tuple
 
     @true_train_data.setter
     def true_train_data(self, datatuple: DataTuple) -> None:
@@ -148,7 +148,7 @@ class BaseDataModule(LightningDataModule):
     @property
     def test_data(self) -> DataTuple:
         assert self._test_tuple is not None
-        return self._test_tuple  # type: ignore[unreachable]
+        return self._test_tuple
 
     @test_data.setter
     def test_data(self, datatuple: DataTuple) -> None:
@@ -158,13 +158,13 @@ class BaseDataModule(LightningDataModule):
     def true_test_data(self) -> DataTuple:
         assert self._true_test_tuple is not None
         assert self.cf_available
-        return self._true_test_tuple  # type: ignore[unreachable]
+        return self._true_test_tuple
 
     @true_test_data.setter
     def true_test_data(self, datatuple: DataTuple) -> None:
         self._true_test_tuple = datatuple
 
-    def flip_train_test(self):
+    def flip_train_test(self) -> None:
         """Swap the train and test dataloaders."""
         self.train_means_train = not self.train_means_train
 
@@ -228,11 +228,15 @@ class BaseDataModule(LightningDataModule):
         train.x[dataset.continuous_features] = scaler.transform(
             train.x[dataset.continuous_features]
         )
-        # val.x[dataset.continuous_features] = scaler.transform(val.x[dataset.continuous_features])
+        val.x[dataset.continuous_features] = (
+            scaler.transform(val.x[dataset.continuous_features])
+            if val.x.shape[0] > 0
+            else val.x[dataset.continuous_features]
+        )
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
         return train, val, test
 
-    def make_data_plots(self, cf_available: bool, logger: Optional[WandbLogger]):
+    def make_data_plots(self, cf_available: bool, logger: Optional[WandbLogger]) -> None:
         """Make plots of the data."""
         try:
             label_plot(self.train_data, logger, "train")

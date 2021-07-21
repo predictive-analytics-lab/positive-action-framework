@@ -124,7 +124,7 @@ def _mmd2(
 
     if biased:
         return k_xx.sum() / (m * m) + k_yy.sum() / (n * n) - 2 * k_xy.sum() / (m * n)
-    if const_diagonal is not False:
+    if const_diagonal != 0.0:
         trace_x = torch.tensor(m)
         trace_y = torch.tensor(n)
     else:
@@ -140,7 +140,7 @@ def _mmd2(
 def mmd2(
     x: Tensor,
     y: Tensor,
-    kernel: KernelType = "rq",
+    kernel: KernelType = KernelType.rbf,
     biased: bool = False,
     **kwargs: Any,
 ) -> Tensor:

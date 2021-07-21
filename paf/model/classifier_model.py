@@ -1,10 +1,10 @@
 """Encoder model."""
 from typing import Dict, List, Tuple
 
-import numpy as np
-import torch
 from kit import implements
+import numpy as np
 from pytorch_lightning import LightningModule
+import torch
 from torch import Tensor, cat, nn
 from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
@@ -129,7 +129,7 @@ class Clf(CommonModel):
         cf_available: bool,
         feature_groups: Dict[str, List[slice]],
         outcome_cols: List[str],
-    ):
+    ) -> None:
         self.cf_model = cf_available
         self.outcome_cols = outcome_cols
         self.enc = Encoder(
@@ -173,7 +173,6 @@ class Clf(CommonModel):
             x, s, y, cf_x, cf_s, cf_y, iw = batch
         else:
             x, s, y, iw = batch
-        # x, s, _s, y, iw = batch
         z, s_pred, preds = self(x, s)
         _iw = iw if self.use_iw else None
         pred_loss = binary_cross_entropy_with_logits(
@@ -190,21 +189,8 @@ class Clf(CommonModel):
             "training_clf/pred_loss": pred_loss,
             "training_clf/adv_loss": adv_loss,
             "training_clf/z_norm": z.detach().norm(dim=1).mean(),
-            # "training_clf/z_dim_0": wandb.Histogram(z.detach().cpu().numpy()[:, 0]),
-            # "training_clf/z_dim_0_s0": wandb.Histogram(z[s <= 0].detach().cpu().numpy()[:, 0]),
-            # "training_clf/z_dim_0_s1": wandb.Histogram(z[s > 0].detach().cpu().numpy()[:, 0]),
             "training_clf/z_mean_abs_diff": (z[s <= 0].mean() - z[s > 0].mean()).abs(),
         }
-
-        # if self.cf_model:
-        #     with no_grad():
-        #         cf_z, _, cf_preds = self(cf_x, cf_s)
-        #         cf_pred_loss = binary_cross_entropy_with_logits(
-        #             index_by_s(cf_preds, cf_s).squeeze(-1), cf_y, reduction="mean"
-        #         )
-        #         cf_loss = cf_pred_loss - 1e-6
-        #         to_log["training_clf/cf_loss"] = cf_loss
-        #         to_log["training_clf/cf_pred_loss"] = cf_pred_loss
 
         for k, v in to_log.items():
             do_log(k, v, self.logger)
@@ -215,24 +201,6 @@ class Clf(CommonModel):
     def threshold(self, z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
         return z.sigmoid().round()
-
-    # @implements(LightningModule)
-    # def validation_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
-    #
-    #     if self.cf_model:
-    #         x, s, y, cf_x, cf_s, cf_y, _ = batch
-    #     else:
-    #         x, s, y = batch
-    #     z, _, preds = self(x, s)
-    #     bce = binary_cross_entropy_with_logits(index_by_s(preds, s).squeeze(-1), y, reduction="mean")
-    #
-    #     to_return = {"y": y, "z": z, "s": s, "preds": self.threshold(index_by_s(preds, s)), "val_bce": bce}
-    #
-    #     if self.cf_model:
-    #         to_return["cf_y"] = cf_y
-    #         to_return["cf_preds"] = self.threshold(index_by_s(preds, cf_s))
-    #
-    #     return to_return
 
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
@@ -272,11 +240,11 @@ class Clf(CommonModel):
             s=all_s,
             logger=self.logger,
             name="true_data",
-            cols=self.outcome_cols,
+            cols=["out"],
         )
-        make_plot(x=all_preds, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
-        make_plot(x=preds_0, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
-        make_plot(x=preds_1, s=all_s, logger=self.logger, name="preds", cols=self.outcome_cols)
+        make_plot(x=all_preds, s=all_s, logger=self.logger, name="preds", cols=["preds"])
+        make_plot(x=preds_0, s=all_s, logger=self.logger, name="preds", cols=["preds"])
+        make_plot(x=preds_1, s=all_s, logger=self.logger, name="preds", cols=["preds"])
         make_plot(
             x=all_z,
             s=all_s,
@@ -293,11 +261,9 @@ class Clf(CommonModel):
                 s=all_s,
                 logger=self.logger,
                 name="true_counterfactual_outcome",
-                cols=self.outcome_cols,
+                cols=["preds"],
             )
-            make_plot(
-                x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=self.outcome_cols
-            )
+            make_plot(x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=["preds"])
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Adam:
@@ -316,7 +282,7 @@ class Clf(CommonModel):
             s = s.to(self.device)
             _, _, _r = self(x, s)
             r = self.threshold(index_by_s(_r, s))
-            recons = r if recons is None else cat([recons, r], dim=0)  # type: ignore[unreachable]
+            recons = r if recons is None else cat([recons, r], dim=0)
         assert recons is not None
         return recons.detach().cpu().numpy()
 

@@ -1,22 +1,11 @@
 """Small script that takes a results csv d/l form W&B and makes it pretty looking."""
-import math
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import typer
 
 
-def cell(data_cell):
-    """Make mean and std have +-."""
-    mean = round(np.mean(data_cell), 3)
-    std = round(np.std(data_cell), 3)
-    if math.isnan(mean):
-        return "N/A"
-    return f"{mean:.3f} $\\pm$ {std:.3f}"
-
-
-def main(raw_csv: Path):
+def main(raw_csv: Path) -> None:
     """Run on results to get table."""
     data = pd.read_csv(raw_csv)
     data = data.drop(["Name"], axis=1)

@@ -97,13 +97,3 @@ class TrainingConfig:
     tags: str = MISSING
     gpus: int = MISSING
     log: bool = MISSING
-
-
-# @dataclass
-# class Config:
-#     """Base Config Schema."""
-#
-#     data: DataConfig = MISSING
-#     enc: ModelConfig = MISSING  # put config files for this into `conf/model/`
-#     clf: ModelConfig = MISSING  # put config files for this into `conf/model/`
-#     training: TrainingConfig = MISSING

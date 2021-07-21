@@ -1,25 +1,30 @@
 """The hand crafted synthetic data."""
+from typing import Tuple
 
+from ethicml import Dataset, DataTuple
 import numpy as np
 import pandas as pd
 import scipy
-from ethicml import Dataset, DataTuple
 from scipy import stats
 
 from paf.selection import produce_selection_groups
 
 
-def lilliput(*, seed, num_samples, alpha, gamma):
+def lilliput(
+    *, seed: int, num_samples: int, alpha: float, gamma: float
+) -> Tuple[
+    Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple
+]:
     """Make the `lilliput` dataset."""
     num_gen = np.random.default_rng(seed)
 
-    # Green = 1, Blue = 0
+    # Green is 1, Blue is 0
     s = num_gen.binomial(1, alpha, num_samples)
-    cf_s = np.ones_like(s) - s
+    cf_s: np.ndarray = np.ones_like(s) - s
     s_all_0 = np.zeros_like(s)
     s_all_1 = np.ones_like(s)
 
-    potions_percent = num_gen.random(len(s))
+    potions_percent = num_gen.random(len(s))  # type: ignore[attr-defined]
 
     potions_score_nrm = (
         scipy.stats.norm.ppf(potions_percent, loc=0.65, scale=0.15).round(2).clip(0, 1)
@@ -59,24 +64,24 @@ def lilliput(*, seed, num_samples, alpha, gamma):
     video_mean_all_1 = 0.4 + 0.01 * (s_all_1 * 2 - 1)
 
     vid_score_nrm = num_gen.normal(0, 0.2, len(s))
-    video_score = video_mean + vid_score_nrm
-    cf_video_score = cf_video_mean + vid_score_nrm
-    video_score_all_0 = video_mean_all_0 + vid_score_nrm
-    video_score_all_1 = video_mean_all_1 + vid_score_nrm
+    video_score: np.ndarray = video_mean + vid_score_nrm
+    cf_video_score: np.ndarray = cf_video_mean + vid_score_nrm
+    video_score_all_0: np.ndarray = video_mean_all_0 + vid_score_nrm
+    video_score_all_1: np.ndarray = video_mean_all_1 + vid_score_nrm
 
     vid_bane_err = num_gen.normal(0, 0.02, len(s)).clip(0, 1)
-    video_bane = (video_score + vid_bane_err).round(2).clip(0, 1)
-    cf_video_bane = (cf_video_score + vid_bane_err).round(2).clip(0, 1)
-    video_bane_all_0 = (video_score_all_0 + vid_bane_err).round(2).clip(0, 1)
-    video_bane_all_1 = (video_score_all_1 + vid_bane_err).round(2).clip(0, 1)
+    video_bane = (video_score + vid_bane_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
+    cf_video_bane = (cf_video_score + vid_bane_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
+    video_bane_all_0 = (video_score_all_0 + vid_bane_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
+    video_bane_all_1 = (video_score_all_1 + vid_bane_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
 
     vid_wolf_err = num_gen.normal(0, 0.05, len(s)).clip(0, 1)
-    video_wolf = (video_score + vid_wolf_err).round(2).clip(0, 1)
-    cf_video_wolf = (cf_video_score + vid_wolf_err).round(2).clip(0, 1)
-    video_wolf_all_0 = (video_score_all_0 + vid_wolf_err).round(2).clip(0, 1)
-    video_wolf_all_1 = (video_score_all_1 + vid_wolf_err).round(2).clip(0, 1)
+    video_wolf = (video_score + vid_wolf_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
+    cf_video_wolf = (cf_video_score + vid_wolf_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
+    video_wolf_all_0 = (video_score_all_0 + vid_wolf_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
+    video_wolf_all_1 = (video_score_all_1 + vid_wolf_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
 
-    random_nums = num_gen.random(len(s))
+    random_nums = num_gen.random(len(s))  # type: ignore[attr-defined]
 
     essay_score_vnm = (
         scipy.stats.t.ppf(random_nums, df=100, loc=0.4, scale=0.15).round(2).clip(0, 1)
@@ -229,29 +234,30 @@ def lilliput(*, seed, num_samples, alpha, gamma):
         + 0.2 * ((cf_data["essay_bane"] + cf_data["essay_wolf"]) / 2)
         + gamma * ((2 * cf_data["sens"]) - 1)
     ).round(2)
-
-    data_all_0["Sy=0_admittance_score"] = (
+    SY0_AD_SCORE = "Sy=0_admittance_score"
+    SY1_AD_SCORE = "Sy=1_admittance_score"
+    data_all_0[SY0_AD_SCORE] = (
         0.4 * ((data_all_0["potions_bane"] + data_all_0["potions_wolf"]) / 2)
         + 0.4 * ((data_all_0["video_bane"] + data_all_0["video_wolf"]) / 2)
         + 0.2 * ((data_all_0["essay_bane"] + data_all_0["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_0["sens"]) - 1)
     ).round(2)
 
-    data_all_0["Sy=1_admittance_score"] = (
+    data_all_0[SY1_AD_SCORE] = (
         0.4 * ((data_all_0["potions_bane"] + data_all_0["potions_wolf"]) / 2)
         + 0.4 * ((data_all_0["video_bane"] + data_all_0["video_wolf"]) / 2)
         + 0.2 * ((data_all_0["essay_bane"] + data_all_0["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_1["sens"]) - 1)
     ).round(2)
 
-    data_all_1["Sy=0_admittance_score"] = (
+    data_all_1[SY0_AD_SCORE] = (
         0.4 * ((data_all_1["potions_bane"] + data_all_1["potions_wolf"]) / 2)
         + 0.4 * ((data_all_1["video_bane"] + data_all_1["video_wolf"]) / 2)
         + 0.2 * ((data_all_1["essay_bane"] + data_all_1["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_0["sens"]) - 1)
     ).round(2)
 
-    data_all_1["Sy=1_admittance_score"] = (
+    data_all_1[SY1_AD_SCORE] = (
         0.4 * ((data_all_1["potions_bane"] + data_all_1["potions_wolf"]) / 2)
         + 0.4 * ((data_all_1["video_bane"] + data_all_1["video_wolf"]) / 2)
         + 0.2 * ((data_all_1["essay_bane"] + data_all_1["essay_wolf"]) / 2)
@@ -266,13 +272,13 @@ def lilliput(*, seed, num_samples, alpha, gamma):
             graduation.append(round(0.3 * p + 0.25 * v + 0.45 * e, 2))
         else:
             graduation.append(round(0.1 * p + 0.7 * v + 0.2 * e, 2))
-    graduation_all_0 = round(
+    graduation_all_0 = round(  # type: ignore[call-overload]
         0.3 * data_all_0["potions_score"]
         + 0.25 * data_all_0["video_score"]
         + 0.45 * data_all_0["essay_score"],
         2,
     )
-    graduation_all_1 = round(
+    graduation_all_1 = round(  # type: ignore[call-overload]
         0.1 * data_all_1["potions_score"]
         + 0.7 * data_all_1["video_score"]
         + 0.2 * data_all_1["essay_score"],
@@ -308,17 +314,17 @@ def lilliput(*, seed, num_samples, alpha, gamma):
 
     print(f"Passed threshold is: {passed_threshold}")
 
-    accepted_Sx_0_Sy_0 = data_all_0["Sy=0_admittance_score"] >= passed_threshold
-    accepted_Sx_0_Sy_1 = data_all_0["Sy=1_admittance_score"] >= passed_threshold
-    accepted_Sx_1_Sy_0 = data_all_1["Sy=0_admittance_score"] >= passed_threshold
-    accepted_Sx_1_Sy_1 = data_all_1["Sy=1_admittance_score"] >= passed_threshold
+    accepted_sx_0_sy_0 = data_all_0[SY0_AD_SCORE] >= passed_threshold
+    accepted_sx_0_sy_1 = data_all_0[SY1_AD_SCORE] >= passed_threshold
+    accepted_sx_1_sy_0 = data_all_1[SY0_AD_SCORE] >= passed_threshold
+    accepted_sx_1_sy_1 = data_all_1[SY1_AD_SCORE] >= passed_threshold
 
     gt_results = pd.concat(
         [
-            accepted_Sx_0_Sy_0.astype(int).rename("s1_0_s2_0"),
-            accepted_Sx_0_Sy_1.astype(int).rename("s1_0_s2_1"),
-            accepted_Sx_1_Sy_0.astype(int).rename("s1_1_s2_0"),
-            accepted_Sx_1_Sy_1.astype(int).rename("s1_1_s2_1"),
+            accepted_sx_0_sy_0.astype(int).rename("s1_0_s2_0"),
+            accepted_sx_0_sy_1.astype(int).rename("s1_0_s2_1"),
+            accepted_sx_1_sy_0.astype(int).rename("s1_1_s2_0"),
+            accepted_sx_1_sy_1.astype(int).rename("s1_1_s2_1"),
             data["sens"].rename("true_s"),
         ],
         axis=1,
@@ -334,15 +340,17 @@ def lilliput(*, seed, num_samples, alpha, gamma):
         cf_data.where(cf_passed_initial_screening.isin(cf_data), 0)["admittance_score"] > 0
     ).astype(int)
 
-    data["graduation_grade>60%"] = (data["graduation_grade"] >= 0.60).astype(int)
-    data_all_0["graduation_grade>60%"] = (data_all_0["graduation_grade"] >= 0.60).astype(int)
-    data_all_1["graduation_grade>60%"] = (data_all_1["graduation_grade"] >= 0.60).astype(int)
-    cf_data["graduation_grade>60%"] = (cf_data["graduation_grade"] >= 0.60).astype(int)
+    GRAD_MT_60 = "graduation_grade>60%"
+    data[GRAD_MT_60] = (data["graduation_grade"] >= 0.60).astype(int)
+    data_all_0[GRAD_MT_60] = (data_all_0["graduation_grade"] >= 0.60).astype(int)
+    data_all_1[GRAD_MT_60] = (data_all_1["graduation_grade"] >= 0.60).astype(int)
+    cf_data[GRAD_MT_60] = (cf_data["graduation_grade"] >= 0.60).astype(int)
 
-    data["graduation_grade>70%"] = (data["graduation_grade"] >= 0.70).astype(int)
-    data_all_0["graduation_grade>70%"] = (data_all_0["graduation_grade"] >= 0.70).astype(int)
-    data_all_1["graduation_grade>70%"] = (data_all_1["graduation_grade"] >= 0.70).astype(int)
-    cf_data["graduation_grade>70%"] = (cf_data["graduation_grade"] >= 0.70).astype(int)
+    GRAD_MT_70 = "graduation_grade>70%"
+    data[GRAD_MT_70] = (data["graduation_grade"] >= 0.70).astype(int)
+    data_all_0[GRAD_MT_70] = (data_all_0["graduation_grade"] >= 0.70).astype(int)
+    data_all_1[GRAD_MT_70] = (data_all_1["graduation_grade"] >= 0.70).astype(int)
+    cf_data[GRAD_MT_70] = (cf_data["graduation_grade"] >= 0.70).astype(int)
 
     features = [
         "potions_bane",
@@ -403,7 +411,7 @@ def lilliput(*, seed, num_samples, alpha, gamma):
         DataTuple(
             x=data[dataset.discrete_features + dataset.continuous_features],
             s=data[dataset.sens_attrs],
-            y=data[["graduation_grade>60%"]],
+            y=data[[GRAD_MT_60]],
         ),
         best_aim,
         DataTuple(

@@ -1,7 +1,7 @@
 """Adult Dataset DataModule."""
-import numpy as np
 from ethicml import DataTuple, ProportionalSplit
 from kit import implements
+import numpy as np
 from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
@@ -48,17 +48,11 @@ class SimpleAdultDataModule(BaseDataModule):
         num_val = 0  # int(self.factual_data.x.shape[0] * 0.1)
         rng = np.random.RandomState(self.seed)
         idx = rng.permutation(self.factual_data.x.index)
-        train_indices = idx[:num_train]
         val_indices = idx[num_train : num_train + num_val]
-        test_indices = idx[num_train + num_val :]
-
-        # self.train_data, self.val_data, self.test_data = self.scale_and_split(
-        #     self.factual_data, self.dataset, train_indices, val_indices, test_indices
-        # )
 
         self.train_data, self.test_data, split_info = ProportionalSplit(train_percentage=0.8)(
-            self.factual_data
-        )  # BalancedTestSplit(train_percentage=0.8)(self.factual_data)
+            self.factual_data  # TODO: Should this be train_data?
+        )
 
         self.val = DataTuple(
             x=self.train_data.x.iloc[val_indices].reset_index(drop=True),

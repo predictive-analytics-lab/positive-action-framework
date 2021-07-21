@@ -3,8 +3,8 @@ from abc import abstractmethod
 from typing import Dict, List
 
 import numpy as np
-import torch
 from pytorch_lightning import LightningModule
+import torch
 from torch.utils.data import DataLoader
 
 
@@ -26,7 +26,7 @@ class CommonModel(LightningModule):
             x = x.to(self.device)
             s = s.to(self.device)
             z, _, _ = self(x, s)
-            latent = z if latent is None else torch.cat([latent, z], dim=0)  # type: ignore[unreachable]
+            latent = z if latent is None else torch.cat([latent, z], dim=0)
         assert latent is not None
         return latent.detach().cpu().numpy()
 
@@ -43,5 +43,5 @@ class CommonModel(LightningModule):
         cf_available: bool,
         feature_groups: Dict[str, List[slice]],
         outcome_cols: List[str],
-    ):
+    ) -> None:
         """Build the network using data not available in advance."""

@@ -1,10 +1,10 @@
 """AIES Model."""
 from typing import Dict, List, Tuple
 
-import pandas as pd
-import torch
 from kit import implements
+import pandas as pd
 from pytorch_lightning import LightningModule
+import torch
 from torch import Tensor, nn
 from torch.optim.lr_scheduler import ExponentialLR
 
@@ -69,12 +69,8 @@ class AiesModel(AiesProperties):
 
         for i, recon in enumerate(augmented_recons):
             clf_z, clf_s_pred, preds = self.clf(recon, torch.ones_like(s) * i)
-            # to_return[f"preds_{i}"] = self.clf.threshold(index_by_s(preds, s))
             to_return[f"preds_{i}_0"] = self.clf.threshold(preds[0])
             to_return[f"preds_{i}_1"] = self.clf.threshold(preds[1])
-
-        # if self.enc.cf_model:
-        #     to_return["true_s1_0_s2_0"] = self.clf.threshold(index_by_s(preds, cf_s))
 
         return to_return
 

@@ -1,20 +1,20 @@
 """Plotting related functions."""
 from typing import List, Optional
 
-import matplotlib as mpl
-import pandas as pd
-import seaborn as sns
-import wandb
 from ethicml import DataTuple
+import matplotlib as mpl
 from matplotlib import pyplot as plt
+import pandas as pd
 from pytorch_lightning.loggers import WandbLogger
+import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor
+import wandb
 
 from paf.log_progress import do_log
 
 
-def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = ""):
+def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = "") -> None:
     """Make a label (quadrant) plot and uplad to wandb."""
     s_col = data.s.columns[0]
     s_values = data.s[s_col].value_counts() / data.s[s_col].count()

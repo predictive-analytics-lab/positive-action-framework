@@ -2,10 +2,10 @@
 import logging
 from typing import Optional, Tuple
 
-import numpy as np
-import pandas as pd
 from ethicml import Prediction
 from kit import implements
+import numpy as np
+import pandas as pd
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
@@ -140,33 +140,6 @@ class ThirdWayDataModule(BaseDataModule):
         log.info(pd_results["decision"].value_counts())
         asdfasdf = facct_mapper(Prediction(hard=pd_results["decision"]))
         log.info(asdfasdf.info)
-
-    # def scale_and_split(
-    #     self,
-    #     datatuple: DataTuple,
-    #     dataset: Dataset,
-    #     train_indices: np.ndarray,
-    #     test_indices: np.ndarray,
-    # ) -> Tuple[DataTuple, DataTuple]:
-    #     """Scale a datatuple and split to train/test."""
-    #     train = DataTuple(
-    #         x=datatuple.x.iloc[train_indices].reset_index(drop=True),
-    #         s=datatuple.s.iloc[train_indices].reset_index(drop=True),
-    #         y=datatuple.y.iloc[train_indices].reset_index(drop=True),
-    #     )
-    #     test = DataTuple(
-    #         x=datatuple.x.iloc[test_indices].reset_index(drop=True),
-    #         s=datatuple.s.iloc[test_indices].reset_index(drop=True),
-    #         y=datatuple.y.iloc[test_indices].reset_index(drop=True),
-    #     )
-    #
-    #     scaler = MinMaxScaler()
-    #     scaler = scaler.fit(train.x[dataset.continuous_features])
-    #     train.x[dataset.continuous_features] = scaler.transform(
-    #         train.x[dataset.continuous_features]
-    #     )
-    #     test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
-    #     return train, test
 
     @implements(BaseDataModule)
     def _train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:

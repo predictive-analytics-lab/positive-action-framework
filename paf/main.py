@@ -1,12 +1,11 @@
 """Main script."""
 import copy
-import logging
-import warnings
 from dataclasses import dataclass
-from typing import Any, Dict, Final, Optional
+import logging
+from pathlib import Path
+from typing import Any, Final, Optional
+import warnings
 
-import hydra
-import pandas as pd
 from ethicml import (
     LRCV,
     TNR,
@@ -19,26 +18,31 @@ from ethicml import (
     metric_per_sensitive_attribute,
     ratio_per_sensitive_attribute,
 )
+import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
-from omegaconf import MISSING, DictConfig, OmegaConf
+from omegaconf import DictConfig, MISSING, OmegaConf
+import pandas as pd
 from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import WandbLogger
 
 from paf.base_templates.base_module import BaseDataModule
-from paf.config_classes.paf.data_modules.configs import (
+from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import]
     LilliputDataModuleConf,
     SemiAdultDataModuleConf,
     SimpleAdultDataModuleConf,
     SimpleXDataModuleConf,
     ThirdWayDataModuleConf,
 )
-from paf.config_classes.paf.model.configs import AEConf, ClfConf
-from paf.config_classes.pytorch_lightning.trainer.configs import TrainerConf
+from paf.config_classes.paf.model.configs import AEConf, ClfConf  # type: ignore[import]
+from paf.config_classes.pytorch_lightning.trainer.configs import (
+    TrainerConf,  # type: ignore[import]
+)
 from paf.ethicml_extension.oracle import DPOracle
 from paf.log_progress import do_log
 from paf.model import AE
 from paf.model.aies_model import AiesModel
+from paf.model.naive import NaiveModel
 from paf.plotting import label_plot
 from paf.scoring import get_miri_metrics, produce_baselines
 from paf.selection import produce_selection_groups
@@ -92,12 +96,12 @@ cs.store(name="third", node=ThirdWayDataModuleConf, package=data_package, group=
 @hydra.main(config_path="configs", config_name="base_conf")
 def launcher(hydra_config: DictConfig) -> None:
     """Instantiate with hydra and get the experiments running!"""
-    # hydra_config.data.data_dir = Path(hydra_config.data.data_dir).expanduser()
+    hydra_config.data.data_dir = Path(hydra_config.data.data_dir).expanduser()
     cfg: Config = instantiate(hydra_config, _recursive_=True, _convert_="partial")
     run_aies(cfg, raw_config=OmegaConf.to_container(hydra_config, resolve=True, enum_to_str=True))
 
 
-def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
+def run_aies(cfg: Config, raw_config: Any) -> None:
     """Run the X Autoencoder."""
     seed_everything(0)
     data: BaseDataModule = cfg.data
@@ -206,7 +210,8 @@ def run_aies(cfg: Config, raw_config: Optional[Dict[str, Any]]) -> None:
 
     if cfg.exp.baseline:
         for model in [
-            LRCV(),
+            NaiveModel(in_size=data.data_dim, num_pos_action=2),
+            # LRCV(),
             # Oracle(),
             DPOracle(),
             # EqOppOracle(),

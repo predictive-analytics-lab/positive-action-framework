@@ -2,9 +2,9 @@
 from abc import abstractmethod
 from typing import Tuple
 
-import numpy as np
 from ethicml import DataTuple, PostAlgorithm, Prediction, TestTuple
 from kit import implements
+import numpy as np
 
 
 class FlipBase(PostAlgorithm):
@@ -65,7 +65,7 @@ class DPFlip(FlipBase):
 
         _y = preds.hard[preds.hard == pre_y_val]
         _s = preds.hard[dt.s[dt.s.columns[0]] == s_group]
-        idx_s_y = _y.index & _s.index  # type: ignore[operator]
+        idx_s_y = _y.index & _s.index
         rng = np.random.RandomState(888)
         idxs = [i for i in rng.permutation(idx_s_y)]
         preds.hard.update({idx: post_y_val for idx in idxs[:num_to_flip]})
@@ -77,10 +77,10 @@ class DPFlip(FlipBase):
         s_0 = test.s[test.s[test.s.columns[0]] == 0]
         s_1 = test.s[test.s[test.s.columns[0]] == 1]
         # Naming is nSY
-        n00 = preds.hard[(s_0.index) & (y_0.index)].count()  # type: ignore[operator]
-        n01 = preds.hard[(s_0.index) & (y_1.index)].count()  # type: ignore[operator]
-        n10 = preds.hard[(s_1.index) & (y_0.index)].count()  # type: ignore[operator]
-        n11 = preds.hard[(s_1.index) & (y_1.index)].count()  # type: ignore[operator]
+        n00 = preds.hard[(s_0.index) & (y_0.index)].count()
+        n01 = preds.hard[(s_0.index) & (y_1.index)].count()
+        n10 = preds.hard[(s_1.index) & (y_0.index)].count()
+        n11 = preds.hard[(s_1.index) & (y_1.index)].count()
 
         a = (((n00 + n01) * n11) - ((n10 + n11) * n01)) / (n00 + n01)
         b = (n10 + n11) / (n00 + n01)
@@ -123,7 +123,7 @@ class EqOppFlip(FlipBase):
         _pred = preds.hard[preds.hard == pre_y_val]
         _s = preds.hard[dt.s[dt.s.columns[0]] == s_group]
         _y = preds.hard[dt.y[dt.y.columns[0]] == 1]
-        idx_s_y = _pred.index & _s.index & _y.index  # type: ignore[operator]
+        idx_s_y = _pred.index & _s.index & _y.index
         if len(idx_s_y) < num_to_flip:
             raise AssertionError("Not enough valid candidates to flip")
 
@@ -138,12 +138,12 @@ class EqOppFlip(FlipBase):
         s_1 = test.s[test.s[test.s.columns[0]] == 1]
         y_1 = test.y[test.y[test.y.columns[0]] == 1]
 
-        r0 = preds.hard[(s_0.index) & (y_1.index) & (preds_1.index)].count()  # type: ignore[operator]
-        r1 = preds.hard[(s_1.index) & (y_1.index) & (preds_1.index)].count()  # type: ignore[operator]
+        r0 = preds.hard[(s_0.index) & (y_1.index) & (preds_1.index)].count()
+        r1 = preds.hard[(s_1.index) & (y_1.index) & (preds_1.index)].count()
 
         # Naming is nSY
-        n01 = preds.hard[(s_0.index) & (y_1.index)].count()  # type: ignore[operator]
-        n11 = preds.hard[(s_1.index) & (y_1.index)].count()  # type: ignore[operator]
+        n01 = preds.hard[(s_0.index) & (y_1.index)].count()
+        n11 = preds.hard[(s_1.index) & (y_1.index)].count()
 
         a = r1 - ((n11 * r0) / n01)
         b = n11 / n01

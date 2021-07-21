@@ -2,10 +2,10 @@
 import logging
 from typing import Optional, Tuple
 
+from ethicml import Dataset, DataTuple
 import numpy as np
 import pandas as pd
 import scipy
-from ethicml import Dataset, DataTuple
 from sklearn import preprocessing
 
 log = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def make_x(dx: np.ndarray, s: np.ndarray, xi: float, n: int) -> np.ndarray:
 
 
 def make_y(
-    y_bar: np.ndarray,
+    y_bar: pd.DataFrame,
     s: pd.DataFrame,
     beta: float,
     acceptance_rate: float,
@@ -75,14 +75,14 @@ def third_way_data(
     binary_s: int,
     beta: float,
     xi: float,
-) -> Tuple[Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple]:
+) -> Tuple[Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple]:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
     x_bar = make_x_bar(num_features=num_hidden_features, n=num_samples, random_state=num_gen)
 
     s = make_s(alpha=alpha, n=num_samples, random_state=num_gen, binary_s=binary_s == 1)
     s_df = pd.DataFrame(s, columns=["sens"])
-    counterfactual_s = np.ones_like(s) - s if binary_s == 1 else np.zeros_like(s) - s
+    counterfactual_s: np.ndarray = np.ones_like(s) - s if binary_s == 1 else np.zeros_like(s) - s
     cf_s_df = pd.DataFrame(counterfactual_s, columns=["sens"])
     s0 = np.zeros_like(s)
     s0_df = pd.DataFrame(s0, columns=["sens"])
@@ -175,14 +175,14 @@ def third_way_data(
     s1_1_s2_0_data = pd.concat([s1_x_df, s0_df, s1_1_s2_0_y_df], axis=1).sort_index()
     s1_1_s2_1_data = pd.concat([s1_x_df, s0_df, s1_1_s2_1_y_df], axis=1).sort_index()
 
-    idx = num_gen.permutation(data.index)
+    idx = num_gen.permutation(data.index)  # type: ignore[arg-type]
 
-    data = data.reindex(idx).reset_index(drop=True)
-    counterfactual_data = counterfactual_data.reindex(idx).reset_index(drop=True)
-    s1_0_s2_0_data = s1_0_s2_0_data.reindex(idx).reset_index(drop=True)
-    s1_0_s2_1_data = s1_0_s2_1_data.reindex(idx).reset_index(drop=True)
-    s1_1_s2_0_data = s1_1_s2_0_data.reindex(idx).reset_index(drop=True)
-    s1_1_s2_1_data = s1_1_s2_1_data.reindex(idx).reset_index(drop=True)
+    data = data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
+    counterfactual_data = counterfactual_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
+    s1_0_s2_0_data = s1_0_s2_0_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
+    s1_0_s2_1_data = s1_0_s2_1_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
+    s1_1_s2_0_data = s1_1_s2_0_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
+    s1_1_s2_1_data = s1_1_s2_1_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
 
     dataset = Dataset(
         name=f"ThirdWay",

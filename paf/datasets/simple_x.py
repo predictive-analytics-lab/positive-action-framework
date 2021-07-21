@@ -1,9 +1,9 @@
 """Functions for synthetic data."""
 from typing import Tuple
 
+from ethicml import Dataset, DataTuple
 import numpy as np
 import pandas as pd
-from ethicml import Dataset, DataTuple
 
 
 def make_x_bar(num_features: int, n: int, random_state: np.random.Generator) -> np.ndarray:
@@ -40,7 +40,7 @@ def simple_x_data(
     s = make_s(alpha=alpha, n=num_samples, random_state=num_gen, binary_s=binary_s == 1)
     s_df = pd.DataFrame(s, columns=["sens"])
 
-    counterfactual_s = np.ones_like(s) - s if binary_s == 1 else np.zeros_like(s) - s
+    counterfactual_s: np.ndarray = np.ones_like(s) - s if binary_s == 1 else np.zeros_like(s) - s
     counterfactual_s_df = pd.DataFrame(counterfactual_s, columns=["sens"])
 
     outcome_placeholder = pd.DataFrame(num_gen.binomial(1, 0.5, len(s)), columns=["outcome"])
@@ -67,10 +67,10 @@ def simple_x_data(
         axis=1,
     ).sort_index()
 
-    idx = num_gen.permutation(data.index)
+    idx = num_gen.permutation(data.index)  # type: ignore[arg-type]
 
-    data = data.reindex(idx).reset_index(drop=True)
-    counterfactual_data = counterfactual_data.reindex(idx).reset_index(drop=True)
+    data = data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
+    counterfactual_data = counterfactual_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
 
     dataset = Dataset(
         name=f"SimpleX",

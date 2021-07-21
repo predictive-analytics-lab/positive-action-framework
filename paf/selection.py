@@ -3,14 +3,14 @@
 import itertools
 from typing import Optional
 
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import wandb
 from ethicml import Prediction
 from matplotlib import pyplot as plt
+import numpy as np
+import pandas as pd
 from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
+import seaborn as sns
 from torch import Tensor
+import wandb
 
 from paf.base_templates.base_module import BaseDataModule
 from paf.log_progress import do_log
@@ -50,6 +50,7 @@ def produce_selection_groups(
         do_log(f"Table3/Ours_{data_name}/pre_selection_rule_group_{idx}", val, logger)
 
     if recon_1 is not None:
+        assert data is not None
         analyse_selection_groups(
             data=data,
             outcomes=outcomes,
@@ -65,6 +66,7 @@ def produce_selection_groups(
         do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
 
     if recon_1 is not None:
+        assert data is not None
         analyse_selection_groups(
             data=data,
             outcomes=outcomes,
