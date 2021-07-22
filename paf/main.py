@@ -2,7 +2,6 @@
 import copy
 from dataclasses import dataclass
 import logging
-from pathlib import Path
 from typing import Any, Final, Optional
 import warnings
 
@@ -96,7 +95,6 @@ cs.store(name="third", node=ThirdWayDataModuleConf, package=data_package, group=
 @hydra.main(config_path="configs", config_name="base_conf")
 def launcher(hydra_config: DictConfig) -> None:
     """Instantiate with hydra and get the experiments running!"""
-    hydra_config.data.data_dir = Path(hydra_config.data.data_dir).expanduser()
     cfg: Config = instantiate(hydra_config, _recursive_=True, _convert_="partial")
     run_aies(cfg, raw_config=OmegaConf.to_container(hydra_config, resolve=True, enum_to_str=True))
 
