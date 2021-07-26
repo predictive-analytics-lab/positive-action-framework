@@ -436,12 +436,8 @@ class AE(CommonModel):
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         recons = None
         for batch in dataloader:
-            if self.cf_model:
-                x, s, y, cf_x, cf_s, cf_y, _ = batch
-            else:
-                x, s, y, _ = batch
-            x = x.to(self.device)
-            s = s.to(self.device)
+            x = batch.x.to(self.device)
+            s = batch.s.to(self.device)
             _, _, _r = self(x, s)
             r = self.invert(index_by_s(_r, s), x)
             recons = r if recons is None else cat([recons, r], dim=0)
@@ -454,12 +450,8 @@ class AE(CommonModel):
         sens: Optional[Tensor] = None
         labels: Optional[Tensor] = None
         for batch in dataloader:
-            if self.cf_model:
-                x, s, y, cf_x, cf_s, cf_y, _ = batch
-            else:
-                x, s, y, _ = batch
-            x = x.to(self.device)
-            s = s.to(self.device)
+            x = batch.x.to(self.device)
+            s = batch.s.to(self.device)
             _, _, _r = self(x, s)
             r0 = self.invert(_r[0], x)
             r1 = self.invert(_r[1], x)

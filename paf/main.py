@@ -1,6 +1,7 @@
 """Main script."""
 import copy
 from dataclasses import dataclass
+from enum import Enum, auto
 import logging
 from typing import Any, Final, Optional
 import warnings
@@ -42,11 +43,17 @@ from paf.log_progress import do_log
 from paf.model import AE
 from paf.model.aies_model import AiesModel
 from paf.model.naive import NaiveModel
+from paf.model.nearestneighbour_model import NearestNeighbourModel
 from paf.plotting import label_plot
 from paf.scoring import get_miri_metrics, produce_baselines
-from paf.selection import produce_selection_groups
+from paf.selection import baseline_selection_rules, produce_selection_groups
 
 log = logging.getLogger(__name__)
+
+
+class ModelType(Enum):
+    paf = auto()
+    nn = auto()
 
 
 @dataclass
@@ -60,6 +67,7 @@ class ExpConfig:
     log_offline: Optional[bool] = False
     tags: str = ""
     baseline: bool = False
+    model: ModelType = ModelType.paf
 
 
 @dataclass
@@ -101,21 +109,12 @@ def launcher(hydra_config: DictConfig) -> None:
 
 def run_aies(cfg: Config, raw_config: Any) -> None:
     """Run the X Autoencoder."""
-    seed_everything(0)
+    seed_everything(cfg.exp.seed)
     data: BaseDataModule = cfg.data
     data.prepare_data()
 
     log.info(f"data_dim={data.data_dim}, num_s={data.num_s}")
-    encoder: AE = cfg.enc
-    encoder.build(
-        num_s=data.num_s,
-        data_dim=data.data_dim,
-        s_dim=data.s_dim,
-        cf_available=data.cf_available,
-        feature_groups=data.feature_groups,
-        outcome_cols=data.column_names,
-        scaler=data.scaler,
-    )
+
     wandb_logger = (
         None
         if cfg.exp.log_offline
@@ -134,77 +133,104 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
 
     data.make_data_plots(data.cf_available, cfg.trainer.logger)
 
-    enc_trainer = cfg.trainer
-    enc_trainer.tune(model=encoder, datamodule=data)
-    enc_trainer.fit(model=encoder, datamodule=data)
-    enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
+    if cfg.exp.model == ModelType.paf:
 
-    classifier = cfg.clf
-    classifier.build(
-        num_s=data.num_s,
-        data_dim=data.data_dim,
-        s_dim=data.s_dim,
-        cf_available=data.cf_available,
-        feature_groups=data.feature_groups,
-        outcome_cols=data.outcome_columns,
-    )
-    clf_trainer.tune(model=classifier, datamodule=data)
-    clf_trainer.fit(model=classifier, datamodule=data)
-    clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
+        encoder: AE = cfg.enc
+        encoder.build(
+            num_s=data.num_s,
+            data_dim=data.data_dim,
+            s_dim=data.s_dim,
+            cf_available=data.cf_available,
+            feature_groups=data.feature_groups,
+            outcome_cols=data.column_names,
+            scaler=data.scaler,
+        )
 
-    model = AiesModel(encoder=encoder, classifier=classifier)
+        enc_trainer = cfg.trainer
+        enc_trainer.tune(model=encoder, datamodule=data)
+        enc_trainer.fit(model=encoder, datamodule=data)
+        enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
+
+        classifier = cfg.clf
+        classifier.build(
+            num_s=data.num_s,
+            data_dim=data.data_dim,
+            s_dim=data.s_dim,
+            cf_available=data.cf_available,
+            feature_groups=data.feature_groups,
+            outcome_cols=data.outcome_columns,
+        )
+        clf_trainer.tune(model=classifier, datamodule=data)
+        clf_trainer.fit(model=classifier, datamodule=data)
+        clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
+
+        model = AiesModel(encoder=encoder, classifier=classifier)
+
+    elif cfg.exp.model == ModelType.nn:
+        classifier = NaiveModel(in_size=cfg.data.data_dim)
+        clf_trainer.tune(model=classifier, datamodule=data)
+        clf_trainer.fit(model=classifier, datamodule=data)
+
+        model = NearestNeighbourModel(clf_model=classifier, data=data)
+
     model_trainer.test(model=model, ckpt_path=None, datamodule=data)
 
-    preds = produce_selection_groups(
-        model.pd_results, data, model.recon_0, model.recon_1, wandb_logger
-    )
-    multiple_metrics(
-        preds,
-        DataTuple(
-            x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
-            s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
-            y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
-        ),
-        "Ours-Post-Selection",
-        wandb_logger,
-    )
-    fair_preds = produce_selection_groups(
-        model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True
-    )
-    multiple_metrics(
-        fair_preds,
-        DataTuple(
-            x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
-            s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
-            y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
-        ),
-        "Ours-Fair",
-        wandb_logger,
-    )
+    if cfg.exp.model == ModelType.paf:
+        preds = produce_selection_groups(
+            model.pd_results, data, model.recon_0, model.recon_1, wandb_logger
+        )
+        multiple_metrics(
+            preds,
+            DataTuple(
+                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
+                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
+                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
+            ),
+            "Ours-Post-Selection",
+            wandb_logger,
+        )
+        fair_preds = produce_selection_groups(
+            model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True
+        )
+        multiple_metrics(
+            fair_preds,
+            DataTuple(
+                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
+                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
+                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
+            ),
+            "Ours-Fair",
+            wandb_logger,
+        )
 
-    # === This is only for reporting ====
-    data.flip_train_test()
-    _model = AiesModel(encoder=encoder, classifier=classifier)
-    _model_trainer.test(model=_model, ckpt_path=None, datamodule=data)
-    produce_selection_groups(
-        _model.pd_results, data, _model.recon_0, _model.recon_1, wandb_logger, "Train"
-    )
-    data.flip_train_test()
-    # === === ===
+        # === This is only for reporting ====
+        data.flip_train_test()
+        _model = AiesModel(encoder=encoder, classifier=classifier)
+        _model_trainer.test(model=_model, ckpt_path=None, datamodule=data)
+        produce_selection_groups(
+            _model.pd_results, data, _model.recon_0, _model.recon_1, wandb_logger, "Train"
+        )
+        data.flip_train_test()
+        # === === ===
 
-    our_clf_preds = Prediction(hard=pd.Series(model.all_preds.squeeze(-1).detach().cpu().numpy()))
-    multiple_metrics(
-        our_clf_preds,
-        DataTuple(
-            x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
-            s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
-            y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
-        ),
-        "Ours-Real-World-Preds",
-        wandb_logger,
-    )
-    produce_baselines(encoder=encoder, dm=data, logger=wandb_logger)
-    produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
+        our_clf_preds = Prediction(
+            hard=pd.Series(model.all_preds.squeeze(-1).detach().cpu().numpy())
+        )
+        multiple_metrics(
+            our_clf_preds,
+            DataTuple(
+                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
+                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
+                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
+            ),
+            "Ours-Real-World-Preds",
+            wandb_logger,
+        )
+        produce_baselines(encoder=encoder, dm=data, logger=wandb_logger)
+        produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
+
+    else:
+        preds = baseline_selection_rules(model.pd_results, wandb_logger)
 
     if cfg.exp.baseline:
         for model in [

@@ -1,5 +1,5 @@
 """Encoder model."""
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 from kit import implements
 import numpy as np
@@ -10,6 +10,7 @@ from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
+from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.config_classes.dataclasses import KernelType
 from paf.log_progress import do_log
 from paf.mmd import mmd2
@@ -167,20 +168,18 @@ class Clf(CommonModel):
         return z, s_pred, preds
 
     @implements(LightningModule)
-    def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
+    def training_step(self, batch: Union[Batch, CfBatch], batch_idx: int) -> Tensor:
         assert self.built
-        if self.cf_model:
-            x, s, y, cf_x, cf_s, cf_y, iw = batch
-        else:
-            x, s, y, iw = batch
-        z, s_pred, preds = self(x, s)
-        _iw = iw if self.use_iw else None
+        z, s_pred, preds = self(batch.x, batch.s)
+        _iw = batch.iw if self.use_iw else None
         pred_loss = binary_cross_entropy_with_logits(
-            index_by_s(preds, s).squeeze(-1), y, reduction="mean", weight=_iw
+            index_by_s(preds, batch.s).squeeze(-1), batch.y, reduction="mean", weight=_iw
         )
         adv_loss = (
-            mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean", weight=_iw)
+            mmd2(z[batch.s == 0], z[batch.s == 1], kernel=self.mmd_kernel)
+            + binary_cross_entropy_with_logits(
+                s_pred.squeeze(-1), batch.s, reduction="mean", weight=_iw
+            )
         ) / 2
         loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
 
@@ -189,7 +188,7 @@ class Clf(CommonModel):
             "training_clf/pred_loss": pred_loss,
             "training_clf/adv_loss": adv_loss,
             "training_clf/z_norm": z.detach().norm(dim=1).mean(),
-            "training_clf/z_mean_abs_diff": (z[s <= 0].mean() - z[s > 0].mean()).abs(),
+            "training_clf/z_mean_abs_diff": (z[batch.s <= 0].mean() - z[batch.s > 0].mean()).abs(),
         }
 
         for k, v in to_log.items():
@@ -205,24 +204,20 @@ class Clf(CommonModel):
     @implements(LightningModule)
     def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
         assert self.built
-        if self.cf_model:
-            x, s, y, cf_x, cf_s, cf_y, _ = batch
-        else:
-            x, s, y, _ = batch
-        z, _, preds = self(x, s)
+        z, _, preds = self(batch.x, batch.s)
 
         to_return = {
-            "y": y,
+            "y": batch.y,
             "z": z,
-            "s": s,
-            "preds": self.threshold(index_by_s(preds, s)),
+            "s": batch.s,
+            "preds": self.threshold(index_by_s(preds, batch.s)),
             "preds_0": self.threshold(preds[0]),
             "preds_1": self.threshold(preds[1]),
         }
 
         if self.cf_model:
-            to_return["cf_y"] = cf_y
-            to_return["cf_preds"] = self.threshold(index_by_s(preds, cf_s))
+            to_return["cf_y"] = batch.cfy
+            to_return["cf_preds"] = self.threshold(index_by_s(preds, batch.cfs))
 
         return to_return
 
@@ -273,13 +268,8 @@ class Clf(CommonModel):
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         recons = None
         for batch in dataloader:
-            if self.cf_model:
-                x, s, y, cf_x, cf_s, cf_y, _ = batch
-            else:
-                x, s, y, _ = batch
-
-            x = x.to(self.device)
-            s = s.to(self.device)
+            x = batch.x.to(self.device)
+            s = batch.s.to(self.device)
             _, _, _r = self(x, s)
             r = self.threshold(index_by_s(_r, s))
             recons = r if recons is None else cat([recons, r], dim=0)

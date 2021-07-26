@@ -1,5 +1,5 @@
 """AIES Model."""
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 from kit import implements
 import pandas as pd
@@ -8,6 +8,7 @@ import torch
 from torch import Tensor, nn
 from torch.optim.lr_scheduler import ExponentialLR
 
+from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.log_progress import do_log
 from paf.model.aies_properties import AiesProperties
 from paf.model.classifier_model import Clf
@@ -37,38 +38,33 @@ class AiesModel(AiesProperties):
         """This is empty as we do not train the model end to end."""
 
     @implements(LightningModule)
-    def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
-        if self.enc.cf_model:
-            x, s, y, cf_x, cf_s, cf_y, _ = batch
-        else:
-            x, s, y, _ = batch
+    def test_step(self, batch: Union[Batch, CfBatch], batch_idx: int) -> Dict[str, Tensor]:
+        enc_z, enc_s_pred, recons = self.enc(batch.x, batch.s)
+        cf_recons = self.enc.invert(index_by_s(recons, 1 - batch.s), batch.x)
+        augmented_recons = augment_recons(batch.x, cf_recons, batch.s)
 
-        enc_z, enc_s_pred, recons = self.enc(x, s)
-        cf_recons = self.enc.invert(index_by_s(recons, 1 - s), x)
-        augmented_recons = augment_recons(x, cf_recons, s)
+        cfs = index_by_s(augmented_recons, 1 - batch.s)
+        _enc_z, _enc_s_pred, _recons = self.enc(batch.x, batch.s)
+        _cf_recons = self.enc.invert(index_by_s(_recons, 1 - batch.s), cfs)
+        _augmented_recons = augment_recons(cfs, _cf_recons, batch.s)
 
-        cfs = index_by_s(augmented_recons, 1 - s)
-        _enc_z, _enc_s_pred, _recons = self.enc(x, s)
-        _cf_recons = self.enc.invert(index_by_s(_recons, 1 - s), cfs)
-        _augmented_recons = augment_recons(cfs, _cf_recons, s)
-
-        cycle_loss = nn.MSELoss()(index_by_s(_augmented_recons, s), x)
+        cycle_loss = nn.MSELoss()(index_by_s(_augmented_recons, batch.s), batch.x)
 
         to_return = {
             "enc_z": enc_z,
             "enc_s_pred": enc_s_pred,
-            "x": x,
-            "s": s,
-            "y": y,
-            "recon": index_by_s(augmented_recons, s),
-            "recons_0": self.enc.invert(recons[0], x),
-            "recons_1": self.enc.invert(recons[1], x),
-            "preds": self.clf.threshold(index_by_s(self.clf(x, s)[-1], s)),
+            "x": batch.x,
+            "s": batch.s,
+            "y": batch.y,
+            "recon": index_by_s(augmented_recons, batch.s),
+            "recons_0": self.enc.invert(recons[0], batch.x),
+            "recons_1": self.enc.invert(recons[1], batch.x),
+            "preds": self.clf.threshold(index_by_s(self.clf(batch.x, batch.s)[-1], batch.s)),
             "cycle_loss": cycle_loss,
         }
 
         for i, recon in enumerate(augmented_recons):
-            clf_z, clf_s_pred, preds = self.clf(recon, torch.ones_like(s) * i)
+            clf_z, clf_s_pred, preds = self.clf(recon, torch.ones_like(batch.s) * i)
             to_return[f"preds_{i}_0"] = self.clf.threshold(preds[0])
             to_return[f"preds_{i}_1"] = self.clf.threshold(preds[1])
 

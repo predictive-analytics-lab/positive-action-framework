@@ -19,12 +19,8 @@ class CommonModel(LightningModule):
         """Get Latents to be used post train/test."""
         latent = None
         for batch in dataloader:
-            if self.cf_model:
-                x, s, y, cf_x, cf_s, cf_y, _ = batch
-            else:
-                x, s, y, _ = batch
-            x = x.to(self.device)
-            s = s.to(self.device)
+            x = batch.x.to(self.device)
+            s = batch.s.to(self.device)
             z, _, _ = self(x, s)
             latent = z if latent is None else torch.cat([latent, z], dim=0)
         assert latent is not None

@@ -1,13 +1,30 @@
 """Torch Dataset wrapper for EthicML."""
 
 from itertools import groupby
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, NamedTuple, Tuple
 
-import numpy as np
-import torch
 from ethicml import DataTuple, compute_instance_weights
 from ethicml.implementations.pytorch_common import _get_info
+import numpy as np
+import torch
 from torch import Tensor
+
+
+class Batch(NamedTuple):
+    x: Tensor
+    s: Tensor
+    y: Tensor
+    iw: Tensor
+
+
+class CfBatch(NamedTuple):
+    x: Tensor
+    s: Tensor
+    y: Tensor
+    cfx: Tensor
+    cfs: Tensor
+    cfy: Tensor
+    iw: Tensor
 
 
 def group_features(disc_feats: List[str]) -> Iterator[Tuple[str, Iterator[str]]]:
@@ -89,8 +106,10 @@ class DataTupleDataset(DataTupleDatasetBase):
             compute_instance_weights(dataset)["instance weights"].values
         )
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        return (self._x(index), self._s(index), self._y(index), self.instance_weight[index])
+    def __getitem__(self, index: int) -> Batch:
+        return Batch(
+            x=self._x(index), s=self._s(index), y=self._y(index), iw=self.instance_weight[index]
+        )
 
 
 class CFDataTupleDataset(DataTupleDatasetBase):
@@ -142,15 +161,13 @@ class CFDataTupleDataset(DataTupleDatasetBase):
     def _cf_y(self, index: int) -> Tensor:
         return self._make_from_arr(self.cf_y, index)
 
-    def __getitem__(
-        self, index: int
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
-        return (
-            super()._x(index),
-            super()._s(index),
-            super()._y(index),
-            self._cf_x(index),
-            self._cf_s(index),
-            self._cf_y(index),
-            self.instance_weight[index],
+    def __getitem__(self, index: int) -> CfBatch:
+        return CfBatch(
+            x=super()._x(index),
+            s=super()._s(index),
+            y=super()._y(index),
+            cfx=self._cf_x(index),
+            cfs=self._cf_s(index),
+            cfy=self._cf_y(index),
+            iw=self.instance_weight[index],
         )

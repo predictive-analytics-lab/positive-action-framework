@@ -34,6 +34,25 @@ def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
     return np.select(conditions, values, -1)
 
 
+def baseline_selection_rules(outcomes: pd.DataFrame, logger: Optional[LightningLoggerBase]):
+    conditions = [
+        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0),
+        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 1),
+        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 1),
+        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 0),
+    ]
+
+    values = [0, 1, 2, 2]
+
+    outcomes["decision"] = np.select(conditions, values, -1)
+
+    _to_return = Prediction(hard=outcomes["decision"])
+    for idx, val in _to_return.hard.value_counts().iteritems():
+        do_log(f"Table3/Ours_Test/selection_rule_group_{idx}", val, logger)
+
+    return facct_mapper_outcomes(_to_return, fair=False)
+
+
 def produce_selection_groups(
     outcomes: pd.DataFrame,
     data: Optional[BaseDataModule] = None,
