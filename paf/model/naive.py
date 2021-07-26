@@ -11,7 +11,7 @@ from paf.base_templates.dataset_utils import Batch, CfBatch
 class NaiveModel(pl.LightningModule):
     def __init__(self, in_size: int):
         super().__init__()
-        self.net = nn.Sequential(nn.Linear(in_size, 1))
+        self.net = nn.Sequential(nn.Linear(in_size, 50), nn.Linear(50, 50), nn.Linear(50, 1))
         self._loss = nn.BCEWithLogitsLoss()
         self.learning_rate = 1e-3
 
