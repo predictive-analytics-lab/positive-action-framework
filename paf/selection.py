@@ -42,13 +42,19 @@ def baseline_selection_rules(outcomes: pd.DataFrame, logger: Optional[LightningL
         (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 0),
     ]
 
-    values = [0, 1, 2, 2]
+    values = [0, 1, 2, 3]
 
     outcomes["decision"] = np.select(conditions, values, -1)
 
     _to_return = Prediction(hard=outcomes["decision"])
     for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours_Test/selection_rule_group_{idx}", val, logger)
+
+    lookup = {0: 0, 1: 1, 2: 2, 3: 2}
+
+    preds = pd.Series({i: lookup[d] for i, d in enumerate(_to_return.hard)})
+
+    _to_return = Prediction(hard=preds, info=_to_return.info)
 
     return facct_mapper_outcomes(_to_return, fair=False)
 
