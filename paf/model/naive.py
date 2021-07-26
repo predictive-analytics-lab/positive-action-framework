@@ -3,6 +3,7 @@ from typing import Dict, Union
 import pytorch_lightning as pl
 from torch import Tensor, nn
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
@@ -25,7 +26,9 @@ class NaiveModel(pl.LightningModule):
         """Not used anywhere, but needed for super."""
 
     def configure_optimizers(self):
-        return AdamW(self.parameters(), lr=self.learning_rate)
+        optim = AdamW(self.parameters(), lr=self.learning_rate)
+        sched = CosineAnnealingWarmRestarts(optimizer=optim, T_0=1, T_mult=2)
+        return [optim], [sched]
 
     def forward(self, x: Tensor) -> Tensor:
         return self.net(x)
