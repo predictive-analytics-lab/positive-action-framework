@@ -13,7 +13,7 @@ class NaiveModel(pl.LightningModule):
         super().__init__()
         self.net = nn.Sequential(nn.Linear(in_size, 50), nn.Linear(50, 50), nn.Linear(50, 1))
         self._loss = nn.BCEWithLogitsLoss()
-        self.learning_rate = 1e-3
+        self.learning_rate = 1e-2
 
     def training_step(self, batch: Union[Batch, CfBatch], batch_idx: int) -> Tensor:
         logits = self.net(batch.x)
@@ -26,7 +26,7 @@ class NaiveModel(pl.LightningModule):
         """Not used anywhere, but needed for super."""
 
     def configure_optimizers(self):
-        optim = AdamW(self.parameters(), lr=self.learning_rate)
+        optim = AdamW(self.net.parameters(), lr=self.learning_rate)
         sched = CosineAnnealingWarmRestarts(optimizer=optim, T_0=1, T_mult=2)
         return [optim], [sched]
 

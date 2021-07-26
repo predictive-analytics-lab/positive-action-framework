@@ -149,7 +149,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         enc_trainer = cfg.trainer
         enc_trainer.tune(model=encoder, datamodule=data)
         enc_trainer.fit(model=encoder, datamodule=data)
-        enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
+        enc_trainer.test(datamodule=data)
 
         classifier = cfg.clf
         classifier.build(
@@ -162,7 +162,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         )
         clf_trainer.tune(model=classifier, datamodule=data)
         clf_trainer.fit(model=classifier, datamodule=data)
-        clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
+        clf_trainer.test(datamodule=data)
 
         model = AiesModel(encoder=encoder, classifier=classifier)
 
@@ -173,7 +173,8 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
 
         model = NearestNeighbourModel(clf_model=classifier, data=data)
 
-    model_trainer.test(model=model, ckpt_path=None, datamodule=data)
+    model_trainer.fit(model=model, datamodule=data)
+    model_trainer.test(datamodule=data)
 
     if cfg.exp.model == ModelType.paf:
         preds = produce_selection_groups(
