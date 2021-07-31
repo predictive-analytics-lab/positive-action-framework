@@ -38,9 +38,10 @@ class SimpleAdultDataModule(BaseDataModule):
         self.dataset, self.factual_data = adult_data(
             sens=self.sens, bin_nationality=self.bin_nat, bin_race=self.bin_race
         )
-        self.num_s = self.factual_data.s.nunique().values[0]
-        self.data_dim = self.factual_data.x.shape[1]
-        self.s_dim = self.factual_data.s.shape[1]
+        self.card_s = self.factual_data.s.nunique().values[0]
+        self.data_dim = self.factual_data.x.shape[1:]
+        self.dims = self.data_dim
+        self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
         self.column_names = self.dataset.discrete_features + self.dataset.continuous_features
         self.outcome_columns = self.factual_data.y.columns
 
@@ -50,23 +51,25 @@ class SimpleAdultDataModule(BaseDataModule):
         idx = rng.permutation(self.factual_data.x.index)
         val_indices = idx[num_train : num_train + num_val]
 
-        self.train_data, self.test_data, split_info = ProportionalSplit(train_percentage=0.8)(
+        self.train_datatuple, self.test_datatuple, split_info = ProportionalSplit(
+            train_percentage=0.8
+        )(
             self.factual_data  # TODO: Should this be train_data?
         )
 
-        self.val = DataTuple(
-            x=self.train_data.x.iloc[val_indices].reset_index(drop=True),
-            s=self.train_data.s.iloc[val_indices].reset_index(drop=True),
-            y=self.train_data.y.iloc[val_indices].reset_index(drop=True),
+        self.val_datatuple = DataTuple(
+            x=self.train_datatuple.x.iloc[val_indices].reset_index(drop=True),
+            s=self.train_datatuple.s.iloc[val_indices].reset_index(drop=True),
+            y=self.train_datatuple.y.iloc[val_indices].reset_index(drop=True),
         )
 
         self.scaler = MinMaxScaler()
-        self.scaler = self.scaler.fit(self.train_data.x[self.dataset.continuous_features])
-        self.train_data.x[self.dataset.continuous_features] = self.scaler.transform(
-            self.train_data.x[self.dataset.continuous_features]
+        self.scaler = self.scaler.fit(self.train_datatuple.x[self.dataset.continuous_features])
+        self.train_datatuple.x[self.dataset.continuous_features] = self.scaler.transform(
+            self.train_datatuple.x[self.dataset.continuous_features]
         )
-        self.test_data.x[self.dataset.continuous_features] = self.scaler.transform(
-            self.test_data.x[self.dataset.continuous_features]
+        self.test_datatuple.x[self.dataset.continuous_features] = self.scaler.transform(
+            self.test_datatuple.x[self.dataset.continuous_features]
         )
 
         self.make_feature_groups(self.dataset, self.factual_data)
@@ -75,7 +78,7 @@ class SimpleAdultDataModule(BaseDataModule):
     def _train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
-                self.train_data,
+                self.train_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -89,7 +92,7 @@ class SimpleAdultDataModule(BaseDataModule):
     def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
-                self.test_data,
+                self.test_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),

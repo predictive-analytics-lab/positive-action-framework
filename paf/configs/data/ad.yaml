@@ -1,0 +1,8 @@
+defaults:
+  - /schema/data: adult-bolt
+
+batch_size: 64
+num_workers: 0
+bin_nationality: true
+bin_race: true
+sens_feat: "sex"

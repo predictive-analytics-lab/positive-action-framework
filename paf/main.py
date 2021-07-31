@@ -27,6 +27,13 @@ from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import WandbLogger
 
 from paf.base_templates.base_module import BaseDataModule
+from paf.config_classes.bolts.fair.data.configs import (
+    AdmissionsDataModuleConf,
+    AdultDataModuleConf,
+    CrimeDataModuleConf,
+    HealthDataModuleConf,
+    LawDataModuleConf,
+)
 from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import]
     LilliputDataModuleConf,
     SemiAdultDataModuleConf,
@@ -44,7 +51,7 @@ from paf.model import AE
 from paf.model.aies_model import AiesModel
 from paf.model.naive import NaiveModel
 from paf.model.nearestneighbour_model import NearestNeighbourModel
-from paf.plotting import label_plot
+from paf.plotting import label_plot, make_data_plots
 from paf.scoring import get_miri_metrics, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
 
@@ -93,6 +100,11 @@ cs.store(name="clf_schema", node=ClfConf, package="clf")
 
 data_package: Final[str] = "data"  # package:dir_within_config_path
 data_group: Final[str] = "schema/data"  # group
+cs.store(name="adult-bolt", node=AdultDataModuleConf, package=data_package, group=data_group)
+cs.store(name="admiss-bolt", node=AdmissionsDataModuleConf, package=data_package, group=data_group)
+cs.store(name="crime-bolt", node=CrimeDataModuleConf, package=data_package, group=data_group)
+cs.store(name="health-bolt", node=HealthDataModuleConf, package=data_package, group=data_group)
+cs.store(name="law-bolt", node=LawDataModuleConf, package=data_package, group=data_group)
 cs.store(name="adult", node=SimpleAdultDataModuleConf, package=data_package, group=data_group)
 cs.store(name="semi-synth", node=SemiAdultDataModuleConf, package=data_package, group=data_group)
 cs.store(name="lilliput", node=LilliputDataModuleConf, package=data_package, group=data_group)
@@ -112,8 +124,9 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
     seed_everything(cfg.exp.seed)
     data: BaseDataModule = cfg.data
     data.prepare_data()
+    data.setup()
 
-    log.info(f"data_dim={data.data_dim}, num_s={data.num_s}")
+    log.info(f"data_dim={data.size()}, num_s={data.card_s}")
 
     wandb_logger = (
         None
@@ -131,38 +144,46 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
     model_trainer = copy.deepcopy(cfg.trainer)
     _model_trainer = copy.deepcopy(cfg.trainer)
 
-    data.make_data_plots(data.cf_available, cfg.trainer.logger)
+    make_data_plots(data, cfg.trainer.logger)
+
+    # data.make_data_plots(data.cf_available, cfg.trainer.logger)
 
     if cfg.exp.model == ModelType.paf:
 
         encoder: AE = cfg.enc
         encoder.build(
-            num_s=data.num_s,
-            data_dim=data.data_dim,
-            s_dim=data.s_dim,
-            cf_available=data.cf_available,
+            num_s=data.card_s,
+            data_dim=data.size()[0],
+            s_dim=data.dim_s[0],
+            cf_available=data.cf_available if hasattr(data, "cf_available") else False,
             feature_groups=data.feature_groups,
-            outcome_cols=data.column_names,
+            outcome_cols=data.disc_features + data.cont_features,
             scaler=data.scaler,
         )
 
         enc_trainer = cfg.trainer
         enc_trainer.tune(model=encoder, datamodule=data)
         enc_trainer.fit(model=encoder, datamodule=data)
-        enc_trainer.test(datamodule=data)
+        if enc_trainer.fast_dev_run:
+            enc_trainer.test(model=encoder, datamodule=data, ckpt_path=None)
+        else:
+            enc_trainer.test(datamodule=data)
 
         classifier = cfg.clf
         classifier.build(
-            num_s=data.num_s,
-            data_dim=data.data_dim,
-            s_dim=data.s_dim,
-            cf_available=data.cf_available,
+            num_s=data.card_s,
+            data_dim=data.size()[0],
+            s_dim=data.dim_s[0],
+            cf_available=data.cf_available if hasattr(data, "cf_available") else False,
             feature_groups=data.feature_groups,
-            outcome_cols=data.outcome_columns,
+            outcome_cols=data.disc_features + data.cont_features,
         )
         clf_trainer.tune(model=classifier, datamodule=data)
         clf_trainer.fit(model=classifier, datamodule=data)
-        clf_trainer.test(datamodule=data)
+        if clf_trainer.fast_dev_run:
+            clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
+        else:
+            clf_trainer.test(datamodule=data)
 
         model = AiesModel(encoder=encoder, classifier=classifier)
 
@@ -174,7 +195,10 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         model = NearestNeighbourModel(clf_model=classifier, data=data)
 
     model_trainer.fit(model=model, datamodule=data)
-    model_trainer.test(datamodule=data)
+    if model_trainer.fast_dev_run:
+        model_trainer.test(model=model, ckpt_path=None, datamodule=data)
+    else:
+        model_trainer.test(datamodule=data)
 
     if cfg.exp.model == ModelType.paf:
         preds = produce_selection_groups(
@@ -183,9 +207,9 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         multiple_metrics(
             preds,
             DataTuple(
-                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
-                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
-                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
+                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns),
+                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
+                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
             ),
             "Ours-Post-Selection",
             wandb_logger,
@@ -196,22 +220,20 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         multiple_metrics(
             fair_preds,
             DataTuple(
-                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
-                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
-                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
+                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns),
+                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
+                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
             ),
             "Ours-Fair",
             wandb_logger,
         )
 
         # === This is only for reporting ====
-        data.flip_train_test()
         _model = AiesModel(encoder=encoder, classifier=classifier)
-        _model_trainer.test(model=_model, ckpt_path=None, datamodule=data)
+        _model_trainer.test(model=_model, ckpt_path=None, dataloaders=data.train_dataloader())
         produce_selection_groups(
             _model.pd_results, data, _model.recon_0, _model.recon_1, wandb_logger, "Train"
         )
-        data.flip_train_test()
         # === === ===
 
         our_clf_preds = Prediction(
@@ -220,9 +242,9 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         multiple_metrics(
             our_clf_preds,
             DataTuple(
-                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_data.x.columns),
-                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_data.s.columns),
-                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_data.y.columns),
+                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns),
+                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
+                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
             ),
             "Ours-Real-World-Preds",
             wandb_logger,
@@ -247,43 +269,43 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         ]:
             log.info(f"=== {model.name} ===")
             try:
-                results = model.run(data.train_data, data.test_data)
+                results = model.run(data.train_datatuple, data.test_datatuple)
             except ValueError:
                 continue
-            multiple_metrics(results, data.test_data, model.name, wandb_logger)
+            multiple_metrics(results, data.test_datatuple, model.name, wandb_logger)
             if data.cf_available:
                 log.info(f"=== {model.name} and \"True\" Data ===")
-                results = model.run(data.train_data, data.test_data)
+                results = model.run(data.train_datatuple, data.test_datatuple)
                 multiple_metrics(
-                    results, data.true_test_data, f"{model.name}-TrueLabels", wandb_logger
+                    results, data.true_test_datatuple, f"{model.name}-TrueLabels", wandb_logger
                 )
                 get_miri_metrics(
                     method=f"Miri/{model.name}",
                     acceptance=DataTuple(
-                        x=data.test_data.x.copy(),
-                        s=data.test_data.s.copy(),
+                        x=data.test_datatuple.x.copy(),
+                        s=data.test_datatuple.s.copy(),
                         y=results.hard.to_frame(),
                     ),
-                    graduated=data.true_test_data,
+                    graduated=data.true_test_datatuple,
                     logger=wandb_logger,
                 )
         multiple_metrics(
             preds,
-            data.test_data,
+            data.test_datatuple,
             "Ours-Post-Selection",
             wandb_logger,
         )
 
         multiple_metrics(
             fair_preds,
-            data.test_data,
+            data.test_datatuple,
             "Ours-Fair",
             wandb_logger,
         )
 
         multiple_metrics(
             our_clf_preds,
-            data.test_data,
+            data.test_datatuple,
             "Ours-Real-World-Preds",
             wandb_logger,
         )
@@ -291,29 +313,31 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             get_miri_metrics(
                 method="Miri/Ours-Post-Selection",
                 acceptance=DataTuple(
-                    x=data.test_data.x.copy(), s=data.test_data.s.copy(), y=preds.hard.to_frame()
+                    x=data.test_datatuple.x.copy(),
+                    s=data.test_datatuple.s.copy(),
+                    y=preds.hard.to_frame(),
                 ),
-                graduated=data.true_test_data,
+                graduated=data.true_test_datatuple,
                 logger=wandb_logger,
             )
             get_miri_metrics(
                 method="Miri/Ours-Fair",
                 acceptance=DataTuple(
-                    x=data.test_data.x.copy(),
-                    s=data.test_data.s.copy(),
+                    x=data.test_datatuple.x.copy(),
+                    s=data.test_datatuple.s.copy(),
                     y=fair_preds.hard.to_frame(),
                 ),
-                graduated=data.true_test_data,
+                graduated=data.true_test_datatuple,
                 logger=wandb_logger,
             )
             get_miri_metrics(
                 method="Miri/Ours-Real-World-Preds",
                 acceptance=DataTuple(
-                    x=data.test_data.x.copy(),
-                    s=data.test_data.s.copy(),
+                    x=data.test_datatuple.x.copy(),
+                    s=data.test_datatuple.s.copy(),
                     y=our_clf_preds.hard.to_frame(),
                 ),
-                graduated=data.true_test_data,
+                graduated=data.true_test_datatuple,
                 logger=wandb_logger,
             )
 

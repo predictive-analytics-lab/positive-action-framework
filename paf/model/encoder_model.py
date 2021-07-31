@@ -1,4 +1,5 @@
 """Encoder model."""
+from __future__ import annotations
 import logging
 from typing import Dict, List, Optional, Tuple
 
@@ -17,6 +18,7 @@ from torch.nn.functional import (
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
+from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.config_classes.dataclasses import KernelType
 from paf.log_progress import do_log
 from paf.mmd import mmd2
@@ -180,18 +182,14 @@ class AE(CommonModel):
         return z, s_pred, recons
 
     @implements(LightningModule)
-    def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
         assert self.built
         if batch_idx == 0:
             self.num_batches += 1
-        if self.cf_model:
-            x, s, _, cf_x, cf_s, _, _ = batch
-        else:
-            x, s, y, iw = batch
-        z, s_pred, recons = self(x, s)
+        z, s_pred, recons = self(batch.x, batch.s)
 
         if self.feature_groups["discrete"]:
-            recon_loss = x.new_tensor(0.0)
+            recon_loss = batch.x.new_tensor(0.0)
             c_feats = {
                 "age": 1e0,
                 "capital-gain": 1e0,
@@ -202,15 +200,21 @@ class AE(CommonModel):
                 "caring": 1e0,
             }  # TODO: Hardcoded for Semi-synthetic Adult Dataset
             for i, feature_weight in zip(
-                range(x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]),
+                range(
+                    batch.x[
+                        :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
+                    ].shape[1]
+                ),
                 [c_feats[k] for k in sorted(c_feats)],
             ):
                 recon_loss += (
                     mse_loss(
-                        index_by_s(recons, s)[
-                            :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
+                        index_by_s(recons, batch.s)[
+                            :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
                         ][:, i].sigmoid(),
-                        x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])][:, i],
+                        batch.x[
+                            :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
+                        ][:, i],
                     )
                     * feature_weight
                 )
@@ -227,19 +231,19 @@ class AE(CommonModel):
             ):
                 recon_loss += (
                     cross_entropy(
-                        index_by_s(recons, s)[:, group_slice],
-                        torch.argmax(x[:, group_slice], dim=-1),
+                        index_by_s(recons, batch.s)[:, group_slice],
+                        torch.argmax(batch.x[:, group_slice], dim=-1),
                         reduction="mean",
                     )
                     * feature_weight
                 )
         else:
-            recon_loss = mse_loss(index_by_s(recons, s).sigmoid(), x, reduction="mean")
+            recon_loss = mse_loss(index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean")
 
         if self.num_batches > 0:
             adv_loss = (
-                mmd2(z[s == 0], z[s == 1], kernel=self.mmd_kernel)
-                + binary_cross_entropy_with_logits(s_pred.squeeze(-1), s, reduction="mean")
+                mmd2(z[batch.s == 0], z[batch.s == 1], kernel=self.mmd_kernel)
+                + binary_cross_entropy_with_logits(s_pred.squeeze(-1), batch.s, reduction="mean")
             ) / 2
         else:
             adv_loss = torch.zeros_like(recon_loss)
@@ -250,13 +254,15 @@ class AE(CommonModel):
             "training_enc/recon_loss": recon_loss,
             "training_enc/adv_loss": adv_loss,
             "training_enc/z_norm": z.detach().norm(dim=1).mean(),
-            "training_enc/z_mean_abs_diff": (z[s <= 0].mean() - z[s > 0].mean()).abs(),
+            "training_enc/z_mean_abs_diff": (z[batch.s <= 0].mean() - z[batch.s > 0].mean()).abs(),
         }
 
         if self.cf_model:
             with no_grad():
-                _, _, cf_recons = self(cf_x, cf_s)
-                cf_recon_loss = l1_loss(index_by_s(cf_recons, cf_s), cf_x, reduction="mean")
+                _, _, cf_recons = self(batch.cfx, batch.cfs)
+                cf_recon_loss = l1_loss(
+                    index_by_s(cf_recons, batch.cfs), batch.cfx, reduction="mean"
+                )
                 cf_loss = cf_recon_loss - 1e-6
                 to_log["training_enc/cf_loss"] = cf_loss
                 to_log["training_enc/cf_recon_loss"] = cf_recon_loss
@@ -293,26 +299,22 @@ class AE(CommonModel):
         return k
 
     @implements(LightningModule)
-    def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> Dict[str, Tensor]:
         assert self.built
-        if self.cf_model:
-            x, s, _, cf_x, cf_s, _, _ = batch
-        else:
-            x, s, _, _ = batch
-        z, _, recons = self(x, s)
+        z, _, recons = self(batch.x, batch.s)
 
         to_return = {
-            "x": x,
+            "x": batch.x,
             "z": z,
-            "s": s,
-            "recon": self.invert(index_by_s(recons, s), x),
-            "recons_0": self.invert(recons[0], x),
-            "recons_1": self.invert(recons[1], x),
+            "s": batch.s,
+            "recon": self.invert(index_by_s(recons, batch.s), batch.x),
+            "recons_0": self.invert(recons[0], batch.x),
+            "recons_1": self.invert(recons[1], batch.x),
         }
 
         if self.cf_model:
-            to_return["cf_x"] = cf_x
-            to_return["cf_recon"] = self.invert(index_by_s(recons, cf_s), x)
+            to_return["cf_x"] = batch.cfx
+            to_return["cf_recon"] = self.invert(index_by_s(recons, batch.cfs), batch.x)
 
         return to_return
 

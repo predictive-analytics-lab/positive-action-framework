@@ -1,0 +1,6 @@
+defaults:
+  - /schema/data: law-bolt
+
+batch_size: 64
+num_workers: 0
+sens_feat: "sex"

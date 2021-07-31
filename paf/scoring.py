@@ -25,8 +25,8 @@ def lrcv_results(
 ) -> None:
     """Run an LRCV over some train set and apply to some test set."""
     for train_target, test_target, target_name in [
-        (dm.train_data.s, dm.test_data.s, "S"),
-        (dm.train_data.y, dm.test_data.y, "Y"),
+        (dm.train_datatuple.s, dm.test_datatuple.s, "S"),
+        (dm.train_datatuple.y, dm.test_datatuple.y, "Y"),
     ]:
         random_state = np.random.RandomState(888)
         folder = KFold(n_splits=5, shuffle=True, random_state=random_state)
@@ -41,7 +41,7 @@ def lrcv_results(
         s_preds = Prediction(hard=pd.Series(clf.predict(test)), info=dict(C=clf.C_[0]))
         do_log(
             f"Baselines/LRCV/Accuracy-{target_name}-from-{component}",
-            Accuracy().score(prediction=s_preds, actual=dm.test_data.replace(y=test_target)),
+            Accuracy().score(prediction=s_preds, actual=dm.test_datatuple.replace(y=test_target)),
             logger,
         )
 
@@ -55,13 +55,13 @@ def produce_baselines(
     lrcv_results(latent_train, latent_test, dm, logger, f"{encoder.model_name}-Z")
 
     if isinstance(encoder, AE):
-        train = dm.train_data.x.to_numpy()
-        test = dm.test_data.x.to_numpy()
+        train = dm.train_datatuple.x.to_numpy()
+        test = dm.test_datatuple.x.to_numpy()
         lrcv_results(train, test, dm, logger, "Og-Data")
         recon_name = "Recon-Data"
     else:
-        train_labels = dm.train_data.y.to_numpy()
-        test_labels = dm.test_data.y.to_numpy()
+        train_labels = dm.train_datatuple.y.to_numpy()
+        test_labels = dm.test_datatuple.y.to_numpy()
         lrcv_results(train_labels, test_labels, dm, logger, "Og-Labels")
         recon_name = "Preds"
 

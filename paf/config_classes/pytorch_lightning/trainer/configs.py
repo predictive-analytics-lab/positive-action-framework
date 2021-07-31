@@ -21,9 +21,11 @@ class TrainerConf:
     process_position: int = 0
     num_nodes: int = 1
     num_processes: int = 1
+    devices: Any = None  # Union[int, str, List[int], NoneType]
     gpus: Any = None  # Union[int, str, List[int], NoneType]
     auto_select_gpus: bool = False
     tpu_cores: Any = None  # Union[int, str, List[int], NoneType]
+    ipus: Optional[int] = None
     log_gpu_memory: Optional[str] = None
     progress_bar_refresh_rate: Optional[int] = None
     overfit_batches: Any = 0.0  # Union[int, float]
@@ -54,6 +56,7 @@ class TrainerConf:
     profiler: Any = None  # Union[BaseProfiler, str, NoneType]
     benchmark: bool = False
     deterministic: bool = False
+    reload_dataloaders_every_n_epochs: int = 0
     reload_dataloaders_every_epoch: bool = False
     auto_lr_find: Any = False  # Union[bool, str]
     replace_sampler_ddp: bool = True

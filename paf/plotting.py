@@ -5,6 +5,7 @@ from ethicml import DataTuple
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 import pandas as pd
+import pytorch_lightning
 from pytorch_lightning.loggers import WandbLogger
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
@@ -160,3 +161,32 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None
     for idx, val in val_counts.iteritems():
         do_log(f"Debugging2/Ours/Outcomes-{idx}", val, logger)
     plt.clf()
+
+
+def make_data_plots(
+    data: pytorch_lightning.LightningDataModule, logger: Optional[WandbLogger]
+) -> None:
+    """Make plots of the data."""
+    try:
+        label_plot(data.train_datatuple, logger, "train")
+    except (IndexError, KeyError):
+        pass
+    try:
+        label_plot(data.test_datatuple, logger, "test")
+    except (IndexError, KeyError):
+        pass
+    if hasattr(data, "cf_available") and data.cf_available and data.best_guess is not None:
+        try:
+            label_plot(
+                data.factual_data.replace(y=data.best_guess.hard.to_frame()),
+                logger,
+                "best_guess",
+            )
+            label_plot(data.cf_train_datatuple, logger, "cf_train")
+            label_plot(data.cf_test_datatuple, logger, "cf_test")
+            label_plot(data.s0_s0, logger, "s0_s0")
+            label_plot(data.s0_s1, logger, "s0_s1")
+            label_plot(data.s1_s0, logger, "s1_s0")
+            label_plot(data.s1_s1, logger, "s1_s1")
+        except (IndexError, KeyError):
+            pass

@@ -1,8 +1,8 @@
 """Data Module for simple data."""
 from typing import Optional, Tuple
 
-import numpy as np
 from kit import implements
+import numpy as np
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
@@ -50,9 +50,10 @@ class SimpleXDataModule(BaseDataModule):
         self.dataset = dataset
         self.best_guess = None
         self.factual_data = true_data
-        self.num_s = true_data.s.nunique().values[0]
-        self.data_dim = true_data.x.shape[1]
-        self.s_dim = true_data.s.shape[1]
+        self.card_s = true_data.s.nunique().values[0]
+        self.data_dim = true_data.x.shape[1:]
+        self.dims = self.data_dim
+        self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
         self.column_names = true_data.x.columns
         self.outcome_columns = true_data.y.columns
 
@@ -66,22 +67,28 @@ class SimpleXDataModule(BaseDataModule):
 
         self.make_feature_groups(dataset, true_data)
 
-        self.train_data, self.val_data, self.test_data = self.scale_and_split(
+        self.train_datatuple, self.val_datatuple, self.test_datatuple = self.scale_and_split(
             true_data, dataset, train_indices, val_indices, test_indices
         )
-        self.true_train_data, self.true_val_data, self.true_test_data = self.scale_and_split(
+        (
+            self.true_train_datatuple,
+            self.true_val_datatuple,
+            self.true_test_datatuple,
+        ) = self.scale_and_split(
             data_true_outcome, dataset, train_indices, val_indices, test_indices
         )
-        self.cf_train, self.cf_val, self.cf_test = self.scale_and_split(
-            cf_data, dataset, train_indices, val_indices, test_indices
-        )
+        (
+            self.cf_train_datatuple,
+            self.cf_val_datatuple,
+            self.cf_test_datatuple,
+        ) = self.scale_and_split(cf_data, dataset, train_indices, val_indices, test_indices)
 
     @implements(BaseDataModule)
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
-                self.train_data,
-                cf_dataset=self.cf_train,
+                self.train_datatuple,
+                cf_dataset=self.cf_train_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -95,8 +102,8 @@ class SimpleXDataModule(BaseDataModule):
     def _val_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
-                self.val_data,
-                cf_dataset=self.cf_val,
+                self.val_datatuple,
+                cf_dataset=self.cf_val_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -110,8 +117,8 @@ class SimpleXDataModule(BaseDataModule):
     def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
-                self.test_data,
-                cf_dataset=self.cf_test,
+                self.test_datatuple,
+                cf_dataset=self.cf_test_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),

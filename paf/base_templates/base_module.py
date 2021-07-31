@@ -25,7 +25,7 @@ class BaseDataModule(LightningDataModule):
         super().__init__()
         self._cf_available: Optional[bool] = None
         self._columns: Optional[List[str]] = None
-        self._num_s: Optional[int] = None
+        self._card_s: Optional[int] = None
         self._out_cols: Optional[List[str]] = None
         self._s_dim: Optional[int] = None
         self._y_dim: Optional[int] = None
@@ -91,30 +91,30 @@ class BaseDataModule(LightningDataModule):
         self._x_dim = dim
 
     @property
-    def num_s(self) -> int:
-        assert self._num_s is not None
-        return self._num_s
+    def card_s(self) -> int:
+        assert self._card_s is not None
+        return self._card_s
 
-    @num_s.setter
-    def num_s(self, dim: int) -> None:
-        self._num_s = dim
+    @card_s.setter
+    def card_s(self, dim: int) -> None:
+        self._card_s = dim
 
     @property
-    def s_dim(self) -> int:
+    def dim_s(self) -> int:
         assert self._s_dim is not None
         return self._s_dim
 
-    @s_dim.setter
-    def s_dim(self, dim: int) -> None:
+    @dim_s.setter
+    def dim_s(self, dim: int) -> None:
         self._s_dim = dim
 
     @property
-    def y_dim(self) -> int:
+    def dim_y(self) -> int:
         assert self._y_dim is not None
         return self._y_dim
 
-    @y_dim.setter
-    def y_dim(self, dim: int) -> None:
+    @dim_y.setter
+    def dim_y(self, dim: int) -> None:
         self._y_dim = dim
 
     def make_feature_groups(self, dataset: Dataset, data: DataTuple) -> None:
@@ -127,31 +127,31 @@ class BaseDataModule(LightningDataModule):
         self.feature_groups = dict(discrete=grouped_features_indexes(self.disc_features))
 
     @property
-    def train_data(self) -> DataTuple:
+    def train_datatuple(self) -> DataTuple:
         assert self._train_tuple is not None
         return self._train_tuple
 
-    @train_data.setter
-    def train_data(self, datatuple: DataTuple) -> None:
+    @train_datatuple.setter
+    def train_datatuple(self, datatuple: DataTuple) -> None:
         self._train_tuple = datatuple
 
     @property
-    def true_train_data(self) -> DataTuple:
+    def true_train_datatuple(self) -> DataTuple:
         assert self._true_train_tuple is not None
         assert self.cf_available
         return self._true_train_tuple
 
-    @true_train_data.setter
-    def true_train_data(self, datatuple: DataTuple) -> None:
+    @true_train_datatuple.setter
+    def true_train_datatuple(self, datatuple: DataTuple) -> None:
         self._true_train_tuple = datatuple
 
     @property
-    def test_data(self) -> DataTuple:
+    def test_datatuple(self) -> DataTuple:
         assert self._test_tuple is not None
         return self._test_tuple
 
-    @test_data.setter
-    def test_data(self, datatuple: DataTuple) -> None:
+    @test_datatuple.setter
+    def test_datatuple(self, datatuple: DataTuple) -> None:
         self._test_tuple = datatuple
 
     @property
@@ -239,11 +239,11 @@ class BaseDataModule(LightningDataModule):
     def make_data_plots(self, cf_available: bool, logger: Optional[WandbLogger]) -> None:
         """Make plots of the data."""
         try:
-            label_plot(self.train_data, logger, "train")
+            label_plot(self.train_datatuple, logger, "train")
         except (IndexError, KeyError):
             pass
         try:
-            label_plot(self.test_data, logger, "test")
+            label_plot(self.test_datatuple, logger, "test")
         except (IndexError, KeyError):
             pass
         if cf_available and self.best_guess is not None:

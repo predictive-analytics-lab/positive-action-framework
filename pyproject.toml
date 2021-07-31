@@ -11,10 +11,11 @@ optuna = "*"
 teext = "*"
 wandb = "*"
 plotly = "*"
-ethicml = {git = "https://github.com/predictive-analytics-lab/EthicML.git", extras = ["all"], branch="main"}
+ethicml = "*"
 pytorch-lightning = "*"
 neoconfigen = {git = "https://github.com/predictive-analytics-lab/neoconfigen.git", branch = "master"}
-palkit = "^0.1.7"
+palkit = "*"
+palbolts = {git = "https://github.com/predictive-analytics-lab/palbolts.git", branch = "main", develop = true}
 
 [tool.poetry.dev-dependencies]
 black = "*"
@@ -61,7 +62,7 @@ exclude = '''
 '''
 
 [tool.isort]
-known_third_party = ["ethicml", "hydra", "kit", "matplotlib", "numpy", "omegaconf", "pandas", "pytest", "pytorch_lightning", "scipy", "seaborn", "sklearn", "torch", "typer", "wandb"]
+known_third_party = ["bolts", "ethicml", "hydra", "kit", "matplotlib", "numpy", "omegaconf", "pandas", "pytest", "pytorch_lightning", "scipy", "seaborn", "sklearn", "torch", "typer", "wandb"]
 known_future_library = []
 extra_standard_library = ["dataclasses", "__future__", "typing_extensions"]
 line_length = 88

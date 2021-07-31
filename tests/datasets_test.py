@@ -40,7 +40,9 @@ SCHEMAS: Final[List[str]] = [
 ]
 
 
-@pytest.mark.parametrize("dm_schema", ["semi", "lill", "synth", "adult"])
+@pytest.mark.parametrize(
+    "dm_schema", ["adult", "adm", "law", "crime", "health", "semi", "lill", "synth", "adult"]
+)
 def test_with_initialize(dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
     with initialize(config_path=CFG_PTH):
@@ -73,18 +75,16 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
 
         for batch in cfg.data.train_dataloader():
             if cfg.data.cf_available:
-                x, s, y, cf_x, cf_s, cf_y, _ = batch
                 with pytest.raises(AssertionError):
-                    torch.testing.assert_allclose(x, cf_x)
+                    torch.testing.assert_allclose(batch.x, batch.cfx)
                 with pytest.raises(AssertionError):
-                    torch.testing.assert_allclose(s, cf_s)
+                    torch.testing.assert_allclose(batch.s, batch.cfs)
                 with pytest.raises(AssertionError):
-                    torch.testing.assert_allclose(y, cf_y)
+                    torch.testing.assert_allclose(batch.y, batch.cfy)
             else:
-                x, s, y, _ = batch
-                torch.testing.assert_allclose(x, x)
-                torch.testing.assert_allclose(s, s)
-                torch.testing.assert_allclose(y, y)
+                torch.testing.assert_allclose(batch.x, batch.x)
+                torch.testing.assert_allclose(batch.s, batch.s)
+                torch.testing.assert_allclose(batch.y, batch.y)
 
 
 @pytest.mark.parametrize(
@@ -133,9 +133,9 @@ def test_enc(dm_schema: str) -> None:
         cfg.data.prepare_data()
         encoder = cfg.enc
         encoder.build(
-            num_s=cfg.data.num_s,
+            num_s=cfg.data.card_s,
             data_dim=cfg.data.data_dim,
-            s_dim=cfg.data.s_dim,
+            s_dim=cfg.data.dim_s,
             cf_available=cfg.data.cf_available,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.column_names,
@@ -159,9 +159,9 @@ def test_clf(dm_schema: str) -> None:
         cfg.data.prepare_data()
         classifier = cfg.clf
         classifier.build(
-            num_s=cfg.data.num_s,
+            num_s=cfg.data.card_s,
             data_dim=cfg.data.data_dim,
-            s_dim=cfg.data.s_dim,
+            s_dim=cfg.data.dim_s,
             cf_available=cfg.data.cf_available,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.column_names,
@@ -189,9 +189,9 @@ def test_clfmod(dm_schema: str) -> None:
         data.prepare_data()
         encoder = cfg.enc
         encoder.build(
-            num_s=data.num_s,
+            num_s=data.card_s,
             data_dim=data.data_dim,
-            s_dim=data.s_dim,
+            s_dim=data.dim_s,
             cf_available=data.cf_available,
             feature_groups=data.feature_groups,
             outcome_cols=data.column_names,
@@ -202,9 +202,9 @@ def test_clfmod(dm_schema: str) -> None:
 
         classifier = cfg.clf
         classifier.build(
-            num_s=data.num_s,
+            num_s=data.card_s,
             data_dim=data.data_dim,
-            s_dim=data.s_dim,
+            s_dim=data.dim_s,
             cf_available=data.cf_available,
             feature_groups=data.feature_groups,
             outcome_cols=data.outcome_columns,

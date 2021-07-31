@@ -28,9 +28,9 @@ def test_enc(dm_schema: str) -> None:
         cfg.data.prepare_data()
         encoder = cfg.enc
         encoder.build(
-            num_s=cfg.data.num_s,
+            num_s=cfg.data.card_s,
             data_dim=cfg.data.data_dim,
-            s_dim=cfg.data.s_dim,
+            s_dim=cfg.data.dim_s,
             cf_available=cfg.data.cf_available,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.column_names,

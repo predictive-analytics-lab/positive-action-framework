@@ -1,8 +1,8 @@
 """Data Module for simple data."""
 from typing import Optional, Tuple
 
-import numpy as np
 from kit import implements
+import numpy as np
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
@@ -60,9 +60,10 @@ class LilliputDataModule(BaseDataModule):
         self.dataset = dataset
         self.factual_data = factual_data
         self.cf_data = cf_data
-        self.num_s = factual_data.s.nunique().values[0]
-        self.data_dim = factual_data.x.shape[1]
-        self.s_dim = factual_data.s.shape[1]
+        self.card_s = factual_data.s.nunique().values[0]
+        self.data_dim = factual_data.x.shape[1:]
+        self.dims = self.data_dim
+        self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
         self.column_names = factual_data.x.columns
         self.outcome_columns = factual_data.y.columns
 
@@ -74,15 +75,21 @@ class LilliputDataModule(BaseDataModule):
         val_indices = idx[num_train : num_train + num_val]
         test_indices = idx[num_train + num_val :]
 
-        self.train_data, self.val_data, self.test_data = self.scale_and_split(
+        self.train_datatuple, self.val_datatuple, self.test_datatuple = self.scale_and_split(
             self.factual_data, dataset, train_indices, val_indices, test_indices
         )
-        self.true_train_data, self.true_val_data, self.true_test_data = self.scale_and_split(
+        (
+            self.true_train_datatuple,
+            self.true_val_datatuple,
+            self.true_test_datatuple,
+        ) = self.scale_and_split(
             data_true_outcome, dataset, train_indices, val_indices, test_indices
         )
-        self.cf_train, self.cf_val, self.cf_test = self.scale_and_split(
-            self.cf_data, dataset, train_indices, val_indices, test_indices
-        )
+        (
+            self.cf_train_datatuple,
+            self.cf_val_datatuple,
+            self.cf_test_datatuple,
+        ) = self.scale_and_split(self.cf_data, dataset, train_indices, val_indices, test_indices)
 
         self.make_feature_groups(dataset, factual_data)
 
@@ -90,8 +97,8 @@ class LilliputDataModule(BaseDataModule):
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
-                dataset=self.train_data,
-                cf_dataset=self.cf_train,
+                dataset=self.train_datatuple,
+                cf_dataset=self.cf_train_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -105,8 +112,8 @@ class LilliputDataModule(BaseDataModule):
     def val_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
-                dataset=self.val_data,
-                cf_dataset=self.cf_val,
+                dataset=self.val_datatuple,
+                cf_dataset=self.cf_val_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -120,8 +127,8 @@ class LilliputDataModule(BaseDataModule):
     def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
-                dataset=self.test_data,
-                cf_dataset=self.cf_test,
+                dataset=self.test_datatuple,
+                cf_dataset=self.cf_test_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
