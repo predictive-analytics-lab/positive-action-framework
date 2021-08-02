@@ -1,15 +1,21 @@
 '''Taken from https://github.com/Adi-iitd/AI-Art/blob/master/src/CycleGAN/CycleGAN-PL.py .'''
 from __future__ import annotations
 import itertools
+import logging
 
 import numpy as np
 import pytorch_lightning as pl
+from pytorch_lightning.utilities.types import EPOCH_OUTPUT
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn, optim
 from torch.utils.data import DataLoader
 
-from paf.model.model_utils import to_discrete
+from paf.log_progress import do_log
+from paf.model.model_utils import index_by_s, to_discrete
+from paf.plotting import make_plot
+
+logger = logging.getLogger(__name__)
 
 
 class Initializer:
@@ -398,6 +404,9 @@ class CycleGan(pl.LightningModule):
         self.d_A_params = self.d_A.parameters()
         self.d_B_params = self.d_B.parameters()
         self.g_params = itertools.chain([*self.g_A2B.parameters(), *self.g_B2A.parameters()])
+        self.data_cols = outcome_cols
+
+        self.built = True
 
     @staticmethod
     def set_requires_grad(nets, requires_grad=False):
@@ -524,10 +533,8 @@ class CycleGan(pl.LightningModule):
             return d_B_loss
 
     def shared_step(self, batch, stage: str = 'val'):
-        real_A, real_B = batch.x[batch.s == 0], batch.x[batch.s == 1]
-        size = min(len(real_A), len(real_B))
-        real_A = real_A[:size]
-        real_B = real_B[:size]
+        real_A = batch.x
+        real_B = batch.x
 
         fake_B, fake_A = self(real_A, real_B)
         cyc_A, idt_A, cyc_B, idt_B = self.forward_gen(real_A, real_B, fake_A, fake_B)
@@ -566,6 +573,89 @@ class CycleGan(pl.LightningModule):
                 ]
             )
             _tensor = (_tensor + 1) / 2
+
+        return {
+            "x": batch.x,
+            "s": batch.s,
+            "recon": self.invert(index_by_s([fake_B, fake_A], batch.s), batch.x),
+            "recons_0": self.invert(fake_B, batch.x),
+            "recons_1": self.invert(fake_A, batch.x),
+        }
+
+    def test_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+
+        all_x = torch.cat([_r["x"] for _r in outputs], 0)
+        all_s = torch.cat([_r["s"] for _r in outputs], 0)
+        all_recon = torch.cat([_r["recon"] for _r in outputs], 0)
+        torch.cat([_r["recons_0"] for _r in outputs], 0)
+        torch.cat([_r["recons_1"] for _r in outputs], 0)
+
+        logger.info(self.data_cols)
+        if self.loss.feature_groups["discrete"]:
+            make_plot(
+                x=all_x[
+                    :, slice(self.loss.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                ].clone(),
+                s=all_s.clone(),
+                logger=self.logger,
+                name="true_data",
+                cols=self.data_cols[
+                    slice(self.loss.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                ],
+                scaler=self.scaler,
+            )
+            make_plot(
+                x=all_recon[
+                    :, slice(self.loss.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                ].clone(),
+                s=all_s.clone(),
+                logger=self.logger,
+                name="recons",
+                cols=self.data_cols[
+                    slice(self.loss.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                ],
+                scaler=self.scaler,
+            )
+            for group_slice in self.loss.feature_groups["discrete"]:
+                make_plot(
+                    x=all_x[:, group_slice].clone(),
+                    s=all_s.clone(),
+                    logger=self.logger,
+                    name="true_data",
+                    cols=self.data_cols[group_slice],
+                    cat_plot=True,
+                )
+                make_plot(
+                    x=all_recon[:, group_slice].clone(),
+                    s=all_s.clone(),
+                    logger=self.logger,
+                    name="recons",
+                    cols=self.data_cols[group_slice],
+                    cat_plot=True,
+                )
+        else:
+            make_plot(
+                x=all_x.clone(),
+                s=all_s.clone(),
+                logger=self.logger,
+                name="true_data",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=all_recon.clone(),
+                s=all_s.clone(),
+                logger=self.logger,
+                name="recons",
+                cols=self.data_cols,
+            )
+        recon_mse = (all_x - all_recon).abs().mean(dim=0)
+        for i, feature_mse in enumerate(recon_mse):
+            feature_name = self.data_cols[i]
+            do_log(
+                f"Table6/Ours/recon_l1 - feature {feature_name}",
+                round(feature_mse.item(), 5),
+                self.logger,
+            )
 
     def validation_step(self, batch, batch_idx):
         return self.shared_step(batch, 'val')
