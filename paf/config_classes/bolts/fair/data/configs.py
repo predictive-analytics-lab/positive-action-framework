@@ -10,8 +10,9 @@ from bolts.fair.data.datamodules.tabular.adult import AdultSens
 from bolts.fair.data.datamodules.tabular.crime import CrimeSens
 from bolts.fair.data.datamodules.tabular.health import HealthSens
 from bolts.fair.data.datamodules.tabular.law import LawSens
-from kit.torch.data import TrainingMode
 from typing import Any
+
+from kit.torch import TrainingMode
 
 
 @dataclass
@@ -31,7 +32,7 @@ class AdultDataModuleConf:
     stratified_sampling: bool = False
     instance_weighting: bool = False
     scaler: Any = None  # Optional[ScalerType]
-    training_mode: TrainingMode = TrainingMode.epoch
+    training_mode: Any = TrainingMode.epoch  # Union[TrainingMode, str]
 
 
 @dataclass
@@ -49,7 +50,7 @@ class AdmissionsDataModuleConf:
     stratified_sampling: bool = False
     instance_weighting: bool = False
     scaler: Any = None  # Optional[ScalerType]
-    training_mode: TrainingMode = TrainingMode.epoch
+    training_mode: Any = TrainingMode.epoch  # Union[TrainingMode, str]
 
 
 @dataclass
@@ -67,7 +68,7 @@ class LawDataModuleConf:
     stratified_sampling: bool = False
     instance_weighting: bool = False
     scaler: Any = None  # Optional[ScalerType]
-    training_mode: TrainingMode = TrainingMode.epoch
+    training_mode: Any = TrainingMode.epoch  # Union[TrainingMode, str]
 
 
 @dataclass
@@ -85,7 +86,7 @@ class CrimeDataModuleConf:
     stratified_sampling: bool = False
     instance_weighting: bool = False
     scaler: Any = None  # Optional[ScalerType]
-    training_mode: TrainingMode = TrainingMode.epoch
+    training_mode: Any = TrainingMode.epoch  # Union[TrainingMode, str]
 
 
 @dataclass
@@ -103,4 +104,4 @@ class HealthDataModuleConf:
     stratified_sampling: bool = False
     instance_weighting: bool = False
     scaler: Any = None  # Optional[ScalerType]
-    training_mode: TrainingMode = TrainingMode.epoch
+    training_mode: Any = TrainingMode.epoch  # Union[TrainingMode, str]

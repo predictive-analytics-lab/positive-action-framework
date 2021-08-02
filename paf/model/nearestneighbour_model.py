@@ -14,9 +14,9 @@ class NearestNeighbourModel(pl.LightningModule):
     def __init__(self, clf_model: nn.Module, data: pl.LightningDataModule):
         super().__init__()
         self.clf = clf_model
-        self.train_features = torch.tensor(data.train_data.x.values)
-        self.train_sens = torch.tensor(data.train_data.s.values)
-        self.train_labels = torch.tensor(data.train_data.y.values)
+        self.train_features = torch.tensor(data.train_datatuple.x.values)
+        self.train_sens = torch.tensor(data.train_datatuple.s.values)
+        self.train_labels = torch.tensor(data.train_datatuple.y.values)
 
         self.train_features = nn.Parameter(
             F.normalize(self.train_features.detach(), dim=1, p=2), requires_grad=False

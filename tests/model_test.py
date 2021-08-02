@@ -50,3 +50,15 @@ def test_nn() -> None:
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
         run_aies(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
+
+
+def test_cyclegan() -> None:
+    """Quick run on models to check nothing's broken."""
+    with initialize(config_path=CFG_PTH):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=[f"data=adm"] + SCHEMAS + [f"enc=cyc"],
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        run_aies(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))

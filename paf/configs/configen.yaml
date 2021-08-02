@@ -27,6 +27,7 @@ configen:
       classes:
         - AE
         - Clf
+        - CycleGan
     - name: pytorch_lightning.trainer
       classes:
         - Trainer

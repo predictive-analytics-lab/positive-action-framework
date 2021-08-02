@@ -41,7 +41,11 @@ from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import
     SimpleXDataModuleConf,
     ThirdWayDataModuleConf,
 )
-from paf.config_classes.paf.model.configs import AEConf, ClfConf  # type: ignore[import]
+from paf.config_classes.paf.model.configs import (  # type: ignore[import]
+    AEConf,
+    ClfConf,
+    CycleGanConf,
+)
 from paf.config_classes.pytorch_lightning.trainer.configs import (
     TrainerConf,  # type: ignore[import]
 )
@@ -95,8 +99,12 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 cs = ConfigStore.instance()
 cs.store(name="config_schema", node=Config)  # General Schema
 cs.store(name="trainer_schema", node=TrainerConf, package="trainer")
-cs.store(name="enc_schema", node=AEConf, package="enc")
 cs.store(name="clf_schema", node=ClfConf, package="clf")
+
+enc_package: Final[str] = "enc"
+enc_group: Final[str] = "schema/enc"
+cs.store(name="enc_schema", node=AEConf, package=enc_package, group=enc_group)
+cs.store(name="cyclegan", node=CycleGanConf, package=enc_package, group=enc_group)
 
 data_package: Final[str] = "data"  # package:dir_within_config_path
 data_group: Final[str] = "schema/data"  # group
@@ -162,7 +170,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         )
 
         enc_trainer = cfg.trainer
-        enc_trainer.tune(model=encoder, datamodule=data)
+        # enc_trainer.tune(model=encoder, datamodule=data)
         enc_trainer.fit(model=encoder, datamodule=data)
         if enc_trainer.fast_dev_run:
             enc_trainer.test(model=encoder, datamodule=data, ckpt_path=None)
@@ -188,7 +196,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         model = AiesModel(encoder=encoder, classifier=classifier)
 
     elif cfg.exp.model == ModelType.nn:
-        classifier = NaiveModel(in_size=cfg.data.data_dim)
+        classifier = NaiveModel(in_size=cfg.data.dim_x[0])
         clf_trainer.tune(model=classifier, datamodule=data)
         clf_trainer.fit(model=classifier, datamodule=data)
 
@@ -249,12 +257,13 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             "Ours-Real-World-Preds",
             wandb_logger,
         )
-        produce_baselines(
-            encoder=encoder, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
-        )
-        produce_baselines(
-            encoder=classifier, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
-        )
+        if isinstance(cfg.enc, AE):
+            produce_baselines(
+                encoder=encoder, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
+            )
+            produce_baselines(
+                encoder=classifier, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
+            )
 
     else:
         preds = baseline_selection_rules(model.pd_results, wandb_logger)

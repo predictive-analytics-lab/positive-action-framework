@@ -39,6 +39,7 @@ def lrcv_results(
             solver="liblinear",
             multi_class="auto",
             max_iter=1 if test_mode else 100,
+            tol=1 if test_mode else 1e-4,
         )
         clf.fit(train, train_target.to_numpy().ravel())
         s_preds = Prediction(hard=pd.Series(clf.predict(test)), info=dict(C=clf.C_[0]))

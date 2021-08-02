@@ -190,52 +190,24 @@ class AE(CommonModel):
 
         if self.feature_groups["discrete"]:
             recon_loss = batch.x.new_tensor(0.0)
-            c_feats = {
-                "age": 1e0,
-                "capital-gain": 1e0,
-                "capital-loss": 1e0,
-                "education-num": 1e0,
-                "hours-per-week": 1e0,
-                "directness": 1e0,
-                "caring": 1e0,
-            }  # TODO: Hardcoded for Semi-synthetic Adult Dataset
-            for i, feature_weight in zip(
-                range(
-                    batch.x[
+            for i in range(
+                batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])].shape[
+                    1
+                ]
+            ):
+                recon_loss += mse_loss(
+                    index_by_s(recons, batch.s)[
                         :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
-                    ].shape[1]
-                ),
-                [c_feats[k] for k in sorted(c_feats)],
-            ):
-                recon_loss += (
-                    mse_loss(
-                        index_by_s(recons, batch.s)[
-                            :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
-                        ][:, i].sigmoid(),
-                        batch.x[
-                            :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
-                        ][:, i],
-                    )
-                    * feature_weight
+                    ][:, i].sigmoid(),
+                    batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])][
+                        :, i
+                    ],
                 )
-            d_feats = {
-                "education": 1e0,
-                "marital-status": 1e0,
-                "native-country": 1e0,
-                "race": 1e0,
-                "relationship": 1e0,
-                "workclass": 1e0,
-            }
-            for group_slice, feature_weight in zip(
-                self.feature_groups["discrete"], [d_feats[k] for k in sorted(d_feats)]
-            ):
-                recon_loss += (
-                    cross_entropy(
-                        index_by_s(recons, batch.s)[:, group_slice],
-                        torch.argmax(batch.x[:, group_slice], dim=-1),
-                        reduction="mean",
-                    )
-                    * feature_weight
+            for group_slice in self.feature_groups["discrete"]:
+                recon_loss += cross_entropy(
+                    index_by_s(recons, batch.s)[:, group_slice],
+                    torch.argmax(batch.x[:, group_slice], dim=-1),
+                    reduction="mean",
                 )
         else:
             recon_loss = mse_loss(index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean")

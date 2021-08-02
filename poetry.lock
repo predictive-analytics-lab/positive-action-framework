@@ -908,8 +908,8 @@ torchvision = "*"
 [package.source]
 type = "git"
 url = "https://github.com/predictive-analytics-lab/palbolts.git"
-reference = "nt"
-resolved_reference = "b0c86bdb512b1440d9bdec3e353050fc9ed300fd"
+reference = "main"
+resolved_reference = "0719388200ce213560933037ffd65111956146b1"
 
 [[package]]
 name = "palkit"
@@ -1863,7 +1863,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "554b30c3aeb8d80a52a6e00c23fd4b06044104950c59b39eab83614cfe9cb31f"
+content-hash = "1e4b6c28d9c9bebc1e0ad3978bd79d6364fd7a04e7330029cec1bcf6a341fd0f"
 
 [metadata.files]
 absl-py = [

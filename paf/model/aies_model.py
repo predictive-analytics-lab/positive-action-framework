@@ -10,6 +10,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.log_progress import do_log
+from paf.model import CycleGan
 from paf.model.aies_properties import AiesProperties
 from paf.model.classifier_model import Clf
 from paf.model.encoder_model import AE
@@ -39,13 +40,20 @@ class AiesModel(AiesProperties):
 
     @implements(LightningModule)
     def test_step(self, batch: Union[Batch, CfBatch], batch_idx: int) -> Dict[str, Tensor]:
-        enc_z, enc_s_pred, recons = self.enc(batch.x, batch.s)
+        if isinstance(self.enc, AE):
+            enc_z, enc_s_pred, recons = self.enc(batch.x, batch.s)
+        elif isinstance(self.enc, CycleGan):
+            recons = list(self.enc(batch.x, batch.x))
+            enc_z = torch.ones_like(batch.x)
+            enc_s_pred = torch.ones_like(batch.s)
+        else:
+            raise NotImplementedError()
         cf_recons = self.enc.invert(index_by_s(recons, 1 - batch.s), batch.x)
         augmented_recons = augment_recons(batch.x, cf_recons, batch.s)
 
         cfs = index_by_s(augmented_recons, 1 - batch.s)
-        _enc_z, _enc_s_pred, _recons = self.enc(batch.x, batch.s)
-        _cf_recons = self.enc.invert(index_by_s(_recons, 1 - batch.s), cfs)
+        # _, _, _recons = self.enc(batch.x, batch.s)
+        _cf_recons = self.enc.invert(index_by_s(recons, 1 - batch.s), cfs)
         _augmented_recons = augment_recons(cfs, _cf_recons, batch.s)
 
         cycle_loss = nn.MSELoss()(index_by_s(_augmented_recons, batch.s), batch.x)

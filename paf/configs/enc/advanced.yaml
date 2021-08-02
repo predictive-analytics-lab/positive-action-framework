@@ -1,4 +1,6 @@
-# @package _group_
+defaults:
+  - /schema/enc: enc_schema
+
 encoder_blocks: 3
 adv_blocks: 3
 decoder_blocks: 3
