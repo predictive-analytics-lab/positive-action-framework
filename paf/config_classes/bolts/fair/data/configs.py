@@ -11,8 +11,7 @@ from bolts.fair.data.datamodules.tabular.crime import CrimeSens
 from bolts.fair.data.datamodules.tabular.health import HealthSens
 from bolts.fair.data.datamodules.tabular.law import LawSens
 from typing import Any
-
-from kit.torch import TrainingMode
+from typing import Optional
 
 
 @dataclass
@@ -22,7 +21,8 @@ class AdultDataModuleConf:
     sens_feat: AdultSens = AdultSens.sex
     bin_race: bool = False
     discrete_feats_only: bool = False
-    batch_size: int = 100
+    train_batch_size: int = 100
+    eval_batch_size: Optional[int] = 256
     num_workers: int = 0
     val_prop: float = 0.2
     test_prop: float = 0.2
@@ -40,7 +40,8 @@ class AdmissionsDataModuleConf:
     _target_: str = "bolts.fair.data.AdmissionsDataModule"
     sens_feat: AdmissionsSens = AdmissionsSens.gender
     disc_feats_only: bool = False
-    batch_size: int = 100
+    train_batch_size: int = 100
+    eval_batch_size: Optional[int] = 256
     num_workers: int = 0
     val_prop: float = 0.2
     test_prop: float = 0.2
@@ -58,7 +59,8 @@ class LawDataModuleConf:
     _target_: str = "bolts.fair.data.LawDataModule"
     sens_feat: LawSens = LawSens.sex
     discrete_feats_only: bool = False
-    batch_size: int = 100
+    train_batch_size: int = 100
+    eval_batch_size: Optional[int] = 256
     num_workers: int = 0
     val_prop: float = 0.2
     test_prop: float = 0.2
@@ -76,7 +78,8 @@ class CrimeDataModuleConf:
     _target_: str = "bolts.fair.data.CrimeDataModule"
     sens_feat: CrimeSens = CrimeSens.raceBinary
     disc_feats_only: bool = False
-    batch_size: int = 100
+    train_batch_size: int = 100
+    eval_batch_size: Optional[int] = 256
     num_workers: int = 0
     val_prop: float = 0.2
     test_prop: float = 0.2
@@ -94,7 +97,8 @@ class HealthDataModuleConf:
     _target_: str = "bolts.fair.data.HealthDataModule"
     sens_feat: HealthSens = HealthSens.sex
     disc_feats_only: bool = False
-    batch_size: int = 100
+    train_batch_size: int = 100
+    eval_batch_size: Optional[int] = 256
     num_workers: int = 0
     val_prop: float = 0.2
     test_prop: float = 0.2
