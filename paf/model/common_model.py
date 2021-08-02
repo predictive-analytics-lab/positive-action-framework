@@ -1,10 +1,12 @@
 """Common methods for models."""
+from __future__ import annotations
 from abc import abstractmethod
 from typing import Dict, List
 
 import numpy as np
 from pytorch_lightning import LightningModule
 import torch
+from torch import Tensor
 from torch.utils.data import DataLoader
 
 
@@ -17,13 +19,17 @@ class CommonModel(LightningModule):
 
     def get_latent(self, dataloader: DataLoader) -> np.ndarray:
         """Get Latents to be used post train/test."""
-        latent = None
+        latent: list[Tensor] | None = None
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
             z, _, _ = self(x, s)
-            latent = z if latent is None else torch.cat([latent, z], dim=0)
+            if latent is None:
+                latent = [z]
+            else:
+                latent.append(z)
         assert latent is not None
+        latent = torch.cat(latent, dim=0)
         return latent.detach().cpu().numpy()
 
     @abstractmethod

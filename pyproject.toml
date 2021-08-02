@@ -15,7 +15,7 @@ ethicml = "*"
 pytorch-lightning = "*"
 neoconfigen = {git = "https://github.com/predictive-analytics-lab/neoconfigen.git", branch = "master"}
 palkit = "*"
-palbolts = {git = "https://github.com/predictive-analytics-lab/palbolts.git", branch = "main", develop = true}
+palbolts = {git = "https://github.com/predictive-analytics-lab/palbolts.git", branch = "nt", develop = true}
 
 [tool.poetry.dev-dependencies]
 black = "*"

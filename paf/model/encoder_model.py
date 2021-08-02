@@ -8,7 +8,7 @@ import numpy as np
 from pytorch_lightning import LightningModule
 from sklearn.preprocessing import MinMaxScaler
 import torch
-from torch import Tensor, cat, nn, no_grad, optim
+from torch import Tensor, nn, no_grad, optim
 from torch.nn.functional import (
     binary_cross_entropy_with_logits,
     cross_entropy,
@@ -442,8 +442,12 @@ class AE(CommonModel):
             s = batch.s.to(self.device)
             _, _, _r = self(x, s)
             r = self.invert(index_by_s(_r, s), x)
-            recons = r if recons is None else cat([recons, r], dim=0)
+            if recons is None:
+                recons = [r]
+            else:
+                recons.append(r)
         assert recons is not None
+        recons = torch.cat(recons, dim=0)
         return recons.detach().cpu().numpy()
 
     def run_through(self, dataloader: DataLoader) -> Tuple[Tensor, Tensor, Tensor]:
@@ -454,17 +458,26 @@ class AE(CommonModel):
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
+            y = batch.y.to(self.device)
             _, _, _r = self(x, s)
             r0 = self.invert(_r[0], x)
             r1 = self.invert(_r[1], x)
-            recons = (
-                torch.stack([r0, r1])
-                if recons is None
-                else cat([recons, torch.stack([r0, r1])], dim=1)
-            )
-            sens = s if sens is None else cat([sens, s], dim=0)
-            labels = y if labels is None else cat([labels, y], dim=0)
+            if recons is None:
+                recons = [torch.stack([r0, r1])]
+            else:
+                recons.append(torch.stack([r0, r1]))
+            if sens is None:
+                sens = [s]
+            else:
+                sens.append(s)
+            if labels is None:
+                labels = [y]
+            else:
+                labels.append(y)
         assert recons is not None
+        recons = torch.cat(recons, dim=0)
         assert sens is not None
+        sens = torch.cat(sens, dim=0)
         assert labels is not None
+        labels = torch.cat(labels, dim=0)
         return recons.detach(), sens.detach(), labels.detach()

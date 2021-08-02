@@ -17,11 +17,13 @@ from paf.model.encoder_model import AE
 
 
 def lrcv_results(
+    *,
     train: np.ndarray,
     test: np.ndarray,
     dm: BaseDataModule,
     logger: LightningLoggerBase,
     component: str,
+    test_mode: bool,
 ) -> None:
     """Run an LRCV over some train set and apply to some test set."""
     for train_target, test_target, target_name in [
@@ -36,6 +38,7 @@ def lrcv_results(
             random_state=random_state,
             solver="liblinear",
             multi_class="auto",
+            max_iter=1 if test_mode else 100,
         )
         clf.fit(train, train_target.to_numpy().ravel())
         s_preds = Prediction(hard=pd.Series(clf.predict(test)), info=dict(C=clf.C_[0]))
@@ -47,27 +50,50 @@ def lrcv_results(
 
 
 def produce_baselines(
-    *, encoder: CommonModel, dm: BaseDataModule, logger: LightningLoggerBase
+    *, encoder: CommonModel, dm: BaseDataModule, logger: LightningLoggerBase, test_mode: bool
 ) -> None:
     """Produce baselines for predictiveness."""
     latent_train = encoder.get_latent(dm.train_dataloader(shuffle=False, drop_last=False))
     latent_test = encoder.get_latent(dm.test_dataloader())
-    lrcv_results(latent_train, latent_test, dm, logger, f"{encoder.model_name}-Z")
+    lrcv_results(
+        train=latent_train,
+        test=latent_test,
+        dm=dm,
+        logger=logger,
+        component=f"{encoder.model_name}-Z",
+        test_mode=test_mode,
+    )
 
     if isinstance(encoder, AE):
         train = dm.train_datatuple.x.to_numpy()
         test = dm.test_datatuple.x.to_numpy()
-        lrcv_results(train, test, dm, logger, "Og-Data")
+        lrcv_results(
+            train=train, test=test, dm=dm, logger=logger, component="Og-Data", test_mode=test_mode
+        )
         recon_name = "Recon-Data"
     else:
         train_labels = dm.train_datatuple.y.to_numpy()
         test_labels = dm.test_datatuple.y.to_numpy()
-        lrcv_results(train_labels, test_labels, dm, logger, "Og-Labels")
+        lrcv_results(
+            train=train_labels,
+            test=test_labels,
+            dm=dm,
+            logger=logger,
+            component="Og-Labels",
+            test_mode=test_mode,
+        )
         recon_name = "Preds"
 
     train_recon = encoder.get_recon(dm.train_dataloader(shuffle=False, drop_last=False))
     test_recon = encoder.get_recon(dm.test_dataloader())
-    lrcv_results(train_recon, test_recon, dm, logger, recon_name)
+    lrcv_results(
+        train=train_recon,
+        test=test_recon,
+        dm=dm,
+        logger=logger,
+        component=recon_name,
+        test_mode=test_mode,
+    )
 
 
 def get_miri_metrics(

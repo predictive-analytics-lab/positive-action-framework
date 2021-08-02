@@ -249,8 +249,12 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             "Ours-Real-World-Preds",
             wandb_logger,
         )
-        produce_baselines(encoder=encoder, dm=data, logger=wandb_logger)
-        produce_baselines(encoder=classifier, dm=data, logger=wandb_logger)
+        produce_baselines(
+            encoder=encoder, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
+        )
+        produce_baselines(
+            encoder=classifier, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
+        )
 
     else:
         preds = baseline_selection_rules(model.pd_results, wandb_logger)

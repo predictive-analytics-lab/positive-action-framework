@@ -41,7 +41,7 @@ SCHEMAS: Final[List[str]] = [
 
 
 @pytest.mark.parametrize(
-    "dm_schema", ["adult", "adm", "law", "crime", "health", "semi", "lill", "synth", "adult"]
+    "dm_schema", ["adult", "ad", "adm", "law", "crime", "health", "semi", "lill", "synth"]
 )
 def test_with_initialize(dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
