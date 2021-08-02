@@ -1,7 +1,8 @@
 defaults:
   - /schema/data: adult-bolt
 
-batch_size: 64
+train_batch_size: 512
+eval_batch_size: 2056
 num_workers: 0
 bin_nationality: true
 bin_race: true

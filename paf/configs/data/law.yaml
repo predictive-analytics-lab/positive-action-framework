@@ -1,6 +1,7 @@
 defaults:
   - /schema/data: law-bolt
 
-batch_size: 64
+train_batch_size: 512
+eval_batch_size: 2056
 num_workers: 0
 sens_feat: "sex"
