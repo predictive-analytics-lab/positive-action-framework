@@ -16,6 +16,8 @@ pytorch-lightning = "*"
 neoconfigen = {git = "https://github.com/predictive-analytics-lab/neoconfigen.git", branch = "master"}
 palkit = "*"
 palbolts = {git = "https://github.com/predictive-analytics-lab/palbolts.git", branch = "main", develop = true}
+hydra-submitit-launcher = {version = "^1.1.1", allow-prereleases = true}
+hydra-joblib-launcher = {version = "^1.1.2", allow-prereleases = true}
 
 [tool.poetry.dev-dependencies]
 black = "*"
