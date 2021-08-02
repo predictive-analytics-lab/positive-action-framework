@@ -13,6 +13,8 @@ from bolts.fair.data.datamodules.tabular.law import LawSens
 from typing import Any
 from typing import Optional
 
+from kit.torch import TrainingMode
+
 
 @dataclass
 class AdultDataModuleConf:
