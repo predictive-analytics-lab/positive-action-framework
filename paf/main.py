@@ -25,6 +25,7 @@ from omegaconf import DictConfig, MISSING, OmegaConf
 import pandas as pd
 from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import WandbLogger
+from sklearn.preprocessing import MinMaxScaler
 
 from paf.base_templates.base_module import BaseDataModule
 from paf.config_classes.bolts.fair.data.configs import (
@@ -131,6 +132,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
     """Run the X Autoencoder."""
     seed_everything(cfg.exp.seed)
     data: BaseDataModule = cfg.data
+    data.scaler = MinMaxScaler()
     data.prepare_data()
     data.setup()
 
