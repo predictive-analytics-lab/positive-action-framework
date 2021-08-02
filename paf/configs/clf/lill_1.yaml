@@ -1,4 +1,5 @@
-# @package _group_
+defaults:
+  - /clf_schema
 encoder_blocks: 2
 adv_blocks: 2
 decoder_blocks: 2
