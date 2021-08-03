@@ -212,13 +212,10 @@ class AE(CommonModel):
         else:
             recon_loss = mse_loss(index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean")
 
-        # if self.num_batches > 0:
         adv_loss = (
             mmd2(z[batch.s == 0], z[batch.s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), batch.s, reduction="mean")
         ) / 2
-        # else:
-        #     adv_loss = torch.zeros_like(recon_loss)
         loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
 
         to_log = {
