@@ -216,7 +216,12 @@ class AE(CommonModel):
             mmd2(z[batch.s == 0], z[batch.s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), batch.s, reduction="mean")
         ) / 2
-        loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss
+        _, _, cycle_preds = self(index_by_s(recons, 1 - batch.s), 1 - batch.s)
+        cycle_loss = binary_cross_entropy_with_logits(
+            index_by_s(cycle_preds, batch.s).squeeze(-1), batch.x, reduction="mean"
+        )
+
+        loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss + cycle_loss
 
         to_log = {
             "training_enc/loss": loss,

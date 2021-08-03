@@ -3,6 +3,7 @@ from typing import Final, List
 from hydra import compose, initialize
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
+import pytest
 
 from paf.main import Config, run_aies
 
@@ -15,6 +16,7 @@ SCHEMAS: Final[List[str]] = [
 ]
 
 
+@pytest.mark.parametrize("dm_schema", ["ad"])
 def test_enc(dm_schema: str) -> None:
     """Test the encoder network runs."""
     with initialize(config_path=CFG_PTH):
@@ -26,14 +28,15 @@ def test_enc(dm_schema: str) -> None:
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
 
         cfg.data.prepare_data()
+        cfg.data.setup()
         encoder = cfg.enc
         encoder.build(
             num_s=cfg.data.card_s,
-            data_dim=cfg.data.data_dim,
-            s_dim=cfg.data.dim_s,
-            cf_available=cfg.data.cf_available,
+            data_dim=cfg.data.size()[0],
+            s_dim=cfg.data.dim_s[0],
+            cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=cfg.data.feature_groups,
-            outcome_cols=cfg.data.column_names,
+            outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
             scaler=cfg.data.scaler,
         )
         cfg.trainer.fit(model=encoder, datamodule=cfg.data)
