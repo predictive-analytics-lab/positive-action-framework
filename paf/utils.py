@@ -1,19 +1,20 @@
 """Utility functions."""
+from __future__ import annotations
 import collections
+from typing import Any, MutableMapping
 import warnings
-from typing import Any, Dict, List, MutableMapping
 
-import pandas as pd
 from ethicml import Prediction
+import pandas as pd
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
-def flatten(d: MutableMapping[Any, Any], parent_key: str = "", sep: str = ".") -> Dict[Any, Any]:
+def flatten(d: MutableMapping[Any, Any], parent_key: str = "", sep: str = ".") -> dict[Any, Any]:
     """Flatten a nested dictionary by separating the keys with `sep`."""
-    items: List[Any] = []
+    items: list[Any] = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
         if isinstance(v, collections.MutableMapping):

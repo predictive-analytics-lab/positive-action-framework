@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from __future__ import annotations
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -40,10 +40,10 @@ class NearestNeighbourModel(pl.LightningModule):
 
         return torch.stack(features, dim=0), torch.stack(labels, dim=0)
 
-    def training_step(self, *args, **kwargs) -> STEP_OUTPUT:
+    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> STEP_OUTPUT:
         ...
 
-    def test_step(self, batch: Union[Batch, CfBatch], batch_idx) -> Optional[STEP_OUTPUT]:
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> STEP_OUTPUT | None:
         cf_feats, cf_outcome = self(batch.x, batch.s)
         preds = self.clf(batch.x)
 
@@ -88,5 +88,7 @@ class NearestNeighbourModel(pl.LightningModule):
             columns=["s1_0_s2_0", "s1_1_s2_1", "true_s", "actual"],
         )
 
-    def configure_optimizers(self):
+    def configure_optimizers(
+        self,
+    ) -> tuple[list[torch.optim.Optimizer], list[torch.optim._LRScheduler]]:
         ...

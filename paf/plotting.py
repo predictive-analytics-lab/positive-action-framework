@@ -1,5 +1,5 @@
 """Plotting related functions."""
-from typing import List, Optional
+from __future__ import annotations
 
 from ethicml import DataTuple
 import matplotlib as mpl
@@ -15,7 +15,7 @@ import wandb
 from paf.log_progress import do_log
 
 
-def label_plot(data: DataTuple, logger: Optional[WandbLogger], name: str = "") -> None:
+def label_plot(data: DataTuple, logger: WandbLogger | None, name: str = "") -> None:
     """Make a label (quadrant) plot and uplad to wandb."""
     s_col = data.s.columns[0]
     s_values = data.s[s_col].value_counts() / data.s[s_col].count()
@@ -115,9 +115,9 @@ def make_plot(
     s: Tensor,
     logger: WandbLogger,
     name: str,
-    cols: List[str],
+    cols: list[str],
     cat_plot: bool = False,
-    scaler: Optional[MinMaxScaler] = None,
+    scaler: MinMaxScaler | None = None,
 ) -> None:
     """Make plots for logging."""
     if cat_plot:
@@ -149,7 +149,7 @@ def make_plot(
         plt.clf()
 
 
-def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None:
+def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger | None) -> None:
     """Produce a distribution of the outcomes."""
     val_counts = (
         outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
@@ -164,7 +164,7 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: Optional[WandbLogger]) -> None
 
 
 def make_data_plots(
-    data: pytorch_lightning.LightningDataModule, logger: Optional[WandbLogger]
+    data: pytorch_lightning.LightningDataModule, logger: WandbLogger | None
 ) -> None:
     """Make plots of the data."""
     try:

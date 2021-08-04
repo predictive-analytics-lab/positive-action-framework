@@ -1,6 +1,7 @@
 """MMD functions."""
+from __future__ import annotations
 import logging
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
 import torch
 from torch import Tensor
@@ -12,7 +13,7 @@ from paf.config_classes.dataclasses import KernelType
 log = logging.getLogger(__name__)
 
 
-def _dot_kernel(x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor, float]:
+def _dot_kernel(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor, float]:
     xx_gm = x @ x.t()
     xy_gm = x @ y.t()
     yy_gm = y @ y.t()
@@ -23,10 +24,10 @@ def _dot_kernel(x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor, float]:
 def _mix_rq_kernel(
     x: Tensor,
     y: Tensor,
-    scales: Optional[Sequence[float]] = None,
-    wts: Optional[Sequence[float]] = None,
+    scales: Sequence[float] | None = None,
+    wts: Sequence[float] | None = None,
     add_dot: float = 0.0,
-) -> Tuple[Tensor, Tensor, Tensor, float]:
+) -> tuple[Tensor, Tensor, Tensor, float]:
     """Rational quadratic kernel.
 
     http://www.cs.toronto.edu/~duvenaud/cookbook/index.html
@@ -76,10 +77,10 @@ def _mix_rq_kernel(
 def _mix_rbf_kernel(
     x: Tensor,
     y: Tensor,
-    scales: Optional[Sequence[float]] = None,
-    wts: Optional[Sequence[float]] = None,
+    scales: Sequence[float] | None = None,
+    wts: Sequence[float] | None = None,
     add_dot: float = 0.0,
-) -> Tuple[Tensor, Tensor, Tensor, float]:
+) -> tuple[Tensor, Tensor, Tensor, float]:
     """RBF Kernel."""
     scales = (2.0, 5.0, 10.0, 20.0, 40.0, 80.0) if scales is None else scales
     wts = [1.0] * len(scales) if wts is None else wts

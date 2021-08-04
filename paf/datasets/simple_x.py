@@ -1,5 +1,6 @@
 """Functions for synthetic data."""
-from typing import Tuple
+
+from __future__ import annotations
 
 from ethicml import Dataset, DataTuple
 import numpy as np
@@ -32,7 +33,7 @@ def make_x(x_bar: np.ndarray, s: np.ndarray, gamma: float, binary_s: bool) -> np
 
 def simple_x_data(
     *, seed: int, num_samples: int, alpha: float, gamma: float, random_shift: int, binary_s: int
-) -> Tuple[Dataset, DataTuple, DataTuple, DataTuple]:
+) -> tuple[Dataset, DataTuple, DataTuple, DataTuple]:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
     x_bar = make_x_bar(num_features=1, n=num_samples, random_state=num_gen)

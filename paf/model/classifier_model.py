@@ -1,5 +1,5 @@
 """Encoder model."""
-from typing import Dict, List, Tuple, Union
+from __future__ import annotations
 
 from kit import implements
 import numpy as np
@@ -128,8 +128,8 @@ class Clf(CommonModel):
         data_dim: int,
         s_dim: int,
         cf_available: bool,
-        feature_groups: Dict[str, List[slice]],
-        outcome_cols: List[str],
+        feature_groups: dict[str, list[slice]],
+        outcome_cols: list[str],
     ) -> None:
         self.cf_model = cf_available
         self.outcome_cols = outcome_cols
@@ -159,7 +159,7 @@ class Clf(CommonModel):
         self.built = True
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
+    def forward(self, x: Tensor, s: Tensor) -> tuple[Tensor, Tensor, list[Tensor]]:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc(_x)
@@ -168,7 +168,7 @@ class Clf(CommonModel):
         return z, s_pred, preds
 
     @implements(LightningModule)
-    def training_step(self, batch: Union[Batch, CfBatch], batch_idx: int) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
         assert self.built
         z, s_pred, preds = self(batch.x, batch.s)
         _iw = batch.iw if self.use_iw else None
@@ -202,7 +202,7 @@ class Clf(CommonModel):
         return z.sigmoid().round()
 
     @implements(LightningModule)
-    def test_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Dict[str, Tensor]:
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
         assert self.built
         z, _, preds = self(batch.x, batch.s)
 
@@ -215,14 +215,14 @@ class Clf(CommonModel):
             "preds_1": self.threshold(preds[1]),
         }
 
-        if self.cf_model:
+        if isinstance(batch, CfBatch):
             to_return["cf_y"] = batch.cfy
             to_return["cf_preds"] = self.threshold(index_by_s(preds, batch.cfs))
 
         return to_return
 
     @implements(LightningModule)
-    def test_epoch_end(self, output_results: List[Dict[str, Tensor]]) -> None:
+    def test_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
         all_y = torch.cat([_r["y"] for _r in output_results], 0)
         all_z = torch.cat([_r["z"] for _r in output_results], 0)
         all_s = torch.cat([_r["s"] for _r in output_results], 0)
@@ -276,9 +276,9 @@ class Clf(CommonModel):
         assert recons is not None
         return recons.detach().cpu().numpy()
 
-    def from_recons(self, recons: List[Tensor]) -> Dict[str, Tuple[Tensor, ...]]:
+    def from_recons(self, recons: list[Tensor]) -> dict[str, tuple[Tensor, ...]]:
         """Given recons, give all possible predictions."""
-        preds_dict: Dict[str, Tuple[Tensor, ...]] = {}
+        preds_dict: dict[str, tuple[Tensor, ...]] = {}
 
         for i, rec in enumerate(recons):
             z, s_pred, preds = self(rec, torch.ones_like(rec[:, 0]) * i)

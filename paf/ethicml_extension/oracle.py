@@ -1,4 +1,6 @@
 """How would a perfect predictor perform?"""
+from __future__ import annotations
+
 from ethicml import LRCV, DataTuple, InAlgorithm, Prediction, TestTuple
 from kit import implements
 

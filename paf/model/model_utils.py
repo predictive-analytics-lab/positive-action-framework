@@ -1,9 +1,9 @@
 """Model related utiltiy functions."""
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor, arange, autograd, nn, stack
+import torch.nn.functional as F
 
 
 def init_weights(m: nn.Module) -> None:
@@ -12,13 +12,13 @@ def init_weights(m: nn.Module) -> None:
     # nn.init.xavier_uniform_(m.weight)
 
 
-def index_by_s(recons: List[Tensor], s: Tensor) -> Tensor:
+def index_by_s(recons: list[Tensor], s: Tensor) -> Tensor:
     """Get recon by the index of S."""
     _recons = stack(recons, dim=1)
     return _recons[arange(_recons.shape[0]), s.long()]
 
 
-def augment_recons(x: Tensor, cf_x: Tensor, s: Tensor) -> List[Tensor]:
+def augment_recons(x: Tensor, cf_x: Tensor, s: Tensor) -> list[Tensor]:
     """Given real data and counterfactuial data, return in recon format based on S index."""
     dd = [(x[i], cf_x[i]) if _s == 0 else (cf_x[i], x[i]) for i, _s in enumerate(s)]
     return list((torch.stack([d[0] for d in dd]), torch.stack([d[1] for d in dd])))
@@ -42,7 +42,7 @@ class GradReverse(autograd.Function):
         return x.view_as(x)
 
     @staticmethod
-    def backward(ctx: autograd.Function, grad_output: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
+    def backward(ctx: autograd.Function, grad_output: Tensor) -> tuple[Tensor, Tensor | None]:
         """Do GRL."""
         return grad_output.neg().mul(ctx.lambda_), None
 

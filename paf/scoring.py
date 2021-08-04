@@ -1,7 +1,7 @@
 """Scoring functions."""
+from __future__ import annotations
 from copy import copy
 import logging
-from typing import Optional
 
 from ethicml import Accuracy, DataTuple, Prediction
 import numpy as np
@@ -101,7 +101,7 @@ def get_miri_metrics(
     method: str,
     acceptance: DataTuple,
     graduated: DataTuple,
-    logger: Optional[logging.Logger],
+    logger: logging.Logger | None,
     y_denotation: str = "Y",
     s_denotation: str = "S",
     ty_denotation: str = "Ty",

@@ -1,5 +1,5 @@
 """Augmented dataset."""
-from typing import List
+from __future__ import annotations
 
 from ethicml import DataTuple, compute_instance_weights
 import pandas as pd
@@ -62,7 +62,7 @@ class AugmentedDataModule(BaseDataModule):
         self.recons, self.sens, self.labels = model.run_through(data.train_dataloader())
 
     @staticmethod
-    def collate_tuples(batch: Tensor) -> List[Tensor]:
+    def collate_tuples(batch: Tensor) -> list[Tensor]:
         """Callate functin returning outpusts concatenated."""
         it = iter(batch)
         elem_size = len(next(it))

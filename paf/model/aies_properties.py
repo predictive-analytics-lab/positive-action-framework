@@ -1,6 +1,5 @@
 """Properties for the AIES model."""
-
-from typing import Optional
+from __future__ import annotations
 
 from pytorch_lightning import LightningModule
 from torch import Tensor
@@ -11,13 +10,13 @@ class AiesProperties(LightningModule):
 
     def __init__(self) -> None:
         super().__init__()
-        self.all_enc_z: Optional[Tensor] = None
-        self.all_enc_s_pred: Optional[Tensor] = None
-        self._all_s: Optional[Tensor] = None
-        self._all_x: Optional[Tensor] = None
-        self._all_y: Optional[Tensor] = None
-        self._all_recon: Optional[Tensor] = None
-        self._all_preds: Optional[Tensor] = None
+        self.all_enc_z: Tensor | None = None
+        self.all_enc_s_pred: Tensor | None = None
+        self._all_s: Tensor | None = None
+        self._all_x: Tensor | None = None
+        self._all_y: Tensor | None = None
+        self._all_recon: Tensor | None = None
+        self._all_preds: Tensor | None = None
 
     @property
     def all_preds(self) -> Tensor:

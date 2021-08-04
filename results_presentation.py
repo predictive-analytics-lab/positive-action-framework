@@ -1,4 +1,5 @@
 """Small script that takes a results csv d/l form W&B and makes it pretty looking."""
+from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd

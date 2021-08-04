@@ -1,7 +1,7 @@
 """Functions for synthetic data."""
+from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
-from typing import Tuple, Union
 
 from ethicml import Dataset, DataTuple, adult, compas, credit
 from ethicml.data.util import LabelSpec, flatten_dict, simple_spec
@@ -9,7 +9,7 @@ from ethicml.data.util import LabelSpec, flatten_dict, simple_spec
 TGT_NAME = "salary_>50K"
 
 
-def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> Tuple[Dataset, DataTuple]:
+def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> tuple[Dataset, DataTuple]:
     """Get the Audlt dataset."""
     if sens == "Binary-Married":
         dataset = adult(
@@ -48,7 +48,7 @@ def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> Tuple[Dat
 
 def semi_adult_data(
     *, sens: str, bin_nationality: bool, bin_race: bool
-) -> Tuple[Dataset, DataTuple]:
+) -> tuple[Dataset, DataTuple]:
     """Get the Audlt dataset."""
     disc_feature_groups = {
         "education": [
@@ -121,7 +121,7 @@ def semi_adult_data(
         "caring",
     ]
 
-    sens_attr_spec: Union[str, LabelSpec]
+    sens_attr_spec: str | LabelSpec
     sens_attr_spec = "sex_Male"
     s_prefix = ["sex"]
     class_label_spec = TGT_NAME
@@ -149,13 +149,13 @@ def semi_adult_data(
     return dataset, datatuple
 
 
-def credit_data() -> Tuple[Dataset, DataTuple]:
+def credit_data() -> tuple[Dataset, DataTuple]:
     """Get the Credit dataset."""
     dataset = credit()
     return dataset, dataset.load(ordered=True)
 
 
-def compas_data() -> Tuple[Dataset, DataTuple]:
+def compas_data() -> tuple[Dataset, DataTuple]:
     """Get the Compas dataset."""
     dataset = compas()
     return dataset, dataset.load(ordered=True)

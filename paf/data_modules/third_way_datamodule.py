@@ -1,4 +1,5 @@
 """Data Module for simple data."""
+from __future__ import annotations
 import logging
 from typing import Optional, Tuple
 

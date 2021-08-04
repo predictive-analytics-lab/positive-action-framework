@@ -1,7 +1,6 @@
 """Selection process."""
-
+from __future__ import annotations
 import itertools
-from typing import Optional
 
 from ethicml import Prediction
 from matplotlib import pyplot as plt
@@ -34,7 +33,9 @@ def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
     return np.select(conditions, values, -1)
 
 
-def baseline_selection_rules(outcomes: pd.DataFrame, logger: Optional[LightningLoggerBase]):
+def baseline_selection_rules(
+    outcomes: pd.DataFrame, logger: LightningLoggerBase | None
+) -> Prediction:
     conditions = [
         (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0),
         (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 1),
@@ -61,10 +62,10 @@ def baseline_selection_rules(outcomes: pd.DataFrame, logger: Optional[LightningL
 
 def produce_selection_groups(
     outcomes: pd.DataFrame,
-    data: Optional[BaseDataModule] = None,
-    recon_0: Optional[Tensor] = None,
-    recon_1: Optional[Tensor] = None,
-    logger: Optional[LightningLoggerBase] = None,
+    data: BaseDataModule | None = None,
+    recon_0: Tensor | None = None,
+    recon_1: Tensor | None = None,
+    logger: LightningLoggerBase | None = None,
     data_name: str = "Test",
     fair: bool = False,
 ) -> Prediction:
@@ -114,7 +115,7 @@ def analyse_selection_groups(
     recon_0: Tensor,
     recon_1: Tensor,
     data_name: str,
-    logger: Optional[WandbLogger],
+    logger: WandbLogger | None,
 ) -> None:
     """What's changed in these feature groups?"""
     reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_datatuple.x.columns)

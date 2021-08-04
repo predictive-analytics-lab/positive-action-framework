@@ -1,4 +1,5 @@
-from typing import Final, List
+from __future__ import annotations
+from typing import Final
 
 from hydra import compose, initialize
 from hydra.utils import instantiate
@@ -8,7 +9,7 @@ import pytest
 from paf.main import Config, run_aies
 
 CFG_PTH: Final[str] = "../paf/configs"
-SCHEMAS: Final[List[str]] = [
+SCHEMAS: Final[list[str]] = [
     "enc=basic",
     "clf=basic",
     "exp=unit_test",

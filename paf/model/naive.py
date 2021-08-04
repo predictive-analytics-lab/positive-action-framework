@@ -1,7 +1,8 @@
-from typing import Dict, Union
+from __future__ import annotations
 
 import pytorch_lightning as pl
 from torch import Tensor, nn
+import torch.optim
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
@@ -15,17 +16,19 @@ class NaiveModel(pl.LightningModule):
         self._loss = nn.BCEWithLogitsLoss()
         self.learning_rate = 1e-2
 
-    def training_step(self, batch: Union[Batch, CfBatch], batch_idx: int) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
         logits = self.net(batch.x)
         return self._loss(logits, batch.y.view(-1, 1))
 
-    def test_step(self, batch: Union[Batch, CfBatch], batch_dx: int) -> Dict[str, Tensor]:
+    def test_step(self, batch: Batch | CfBatch, batch_dx: int) -> dict[str, Tensor]:
         return {"preds": self(batch.x)}
 
-    def test_epoch_end(self, outputs: Dict[str, Tensor]) -> None:
+    def test_epoch_end(self, outputs: dict[str, Tensor]) -> None:
         """Not used anywhere, but needed for super."""
 
-    def configure_optimizers(self):
+    def configure_optimizers(
+        self,
+    ) -> tuple[list[torch.optim.Optimizer], list[torch.optim._LRScheduler]]:
         optim = AdamW(self.net.parameters(), lr=self.learning_rate)
         sched = CosineAnnealingWarmRestarts(optimizer=optim, T_0=1, T_mult=2)
         return [optim], [sched]

@@ -1,4 +1,5 @@
 """Main script."""
+from __future__ import annotations
 import copy
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -28,7 +29,7 @@ from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
 
 from paf.base_templates.base_module import BaseDataModule
-from paf.config_classes.bolts.fair.data.configs import (
+from paf.config_classes.bolts.fair.data.configs import (  # type: ignore[import]
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
     CrimeDataModuleConf,
@@ -130,7 +131,7 @@ def launcher(hydra_config: DictConfig) -> None:
 
 def run_aies(cfg: Config, raw_config: Any) -> None:
     """Run the X Autoencoder."""
-    seed_everything(cfg.exp.seed)
+    seed_everything(cfg.exp.seed, workers=True)
     data: BaseDataModule = cfg.data
     data.scaler = MinMaxScaler()
     data.prepare_data()
@@ -156,10 +157,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
 
     make_data_plots(data, cfg.trainer.logger)
 
-    # data.make_data_plots(data.cf_available, cfg.trainer.logger)
-
     if cfg.exp.model == ModelType.paf:
-
         encoder: AE = cfg.enc
         encoder.build(
             num_s=data.card_s,
@@ -172,7 +170,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         )
 
         enc_trainer = cfg.trainer
-        # enc_trainer.tune(model=encoder, datamodule=data)
+        enc_trainer.tune(model=encoder, datamodule=data)
         enc_trainer.fit(model=encoder, datamodule=data)
         if enc_trainer.fast_dev_run:
             enc_trainer.test(model=encoder, datamodule=data, ckpt_path=None)
@@ -272,7 +270,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
 
     if cfg.exp.baseline:
         for model in [
-            NaiveModel(in_size=data.data_dim, num_pos_action=2),
+            NaiveModel(in_size=data.data_dim[0]),
             # LRCV(),
             # Oracle(),
             DPOracle(),
@@ -356,7 +354,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
                 logger=wandb_logger,
             )
 
-    if not cfg.exp.log_offline:
+    if not cfg.exp.log_offline and wandb_logger is not None:
         wandb_logger.experiment.finish()
 
 

@@ -1,7 +1,8 @@
 """Data Module for simple data."""
+from __future__ import annotations
 from typing import Optional, Tuple
 
-from kit import implements
+from kit import implements, parsable
 import numpy as np
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
@@ -14,6 +15,7 @@ from paf.datasets.lilliput import lilliput
 class LilliputDataModule(BaseDataModule):
     """Simple 1d, configurable, data."""
 
+    @parsable
     def __init__(
         self,
         alpha: float,

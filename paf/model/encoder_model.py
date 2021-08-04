@@ -1,9 +1,8 @@
 """Encoder model."""
 from __future__ import annotations
 import logging
-from typing import Dict, List, Optional, Tuple
 
-from kit import implements
+from kit import implements, parsable
 import numpy as np
 from pytorch_lightning import LightningModule
 from sklearn.preprocessing import MinMaxScaler
@@ -96,6 +95,7 @@ class Decoder(BaseModel):
 class AE(CommonModel):
     """Main Autoencoder."""
 
+    @parsable
     def __init__(
         self,
         s_as_input: bool,
@@ -138,8 +138,8 @@ class AE(CommonModel):
         data_dim: int,
         s_dim: int,
         cf_available: bool,
-        feature_groups: Dict[str, List[slice]],
-        outcome_cols: List[str],
+        feature_groups: dict[str, list[slice]],
+        outcome_cols: list[str],
         scaler: MinMaxScaler,
     ) -> None:
         self.cf_model = cf_available
@@ -173,7 +173,7 @@ class AE(CommonModel):
         self.built = True
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor) -> Tuple[Tensor, Tensor, List[Tensor]]:
+    def forward(self, x: Tensor, s: Tensor) -> tuple[Tensor, Tensor, list[Tensor]]:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc(_x)
@@ -231,7 +231,7 @@ class AE(CommonModel):
             "training_enc/z_mean_abs_diff": (z[batch.s <= 0].mean() - z[batch.s > 0].mean()).abs(),
         }
 
-        if self.cf_model:
+        if isinstance(batch, CfBatch):
             with no_grad():
                 _, _, cf_recons = self(batch.cfx, batch.cfs)
                 cf_recon_loss = l1_loss(
@@ -273,7 +273,7 @@ class AE(CommonModel):
         return k
 
     @implements(LightningModule)
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> Dict[str, Tensor]:
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
         assert self.built
         z, _, recons = self(batch.x, batch.s)
 
@@ -286,14 +286,14 @@ class AE(CommonModel):
             "recons_1": self.invert(recons[1], batch.x),
         }
 
-        if self.cf_model:
+        if isinstance(batch, CfBatch):
             to_return["cf_x"] = batch.cfx
             to_return["cf_recon"] = self.invert(index_by_s(recons, batch.cfs), batch.x)
 
         return to_return
 
     @implements(LightningModule)
-    def test_epoch_end(self, output_results: List[Dict[str, Tensor]]) -> None:
+    def test_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
         all_x = torch.cat([_r["x"] for _r in output_results], 0)
         all_z = torch.cat([_r["z"] for _r in output_results], 0)
         all_s = torch.cat([_r["s"] for _r in output_results], 0)
@@ -403,14 +403,14 @@ class AE(CommonModel):
     @implements(LightningModule)
     def configure_optimizers(
         self,
-    ) -> Tuple[List[optim.Optimizer], List[optim.lr_scheduler.ExponentialLR]]:
+    ) -> tuple[list[optim.Optimizer], list[optim.lr_scheduler.ExponentialLR]]:
         opt = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         sched = optim.lr_scheduler.ExponentialLR(opt, gamma=0.999)
         return [opt], [sched]
 
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
-        recons = None
+        recons: list[Tensor] | None = None
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
@@ -424,11 +424,11 @@ class AE(CommonModel):
         recons = torch.cat(recons, dim=0)
         return recons.detach().cpu().numpy()
 
-    def run_through(self, dataloader: DataLoader) -> Tuple[Tensor, Tensor, Tensor]:
+    def run_through(self, dataloader: DataLoader) -> tuple[Tensor, Tensor, Tensor]:
         """Run through a dataloader and record the outputs with labels."""
-        recons: Optional[Tensor] = None
-        sens: Optional[Tensor] = None
-        labels: Optional[Tensor] = None
+        recons: Tensor | None = None
+        sens: Tensor | None = None
+        labels: Tensor | None = None
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)

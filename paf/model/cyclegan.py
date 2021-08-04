@@ -11,6 +11,7 @@ import torch
 from torch import Tensor, nn, optim
 from torch.utils.data import DataLoader
 
+from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.log_progress import do_log
 from paf.model.model_utils import index_by_s, to_discrete
 from paf.plotting import make_plot
@@ -31,7 +32,7 @@ class Initializer:
         self.init_type = init_type
         self.init_gain = init_gain
 
-    def init_module(self, m):
+    def init_module(self, m: nn.Module) -> None:
 
         cls_name = m.__class__.__name__
         if hasattr(m, 'weight') and (cls_name.find('Conv') != -1 or cls_name.find('Linear') != -1):
@@ -52,7 +53,7 @@ class Initializer:
             nn.init.normal_(m.weight.data, mean=1.0, std=self.init_gain)
             nn.init.constant_(m.bias.data, val=0)
 
-    def __call__(self, net):
+    def __call__(self, net: nn.Module) -> Tensor:
 
         """
         Parameters:
@@ -79,10 +80,10 @@ class HistoryPool:
         """
 
         self.nb_samples = 0
-        self.history_pool = []
+        self.history_pool: list[Tensor] = []
         self.pool_sz = pool_sz
 
-    def push_and_pop(self, samples):
+    def push_and_pop(self, samples: Tensor) -> Tensor:
 
         """
         Parameters:
@@ -98,7 +99,7 @@ class HistoryPool:
                 self.history_pool.append(sample)
                 samples_to_return.append(sample)
                 self.nb_samples += 1
-            elif np.random.uniform(0, 1) > 0.5:
+            elif np.random.uniform(0, 1) > 0.5:  # type: ignore[call-overload]
 
                 rand_int = np.random.randint(0, self.pool_sz)
                 temp_img = self.history_pool[rand_int].clone()
@@ -116,7 +117,12 @@ class Loss:
     This class implements different losses required to train the generators and discriminators of CycleGAN
     """
 
-    def __init__(self, loss_type: str = 'MSE', lambda_: int = 10, feature_groups=None):
+    def __init__(
+        self,
+        loss_type: str = 'MSE',
+        lambda_: int = 10,
+        feature_groups: dict[str, list[slice]] | None = None,
+    ):
 
         """
         Parameters:
@@ -124,12 +130,12 @@ class Loss:
             lambda_:   Weightage of Cycle-consistency loss
         """
 
-        self.loss = nn.MSELoss() if loss_type == 'MSE' else nn.BCEWithLogitsLoss()
+        self.loss_fn = nn.MSELoss() if loss_type == 'MSE' else nn.BCEWithLogitsLoss()
         self.recon_loss = nn.L1Loss(reduction="mean")
         self.lambda_ = lambda_
-        self.feature_groups = feature_groups
+        self.feature_groups = feature_groups if feature_groups is not None else {}
 
-    def get_dis_loss(self, dis_pred_real_data, dis_pred_fake_data):
+    def get_dis_loss(self, dis_pred_real_data: Tensor, dis_pred_fake_data: Tensor) -> Tensor:
 
         """
         Parameters:
@@ -140,12 +146,12 @@ class Loss:
         dis_tar_real_data = torch.ones_like(dis_pred_real_data, requires_grad=False)
         dis_tar_fake_data = torch.zeros_like(dis_pred_fake_data, requires_grad=False)
 
-        loss_real_data = self.loss(dis_pred_real_data, dis_tar_real_data)
-        loss_fake_data = self.loss(dis_pred_fake_data, dis_tar_fake_data)
+        loss_real_data = self.loss_fn(dis_pred_real_data, dis_tar_real_data)
+        loss_fake_data = self.loss_fn(dis_pred_fake_data, dis_tar_fake_data)
 
         return (loss_real_data + loss_fake_data) * 0.5
 
-    def get_gen_gan_loss(self, dis_pred_fake_data):
+    def get_gen_gan_loss(self, dis_pred_fake_data: Tensor) -> Tensor:
 
         """
         Parameters:
@@ -153,9 +159,9 @@ class Loss:
         """
 
         gen_tar_fake_data = torch.ones_like(dis_pred_fake_data, requires_grad=False)
-        return self.loss(dis_pred_fake_data, gen_tar_fake_data)
+        return self.loss_fn(dis_pred_fake_data, gen_tar_fake_data)
 
-    def get_gen_cyc_loss(self, real_data, cyc_data):
+    def get_gen_cyc_loss(self, real_data: Tensor, cyc_data: Tensor) -> Tensor:
 
         """
         Parameters:
@@ -189,7 +195,7 @@ class Loss:
 
         return gen_cyc_loss * self.lambda_
 
-    def get_gen_idt_loss(self, real_data, idt_data):
+    def get_gen_idt_loss(self, real_data: Tensor, idt_data: Tensor) -> Tensor:
 
         """
         Implements the identity loss:
@@ -223,8 +229,16 @@ class Loss:
         return gen_idt_loss * self.lambda_ * 0.5
 
     def get_gen_loss(
-        self, real_A, real_B, cyc_A, cyc_B, idt_A, idt_B, d_A_pred_fake_data, d_B_pred_fake_data
-    ):
+        self,
+        real_a: Tensor,
+        real_b: Tensor,
+        cyc_a: Tensor,
+        cyc_b: Tensor,
+        idt_a: Tensor,
+        idt_b: Tensor,
+        d_a_pred_fake_data: Tensor,
+        d_b_pred_fake_data: Tensor,
+    ) -> Tensor:
 
         """
         Implements the total Generator loss
@@ -232,24 +246,24 @@ class Loss:
         """
 
         # Cycle loss
-        cyc_loss_A = self.get_gen_cyc_loss(real_A, cyc_A)
-        cyc_loss_B = self.get_gen_cyc_loss(real_B, cyc_B)
-        tot_cyc_loss = cyc_loss_A + cyc_loss_B
+        cyc_loss_a = self.get_gen_cyc_loss(real_a, cyc_a)
+        cyc_loss_b = self.get_gen_cyc_loss(real_b, cyc_b)
+        tot_cyc_loss = cyc_loss_a + cyc_loss_b
 
         # GAN loss
-        g_A2B_gan_loss = self.get_gen_gan_loss(d_B_pred_fake_data)
-        g_B2A_gan_loss = self.get_gen_gan_loss(d_A_pred_fake_data)
+        g_a2b_gan_loss = self.get_gen_gan_loss(d_b_pred_fake_data)
+        g_b2a_gan_loss = self.get_gen_gan_loss(d_a_pred_fake_data)
 
         # Identity loss
-        g_B2A_idt_loss = self.get_gen_idt_loss(real_A, idt_A)
-        g_A2B_idt_loss = self.get_gen_idt_loss(real_B, idt_B)
+        g_b2a_idt_loss = self.get_gen_idt_loss(real_a, idt_a)
+        g_a2b_idt_loss = self.get_gen_idt_loss(real_b, idt_b)
 
         # Total individual losses
-        g_A2B_loss = g_A2B_gan_loss + g_A2B_idt_loss + tot_cyc_loss
-        g_B2A_loss = g_B2A_gan_loss + g_B2A_idt_loss + tot_cyc_loss
-        g_tot_loss = g_A2B_loss + g_B2A_loss - tot_cyc_loss
+        g_a2b_loss = g_a2b_gan_loss + g_a2b_idt_loss + tot_cyc_loss
+        g_b2a_loss = g_b2a_gan_loss + g_b2a_idt_loss + tot_cyc_loss
+        g_tot_loss = g_a2b_loss + g_b2a_loss - tot_cyc_loss
 
-        return g_A2B_loss, g_B2A_loss, g_tot_loss
+        return g_a2b_loss, g_b2a_loss, g_tot_loss
 
 
 class ResBlock(nn.Module):
@@ -280,7 +294,7 @@ class ResBlock(nn.Module):
 
         self.net = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         return x + self.net(x)
 
 
@@ -317,7 +331,7 @@ class Generator(nn.Module):
 
         self.net = nn.Sequential(*self.layers)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         return self.net(x)
 
 
@@ -353,7 +367,7 @@ class Discriminator(nn.Module):
 
         self.net = nn.Sequential(*self.layers)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         return self.net(x)
 
 
@@ -409,7 +423,7 @@ class CycleGan(pl.LightningModule):
         self.built = True
 
     @staticmethod
-    def set_requires_grad(nets, requires_grad=False):
+    def set_requires_grad(nets: nn.Module | list[nn.Module], requires_grad: bool = False) -> None:
 
         """
         Set requies_grad=Fasle for all the networks to avoid unnecessary computations
@@ -424,7 +438,7 @@ class CycleGan(pl.LightningModule):
             for param in net.parameters():
                 param.requires_grad = requires_grad
 
-    def forward(self, real_A, real_B):
+    def forward(self, real_a: Tensor, real_b: Tensor) -> tuple[Tensor, Tensor]:
 
         """
         This is different from the training step. You should treat this as the final inference code
@@ -434,12 +448,14 @@ class CycleGan(pl.LightningModule):
             real_A -- real image of A
             real_B -- real image of B
         """
-        fake_B = self.g_A2B(real_A)
-        fake_A = self.g_B2A(real_B)
+        fake_b = self.g_A2B(real_a)
+        fake_a = self.g_B2A(real_b)
 
-        return fake_B, fake_A
+        return fake_b, fake_a
 
-    def forward_gen(self, real_A, real_B, fake_A, fake_B):
+    def forward_gen(
+        self, real_a: Tensor, real_b: Tensor, fake_a: Tensor, fake_b: Tensor
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
 
         """
         Gets the remaining output of both the generators for the training/validation step
@@ -450,16 +466,16 @@ class CycleGan(pl.LightningModule):
             fake_B -- fake image of B
         """
 
-        cyc_A = self.g_B2A(fake_B)
-        idt_A = self.g_B2A(real_A)
+        cyc_a = self.g_B2A(fake_b)
+        idt_a = self.g_B2A(real_a)
 
-        cyc_B = self.g_A2B(fake_A)
-        idt_B = self.g_A2B(real_B)
+        cyc_b = self.g_A2B(fake_a)
+        idt_b = self.g_A2B(real_b)
 
-        return cyc_A, idt_A, cyc_B, idt_B
+        return cyc_a, idt_a, cyc_b, idt_b
 
     @staticmethod
-    def forward_dis(dis, real_data, fake_data):
+    def forward_dis(dis: nn.Module, real_data: Tensor, fake_data: Tensor) -> tuple[Tensor, Tensor]:
 
         """
         Gets the Discriminator output
@@ -474,29 +490,29 @@ class CycleGan(pl.LightningModule):
 
         return pred_real_data, pred_fake_data
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
-        real_A, real_B = batch.x[batch.s == 0], batch.x[batch.s == 1]
-        size = min(len(real_A), len(real_B))
-        real_A = real_A[:size]
-        real_B = real_B[:size]
-        fake_B, fake_A = self(real_A, real_B)
+    def training_step(self, batch: Batch | CfBatch, batch_idx: int, optimizer_idx: int) -> Tensor:
+        real_a, real_b = batch.x[batch.s == 0], batch.x[batch.s == 1]
+        size = min(len(real_a), len(real_b))
+        real_a = real_a[:size]
+        real_b = real_b[:size]
+        fake_b, fake_a = self(real_a, real_b)
 
         if optimizer_idx == 0:
-            cyc_A, idt_A, cyc_B, idt_B = self.forward_gen(real_A, real_B, fake_A, fake_B)
+            cyc_a, idt_a, cyc_b, idt_b = self.forward_gen(real_a, real_b, fake_a, fake_b)
 
             # No need to calculate the gradients for Discriminators' parameters
             self.set_requires_grad([self.d_A, self.d_B], requires_grad=False)
-            d_A_pred_fake_data = self.d_A(fake_A)
-            d_B_pred_fake_data = self.d_B(fake_B)
+            d_a_pred_fake_data = self.d_A(fake_a)
+            d_b_pred_fake_data = self.d_B(fake_b)
 
-            g_A2B_loss, g_B2A_loss, g_tot_loss = self.loss.get_gen_loss(
-                real_A, real_B, cyc_A, cyc_B, idt_A, idt_B, d_A_pred_fake_data, d_B_pred_fake_data
+            g_a2b_loss, g_b2a_loss, g_tot_loss = self.loss.get_gen_loss(
+                real_a, real_b, cyc_a, cyc_b, idt_a, idt_b, d_a_pred_fake_data, d_b_pred_fake_data
             )
 
             dict_ = {
                 'g_tot_train_loss': g_tot_loss,
-                'g_A2B_train_loss': g_A2B_loss,
-                'g_B2A_train_loss': g_B2A_loss,
+                'g_A2B_train_loss': g_a2b_loss,
+                'g_B2A_train_loss': g_b2a_loss,
             }
             self.log_dict(dict_, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
@@ -504,72 +520,72 @@ class CycleGan(pl.LightningModule):
 
         if optimizer_idx == 1:
             self.set_requires_grad([self.d_A], requires_grad=True)
-            fake_A = self.fake_pool_A.push_and_pop(fake_A)
-            d_A_pred_real_data, d_A_pred_fake_data = self.forward_dis(
-                self.d_A, real_A, fake_A.detach()
+            fake_a = self.fake_pool_A.push_and_pop(fake_a)
+            d_a_pred_real_data, d_a_pred_fake_data = self.forward_dis(
+                self.d_A, real_a, fake_a.detach()
             )
 
             # GAN loss
-            d_A_loss = self.loss.get_dis_loss(d_A_pred_real_data, d_A_pred_fake_data)
+            d_a_loss = self.loss.get_dis_loss(d_a_pred_real_data, d_a_pred_fake_data)
             self.log(
-                "d_A_train_loss", d_A_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+                "d_A_train_loss", d_a_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
             )
 
-            return d_A_loss
+            return d_a_loss
 
         if optimizer_idx == 2:
             self.set_requires_grad([self.d_B], requires_grad=True)
-            fake_B = self.fake_pool_B.push_and_pop(fake_B)
-            d_B_pred_real_data, d_B_pred_fake_data = self.forward_dis(
-                self.d_B, real_B, fake_B.detach()
+            fake_b = self.fake_pool_B.push_and_pop(fake_b)
+            d_b_pred_real_data, d_b_pred_fake_data = self.forward_dis(
+                self.d_B, real_b, fake_b.detach()
             )
 
             # GAN loss
-            d_B_loss = self.loss.get_dis_loss(d_B_pred_real_data, d_B_pred_fake_data)
+            d_b_loss = self.loss.get_dis_loss(d_b_pred_real_data, d_b_pred_fake_data)
             self.log(
-                "d_B_train_loss", d_B_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+                "d_B_train_loss", d_b_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
             )
 
-            return d_B_loss
+            return d_b_loss
 
-    def shared_step(self, batch, stage: str = 'val'):
-        real_A = batch.x
-        real_B = batch.x
+    def shared_step(self, batch: Batch | CfBatch, stage: str = 'val') -> dict[str, Tensor]:
+        real_a = batch.x
+        real_b = batch.x
 
-        fake_B, fake_A = self(real_A, real_B)
-        cyc_A, idt_A, cyc_B, idt_B = self.forward_gen(real_A, real_B, fake_A, fake_B)
+        fake_b, fake_a = self(real_a, real_b)
+        cyc_a, idt_a, cyc_b, idt_b = self.forward_gen(real_a, real_b, fake_a, fake_b)
 
-        d_A_pred_real_data, d_A_pred_fake_data = self.forward_dis(self.d_A, real_A, fake_A)
-        d_B_pred_real_data, d_B_pred_fake_data = self.forward_dis(self.d_B, real_B, fake_B)
+        d_a_pred_real_data, d_a_pred_fake_data = self.forward_dis(self.d_A, real_a, fake_a)
+        d_b_pred_real_data, d_b_pred_fake_data = self.forward_dis(self.d_B, real_b, fake_b)
 
         # G_A2B loss, G_B2A loss, G loss
-        g_A2B_loss, g_B2A_loss, g_tot_loss = self.loss.get_gen_loss(
-            real_A, real_B, cyc_A, cyc_B, idt_A, idt_B, d_A_pred_fake_data, d_B_pred_fake_data
+        g_a2b_loss, g_b2a_loss, g_tot_loss = self.loss.get_gen_loss(
+            real_a, real_b, cyc_a, cyc_b, idt_a, idt_b, d_a_pred_fake_data, d_b_pred_fake_data
         )
 
         # D_A loss, D_B loss
-        d_A_loss = self.loss.get_dis_loss(d_A_pred_real_data, d_A_pred_fake_data)
-        d_B_loss = self.loss.get_dis_loss(d_B_pred_real_data, d_B_pred_fake_data)
+        d_a_loss = self.loss.get_dis_loss(d_a_pred_real_data, d_a_pred_fake_data)
+        d_b_loss = self.loss.get_dis_loss(d_b_pred_real_data, d_b_pred_fake_data)
 
         dict_ = {
             f'g_tot_{stage}_loss': g_tot_loss,
-            f'g_A2B_{stage}_loss': g_A2B_loss,
-            f'g_B2A_{stage}_loss': g_B2A_loss,
-            f'd_A_{stage}_loss': d_A_loss,
-            f'd_B_{stage}_loss': d_B_loss,
+            f'g_A2B_{stage}_loss': g_a2b_loss,
+            f'g_B2A_{stage}_loss': g_b2a_loss,
+            f'd_A_{stage}_loss': d_a_loss,
+            f'd_B_{stage}_loss': d_b_loss,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
         for _ in range(12):
-            rand_int = np.random.randint(0, len(real_A))
+            rand_int = np.random.randint(0, len(real_a))
             _tensor = torch.stack(
                 [
-                    real_A[rand_int],
-                    fake_B[rand_int],
-                    cyc_A[rand_int],
-                    real_B[rand_int],
-                    fake_A[rand_int],
-                    cyc_B[rand_int],
+                    real_a[rand_int],
+                    fake_b[rand_int],
+                    cyc_a[rand_int],
+                    real_b[rand_int],
+                    fake_a[rand_int],
+                    cyc_b[rand_int],
                 ]
             )
             _tensor = (_tensor + 1) / 2
@@ -577,9 +593,9 @@ class CycleGan(pl.LightningModule):
         return {
             "x": batch.x,
             "s": batch.s,
-            "recon": self.invert(index_by_s([fake_B, fake_A], batch.s), batch.x),
-            "recons_0": self.invert(fake_B, batch.x),
-            "recons_1": self.invert(fake_A, batch.x),
+            "recon": self.invert(index_by_s([fake_b, fake_a], batch.s), batch.x),
+            "recons_0": self.invert(fake_b, batch.x),
+            "recons_1": self.invert(fake_a, batch.x),
         }
 
     def test_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
@@ -657,32 +673,34 @@ class CycleGan(pl.LightningModule):
                 self.logger,
             )
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
         return self.shared_step(batch, 'val')
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
         return self.shared_step(batch, 'test')
 
-    def lr_lambda(self, epoch):
+    def lr_lambda(self, epoch: int) -> float:
 
         fraction = (epoch - self.epoch_decay) / self.epoch_decay
         return 1 if epoch < self.epoch_decay else 1 - fraction
 
-    def configure_optimizers(self):
+    def configure_optimizers(
+        self,
+    ) -> tuple[list[torch.optim.Optimizer], list[torch.optim._LRScheduler]]:
 
         # define the optimizers here
         g_opt = torch.optim.Adam(self.g_params, lr=self.g_lr, betas=(self.beta_1, self.beta_2))
-        d_A_opt = torch.optim.Adam(self.d_A_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
-        d_B_opt = torch.optim.Adam(self.d_B_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
+        d_a_opt = torch.optim.Adam(self.d_A_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
+        d_b_opt = torch.optim.Adam(self.d_B_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
 
         # define the lr_schedulers here
         g_sch = optim.lr_scheduler.LambdaLR(g_opt, lr_lambda=self.lr_lambda)
-        d_A_sch = optim.lr_scheduler.LambdaLR(d_A_opt, lr_lambda=self.lr_lambda)
-        d_B_sch = optim.lr_scheduler.LambdaLR(d_B_opt, lr_lambda=self.lr_lambda)
+        d_a_sch = optim.lr_scheduler.LambdaLR(d_a_opt, lr_lambda=self.lr_lambda)
+        d_b_sch = optim.lr_scheduler.LambdaLR(d_b_opt, lr_lambda=self.lr_lambda)
 
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
-        return [g_opt, d_A_opt, d_B_opt], [g_sch, d_A_sch, d_B_sch]
+        return [g_opt, d_a_opt, d_b_opt], [g_sch, d_a_sch, d_b_sch]
 
     def get_latent(self, dataloader: DataLoader) -> np.ndarray:
         """Get Latents to be used post train/test."""

@@ -1,6 +1,6 @@
 """Functions for synthetic data."""
+from __future__ import annotations
 import logging
-from typing import Optional, Tuple
 
 from ethicml import Dataset, DataTuple
 import numpy as np
@@ -51,8 +51,8 @@ def make_y(
     s: pd.DataFrame,
     beta: float,
     acceptance_rate: float,
-    threshold: Optional[float] = None,
-) -> Tuple[pd.DataFrame, float]:
+    threshold: float | None = None,
+) -> tuple[pd.DataFrame, float]:
     """Go from y_bar to Y."""
     y_bar = y_bar + beta * (s.values * 2 - 1)
 
@@ -75,7 +75,7 @@ def third_way_data(
     binary_s: int,
     beta: float,
     xi: float,
-) -> Tuple[Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple]:
+) -> tuple[Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple]:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
     x_bar = make_x_bar(num_features=num_hidden_features, n=num_samples, random_state=num_gen)

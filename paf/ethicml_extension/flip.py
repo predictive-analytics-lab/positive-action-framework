@@ -1,6 +1,6 @@
 """Demographic Parity Label flipping approach."""
+from __future__ import annotations
 from abc import abstractmethod
-from typing import Tuple
 
 from ethicml import DataTuple, PostAlgorithm, Prediction, TestTuple
 from kit import implements
@@ -26,7 +26,7 @@ class FlipBase(PostAlgorithm):
         return self._flip(_test_preds, test, flip_0_to_1=False, num_to_flip=y, s_group=1)
 
     @abstractmethod
-    def _fit(self, test: TestTuple, preds: Prediction) -> Tuple[int, int]:
+    def _fit(self, test: TestTuple, preds: Prediction) -> tuple[int, int]:
         pass
 
     @abstractmethod
@@ -71,7 +71,7 @@ class DPFlip(FlipBase):
         preds.hard.update({idx: post_y_val for idx in idxs[:num_to_flip]})
         return preds
 
-    def _fit(self, test: TestTuple, preds: Prediction) -> Tuple[int, int]:
+    def _fit(self, test: TestTuple, preds: Prediction) -> tuple[int, int]:
         y_0 = preds.hard[preds.hard == 0]
         y_1 = preds.hard[preds.hard == 1]
         s_0 = test.s[test.s[test.s.columns[0]] == 0]
@@ -132,7 +132,7 @@ class EqOppFlip(FlipBase):
         preds.hard.update({idx: post_y_val for idx in idxs[:num_to_flip]})
         return preds
 
-    def _fit(self, test: DataTuple, preds: Prediction) -> Tuple[int, int]:
+    def _fit(self, test: DataTuple, preds: Prediction) -> tuple[int, int]:
         preds_1 = preds.hard[preds.hard == 1]
         s_0 = test.s[test.s[test.s.columns[0]] == 0]
         s_1 = test.s[test.s[test.s.columns[0]] == 1]

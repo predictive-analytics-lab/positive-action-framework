@@ -1,4 +1,6 @@
 """Adult Dataset DataModule."""
+from __future__ import annotations
+
 from ethicml import DataTuple, ProportionalSplit
 from kit import implements
 import numpy as np

@@ -1,5 +1,5 @@
 """The hand crafted synthetic data."""
-from typing import Tuple
+from __future__ import annotations
 
 from ethicml import Dataset, DataTuple
 import numpy as np
@@ -12,7 +12,7 @@ from paf.selection import produce_selection_groups
 
 def lilliput(
     *, seed: int, num_samples: int, alpha: float, gamma: float
-) -> Tuple[
+) -> tuple[
     Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple
 ]:
     """Make the `lilliput` dataset."""

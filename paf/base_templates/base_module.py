@@ -1,6 +1,6 @@
 """Base Data Module."""
+from __future__ import annotations
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple
 import warnings
 
 from ethicml import Dataset, DataTuple
@@ -23,21 +23,21 @@ class BaseDataModule(LightningDataModule):
 
     def __init__(self) -> None:
         super().__init__()
-        self._cf_available: Optional[bool] = None
-        self._columns: Optional[List[str]] = None
-        self._card_s: Optional[int] = None
-        self._out_cols: Optional[List[str]] = None
-        self._s_dim: Optional[int] = None
-        self._y_dim: Optional[int] = None
-        self._test_tuple: Optional[DataTuple] = None
-        self._train_tuple: Optional[DataTuple] = None
-        self._x_dim: Optional[int] = None
-        self._feature_groups: Optional[Dict[str, List[slice]]] = None
+        self._cf_available: bool | None = None
+        self._columns: list[str] | None = None
+        self._card_s: int | None = None
+        self._out_cols: list[str] | None = None
+        self._s_dim: tuple[int, ...] | None = None
+        self._y_dim: tuple[int, ...] | None = None
+        self._test_tuple: DataTuple | None = None
+        self._train_tuple: DataTuple | None = None
+        self._x_dim: tuple[int, ...] | None = None
+        self._feature_groups: dict[str, list[slice]] | None = None
         self.train_means_train = True
-        self._dataset: Optional[Dataset] = None
+        self._dataset: Dataset | None = None
 
     @property
-    def outcome_columns(self) -> List[str]:
+    def outcome_columns(self) -> list[str]:
         assert self._out_cols is not None
         return self._out_cols
 
@@ -46,16 +46,16 @@ class BaseDataModule(LightningDataModule):
         self._out_cols = [f"{col}" for col in out_cols]
 
     @property
-    def feature_groups(self) -> Dict[str, List[slice]]:
+    def feature_groups(self) -> dict[str, list[slice]]:
         assert self._feature_groups is not None
         return self._feature_groups
 
     @feature_groups.setter
-    def feature_groups(self, feat_groups: Dict[str, List[slice]]) -> None:
+    def feature_groups(self, feat_groups: dict[str, list[slice]]) -> None:
         self._feature_groups = feat_groups
 
     @property
-    def column_names(self) -> List[str]:
+    def column_names(self) -> list[str]:
         assert self._columns is not None
         return self._columns
 
@@ -82,12 +82,12 @@ class BaseDataModule(LightningDataModule):
         self._dataset = dataset
 
     @property
-    def data_dim(self) -> int:
+    def data_dim(self) -> tuple[int, ...]:
         assert self._x_dim is not None
         return self._x_dim
 
     @data_dim.setter
-    def data_dim(self, dim: int) -> None:
+    def data_dim(self, dim: tuple[int, ...]) -> None:
         self._x_dim = dim
 
     @property
@@ -100,21 +100,21 @@ class BaseDataModule(LightningDataModule):
         self._card_s = dim
 
     @property
-    def dim_s(self) -> int:
+    def dim_s(self) -> tuple[int, ...]:
         assert self._s_dim is not None
         return self._s_dim
 
     @dim_s.setter
-    def dim_s(self, dim: int) -> None:
+    def dim_s(self, dim: tuple[int, ...]) -> None:
         self._s_dim = dim
 
     @property
-    def dim_y(self) -> int:
+    def dim_y(self) -> tuple[int, ...]:
         assert self._y_dim is not None
         return self._y_dim
 
     @dim_y.setter
-    def dim_y(self, dim: int) -> None:
+    def dim_y(self, dim: tuple[int, ...]) -> None:
         self._y_dim = dim
 
     def make_feature_groups(self, dataset: Dataset, data: DataTuple) -> None:
@@ -205,7 +205,7 @@ class BaseDataModule(LightningDataModule):
         train_indices: np.ndarray,
         val_indices: np.ndarray,
         test_indices: np.ndarray,
-    ) -> Tuple[DataTuple, DataTuple, DataTuple]:
+    ) -> tuple[DataTuple, DataTuple, DataTuple]:
         """Scale a datatuple and split to train/test."""
         train = DataTuple(
             x=datatuple.x.iloc[train_indices].reset_index(drop=True),
@@ -236,7 +236,7 @@ class BaseDataModule(LightningDataModule):
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
         return train, val, test
 
-    def make_data_plots(self, cf_available: bool, logger: Optional[WandbLogger]) -> None:
+    def make_data_plots(self, cf_available: bool, logger: WandbLogger | None) -> None:
         """Make plots of the data."""
         try:
             label_plot(self.train_datatuple, logger, "train")

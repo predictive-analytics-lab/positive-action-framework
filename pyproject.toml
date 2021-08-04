@@ -21,7 +21,6 @@ hydra-joblib-launcher = {version = "^1.1.2", allow-prereleases = true}
 
 [tool.poetry.dev-dependencies]
 black = "*"
-data-science-types = "*"
 mypy = "*"
 pydocstyle = "*"
 pylint = "*"
@@ -137,10 +136,11 @@ module = [
     "numpy.typing.*",
     "pytest.*",
     "pytorch_lightning.*",
+    "seaborn.*",
+    "scipy.*",
     "sklearn.*",
     "torch.*",
     "torchmetrics.*"
 ]
 follow_imports = "skip"
 follow_imports_for_stubs = true
-warn_unused_ignores = true

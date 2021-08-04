@@ -1,7 +1,6 @@
 """Common methods for models."""
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Dict, List
 
 import numpy as np
 from pytorch_lightning import LightningModule
@@ -43,7 +42,7 @@ class CommonModel(LightningModule):
         data_dim: int,
         s_dim: int,
         cf_available: bool,
-        feature_groups: Dict[str, List[slice]],
-        outcome_cols: List[str],
+        feature_groups: dict[str, list[slice]],
+        outcome_cols: list[str],
     ) -> None:
         """Build the network using data not available in advance."""

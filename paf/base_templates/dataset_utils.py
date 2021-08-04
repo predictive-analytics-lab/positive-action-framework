@@ -1,7 +1,7 @@
 """Torch Dataset wrapper for EthicML."""
-
+from __future__ import annotations
 from itertools import groupby
-from typing import Iterator, List, NamedTuple, Tuple
+from typing import Iterator, NamedTuple
 
 from ethicml import DataTuple, compute_instance_weights
 from ethicml.implementations.pytorch_common import _get_info
@@ -27,7 +27,7 @@ class CfBatch(NamedTuple):
     iw: Tensor
 
 
-def group_features(disc_feats: List[str]) -> Iterator[Tuple[str, Iterator[str]]]:
+def group_features(disc_feats: list[str]) -> Iterator[tuple[str, Iterator[str]]]:
     """Group discrete features names according to the first segment of their name."""
 
     def _first_segment(feature_name: str) -> str:
@@ -36,7 +36,7 @@ def group_features(disc_feats: List[str]) -> Iterator[Tuple[str, Iterator[str]]]
     return groupby(disc_feats, _first_segment)
 
 
-def grouped_features_indexes(disc_feats: List[str]) -> List[slice]:
+def grouped_features_indexes(disc_feats: list[str]) -> list[slice]:
     """Group discrete features names according to the first segment of their name.
 
     Then return a list of their corresponding slices (assumes order is maintained).
@@ -57,7 +57,7 @@ def grouped_features_indexes(disc_feats: List[str]) -> List[slice]:
 class DataTupleDatasetBase:
     """Wrapper for EthicML datasets."""
 
-    def __init__(self, dataset: DataTuple, disc_features: List[str], cont_features: List[str]):
+    def __init__(self, dataset: DataTuple, disc_features: list[str], cont_features: list[str]):
         """Create DataTupleDataset."""
         disc_features = [feat for feat in disc_features if feat in dataset.x.columns]
         self.disc_features = disc_features
@@ -100,7 +100,7 @@ class DataTupleDatasetBase:
 class DataTupleDataset(DataTupleDatasetBase):
     """Wrapper for EthicML datasets."""
 
-    def __init__(self, dataset: DataTuple, disc_features: List[str], cont_features: List[str]):
+    def __init__(self, dataset: DataTuple, disc_features: list[str], cont_features: list[str]):
         super().__init__(dataset, disc_features, cont_features)
         self.instance_weight = torch.tensor(
             compute_instance_weights(dataset)["instance weights"].values
@@ -119,8 +119,8 @@ class CFDataTupleDataset(DataTupleDatasetBase):
         self,
         dataset: DataTuple,
         cf_dataset: DataTuple,
-        disc_features: List[str],
-        cont_features: List[str],
+        disc_features: list[str],
+        cont_features: list[str],
     ):
         """Create DataTupleDataset."""
         super().__init__(dataset, disc_features, cont_features)
@@ -131,7 +131,7 @@ class CFDataTupleDataset(DataTupleDatasetBase):
 
     def split_tuple(
         self, datatuple: DataTuple
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Split a datatuple to components."""
         x_disc = datatuple.x[self.disc_features].to_numpy(dtype=np.float32)
         x_cont = datatuple.x[self.cont_features].to_numpy(dtype=np.float32)

@@ -1,5 +1,5 @@
 """AIES Model."""
-from typing import Dict, List, Tuple, Union
+from __future__ import annotations
 
 from kit import implements
 import pandas as pd
@@ -26,20 +26,20 @@ class AiesModel(AiesProperties):
         self.clf = classifier
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor) -> Dict[str, Tuple[Tensor, ...]]:
+    def forward(self, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
         enc_z, enc_s_pred, recons = self.enc(x, s)
         return self.clf.from_recons(recons)
 
     @implements(LightningModule)
-    def training_step(self, batch: Tuple[Tensor, ...], batch_idx: int) -> Tensor:
+    def training_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> Tensor:
         """This is empty as we do not train the model end to end."""
 
     @implements(LightningModule)
-    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[ExponentialLR]]:
+    def configure_optimizers(self) -> tuple[list[torch.optim.Optimizer], list[ExponentialLR]]:
         """This is empty as we do not train the model end to end."""
 
     @implements(LightningModule)
-    def test_step(self, batch: Union[Batch, CfBatch], batch_idx: int) -> Dict[str, Tensor]:
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
         if isinstance(self.enc, AE):
             enc_z, enc_s_pred, recons = self.enc(batch.x, batch.s)
         elif isinstance(self.enc, CycleGan):
@@ -79,7 +79,7 @@ class AiesModel(AiesProperties):
         return to_return
 
     @implements(LightningModule)
-    def test_epoch_end(self, output_results: List[Dict[str, Tensor]]) -> None:
+    def test_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
         self.all_enc_z = torch.cat([_r["enc_z"] for _r in output_results], 0)
         self.all_enc_s_pred = torch.cat([_r["enc_s_pred"] for _r in output_results], 0)
         self.all_s = torch.cat([_r["s"] for _r in output_results], 0)

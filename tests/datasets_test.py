@@ -1,6 +1,7 @@
 """Basic tests."""
+from __future__ import annotations
 import copy
-from typing import Final, List
+from typing import Final
 
 from hydra.core.config_store import ConfigStore
 from hydra.experimental import compose, initialize
@@ -32,7 +33,7 @@ cs.store(name="synth", node=SimpleXDataModuleConf, package=data_package, group=d
 cs.store(name="third", node=ThirdWayDataModuleConf, package=data_package, group=data_group)
 
 CFG_PTH: Final[str] = "../paf/configs"
-SCHEMAS: Final[List[str]] = [
+SCHEMAS: Final[list[str]] = [
     "enc=basic",
     "clf=basic",
     "exp=unit_test",

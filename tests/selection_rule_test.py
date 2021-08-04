@@ -9,7 +9,7 @@ from paf.selection import produce_selection_groups, selection_rules
 from paf.utils import facct_mapper, facct_mapper_2, facct_mapper_outcomes
 
 
-def test_sr():
+def test_sr() -> None:
 
     s0s0 = torch.tensor(
         [

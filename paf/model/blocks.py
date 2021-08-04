@@ -1,5 +1,5 @@
 """Blocks."""
-from typing import List
+from __future__ import annotations
 
 from torch import nn
 
@@ -15,7 +15,7 @@ def block(*, in_dim: int, out_dim: int) -> nn.Module:
     return seq
 
 
-def mid_blocks(*, latent_dim: int, blocks: int) -> List:
+def mid_blocks(*, latent_dim: int, blocks: int) -> list[nn.Module]:
     """Build middle blocks for hidden layers."""
     return (
         [block(in_dim=latent_dim, out_dim=latent_dim) for _ in range(blocks - 1)]
