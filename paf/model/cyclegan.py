@@ -176,7 +176,7 @@ class Loss:
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i].sigmoid(),
                     real_data[
-                        :, slice(self.feature_groups["discrete"][-1].stop, real_data.x.shape[1])
+                        :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i],
                 )
             for group_slice in self.feature_groups["discrete"]:
@@ -209,7 +209,7 @@ class Loss:
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i].sigmoid(),
                     real_data[
-                        :, slice(self.feature_groups["discrete"][-1].stop, real_data.x.shape[1])
+                        :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i],
                 )
             for group_slice in self.feature_groups["discrete"]:
@@ -380,11 +380,6 @@ class CycleGan(pl.LightningModule):
 
         self.init_fn = Initializer(init_type='normal', init_gain=0.02)
 
-        # self.example_input_array = [
-        #     torch.rand(1, 2, device=self.device),
-        #     torch.rand(1, 2, device=self.device),
-        # ]
-
     def build(
         self,
         num_s: int,
@@ -406,6 +401,10 @@ class CycleGan(pl.LightningModule):
         self.g_params = itertools.chain([*self.g_A2B.parameters(), *self.g_B2A.parameters()])
         self.data_cols = outcome_cols
 
+        self.example_input_array = [
+            torch.rand(33, data_dim, device=self.device),
+            torch.rand(33, data_dim, device=self.device),
+        ]
         self.built = True
 
     @staticmethod
