@@ -400,6 +400,7 @@ class CycleGan(pl.LightningModule):
         self.d_B_params = self.d_B.parameters()
         self.g_params = itertools.chain([*self.g_A2B.parameters(), *self.g_B2A.parameters()])
         self.data_cols = outcome_cols
+        self.scaler = scaler
 
         self.example_input_array = [
             torch.rand(33, data_dim, device=self.device),
