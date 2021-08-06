@@ -113,7 +113,7 @@ def make_plot(
     *,
     x: Tensor,
     s: Tensor,
-    logger: WandbLogger,
+    logger: WandbLogger | None,
     name: str,
     cols: list[str],
     cat_plot: bool = False,

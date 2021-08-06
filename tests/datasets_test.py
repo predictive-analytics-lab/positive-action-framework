@@ -9,6 +9,7 @@ from hydra.utils import instantiate
 from omegaconf import OmegaConf
 import pytest
 from pytorch_lightning import seed_everything
+from sklearn.preprocessing import MinMaxScaler
 import torch
 
 from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import]
@@ -42,7 +43,7 @@ SCHEMAS: Final[list[str]] = [
 
 
 @pytest.mark.parametrize(
-    "dm_schema", ["adult", "ad", "adm", "law", "crime", "health", "semi", "lill", "synth"]
+    "dm_schema", ["adult", "ad", "adm", "law", "semi", "lill", "synth"]  # "crime", "health"
 )
 def test_with_initialize(dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
@@ -120,7 +121,7 @@ def test_datamods(dm_schema: str, cf_available: bool) -> None:
                 torch.testing.assert_allclose(tr_x, te_x)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
+@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult", "adm", "ad"])
 def test_enc(dm_schema: str) -> None:
     """Test the encoder network runs."""
     with initialize(config_path=CFG_PTH):
@@ -130,16 +131,18 @@ def test_enc(dm_schema: str) -> None:
             overrides=[f"data={dm_schema}"] + SCHEMAS,
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        cfg.data.scaler = MinMaxScaler()
 
         cfg.data.prepare_data()
+        cfg.data.setup()
         encoder = cfg.enc
         encoder.build(
             num_s=cfg.data.card_s,
-            data_dim=cfg.data.data_dim,
-            s_dim=cfg.data.dim_s,
-            cf_available=cfg.data.cf_available,
+            data_dim=cfg.data.size()[0],
+            s_dim=cfg.data.dim_s[0],
+            cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=cfg.data.feature_groups,
-            outcome_cols=cfg.data.column_names,
+            outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
             scaler=cfg.data.scaler,
         )
         cfg.trainer.fit(model=encoder, datamodule=cfg.data)
@@ -156,16 +159,18 @@ def test_clf(dm_schema: str) -> None:
             overrides=[f"data={dm_schema}"] + SCHEMAS,
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        cfg.data.scaler = MinMaxScaler()
 
         cfg.data.prepare_data()
+        cfg.data.setup()
         classifier = cfg.clf
         classifier.build(
             num_s=cfg.data.card_s,
-            data_dim=cfg.data.data_dim,
-            s_dim=cfg.data.dim_s,
-            cf_available=cfg.data.cf_available,
+            data_dim=cfg.data.size()[0],
+            s_dim=cfg.data.dim_s[0],
+            cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=cfg.data.feature_groups,
-            outcome_cols=cfg.data.column_names,
+            outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
         )
         cfg.trainer.fit(model=classifier, datamodule=cfg.data)
         cfg.trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
@@ -181,6 +186,7 @@ def test_clfmod(dm_schema: str) -> None:
             overrides=[f"data={dm_schema}"] + SCHEMAS,
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        cfg.data.scaler = MinMaxScaler()
 
         enc_trainer = copy.deepcopy(cfg.trainer)
         clf_trainer = copy.deepcopy(cfg.trainer)
@@ -188,14 +194,15 @@ def test_clfmod(dm_schema: str) -> None:
 
         data = cfg.data
         data.prepare_data()
+        data.setup()
         encoder = cfg.enc
         encoder.build(
             num_s=data.card_s,
-            data_dim=data.data_dim,
-            s_dim=data.dim_s,
-            cf_available=data.cf_available,
+            data_dim=data.size()[0],
+            s_dim=data.dim_s[0],
+            cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=data.feature_groups,
-            outcome_cols=data.column_names,
+            outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
             scaler=cfg.data.scaler,
         )
         enc_trainer.fit(model=encoder, datamodule=data)
@@ -204,11 +211,11 @@ def test_clfmod(dm_schema: str) -> None:
         classifier = cfg.clf
         classifier.build(
             num_s=data.card_s,
-            data_dim=data.data_dim,
-            s_dim=data.dim_s,
-            cf_available=data.cf_available,
+            data_dim=data.size()[0],
+            s_dim=data.dim_s[0],
+            cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=data.feature_groups,
-            outcome_cols=data.outcome_columns,
+            outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
         )
         clf_trainer.fit(model=classifier, datamodule=data)
         clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)

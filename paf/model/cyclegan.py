@@ -600,41 +600,41 @@ class CycleGan(pl.LightningModule):
 
     def test_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
 
-        all_x = torch.cat([_r["x"] for _r in outputs], 0)
+        self.all_x = torch.cat([_r["x"] for _r in outputs], 0)
         all_s = torch.cat([_r["s"] for _r in outputs], 0)
-        all_recon = torch.cat([_r["recon"] for _r in outputs], 0)
+        self.all_recon = torch.cat([_r["recon"] for _r in outputs], 0)
         torch.cat([_r["recons_0"] for _r in outputs], 0)
         torch.cat([_r["recons_1"] for _r in outputs], 0)
 
         logger.info(self.data_cols)
         if self.loss.feature_groups["discrete"]:
             make_plot(
-                x=all_x[
-                    :, slice(self.loss.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                x=self.all_x[
+                    :, slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ].clone(),
                 s=all_s.clone(),
                 logger=self.logger,
                 name="true_data",
                 cols=self.data_cols[
-                    slice(self.loss.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                    slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ],
                 scaler=self.scaler,
             )
             make_plot(
-                x=all_recon[
-                    :, slice(self.loss.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                x=self.all_recon[
+                    :, slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ].clone(),
                 s=all_s.clone(),
                 logger=self.logger,
                 name="recons",
                 cols=self.data_cols[
-                    slice(self.loss.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                    slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ],
                 scaler=self.scaler,
             )
             for group_slice in self.loss.feature_groups["discrete"]:
                 make_plot(
-                    x=all_x[:, group_slice].clone(),
+                    x=self.all_x[:, group_slice].clone(),
                     s=all_s.clone(),
                     logger=self.logger,
                     name="true_data",
@@ -651,20 +651,20 @@ class CycleGan(pl.LightningModule):
                 )
         else:
             make_plot(
-                x=all_x.clone(),
+                x=self.all_x.clone(),
                 s=all_s.clone(),
                 logger=self.logger,
                 name="true_data",
                 cols=self.data_cols,
             )
             make_plot(
-                x=all_recon.clone(),
+                x=self.all_recon.clone(),
                 s=all_s.clone(),
                 logger=self.logger,
                 name="recons",
                 cols=self.data_cols,
             )
-        recon_mse = (all_x - all_recon).abs().mean(dim=0)
+        recon_mse = (self.all_x - self.all_recon).abs().mean(dim=0)
         for i, feature_mse in enumerate(recon_mse):
             feature_name = self.data_cols[i]
             do_log(

@@ -19,7 +19,7 @@ class AEConf:
     adv_blocks: int = MISSING
     decoder_blocks: int = MISSING
     adv_weight: float = MISSING
-    reg_weight: float = MISSING
+    cycle_weight: float = MISSING
     target_weight: float = MISSING
     lr: float = MISSING
     mmd_kernel: KernelType = MISSING

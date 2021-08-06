@@ -105,7 +105,7 @@ class AE(CommonModel):
         adv_blocks: int,
         decoder_blocks: int,
         adv_weight: float,
-        reg_weight: float,
+        cycle_weight: float,
         target_weight: float,
         lr: float,
         mmd_kernel: KernelType,
@@ -116,7 +116,7 @@ class AE(CommonModel):
         super().__init__(name="Enc")
 
         self.adv_weight = adv_weight
-        self.reg_weight = reg_weight
+        self.cycle_weight = cycle_weight
         self.recon_weight = target_weight
         self.lr = lr
         self.s_as_input = s_as_input
@@ -181,13 +181,7 @@ class AE(CommonModel):
         recons = [dec(z) for dec in self.decoders]
         return z, s_pred, recons
 
-    @implements(LightningModule)
-    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
-        assert self.built
-        if batch_idx == 0:
-            self.num_batches += 1
-        z, s_pred, recons = self(batch.x, batch.s)
-
+    def combined_loss(self, recons: list[Tensor], batch: Batch | CfBatch) -> Tensor:
         if self.feature_groups["discrete"]:
             recon_loss = batch.x.new_tensor(0.0)
             for i in range(
@@ -212,16 +206,28 @@ class AE(CommonModel):
         else:
             recon_loss = mse_loss(index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean")
 
+        return recon_loss
+
+    @implements(LightningModule)
+    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
+        assert self.built
+        z, s_pred, recons = self(batch.x, batch.s)
+
+        recon_loss = self.combined_loss(recons, batch)
         adv_loss = (
             mmd2(z[batch.s == 0], z[batch.s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(s_pred.squeeze(-1), batch.s, reduction="mean")
         ) / 2
-        # _, _, cycle_preds = self(index_by_s(recons, 1 - batch.s), 1 - batch.s)
-        # cycle_loss = binary_cross_entropy_with_logits(
-        #     index_by_s(cycle_preds, batch.s).squeeze(-1), batch.x, reduction="mean"
-        # )
+        _, _, cycle_preds = self(index_by_s(recons, 1 - batch.s), 1 - batch.s)
+        cycle_loss = nn.MSELoss(reduction="mean")(
+            index_by_s(cycle_preds, batch.s).squeeze(-1), batch.x
+        )
 
-        loss = self.recon_weight * recon_loss + self.adv_weight * adv_loss  # + cycle_loss
+        loss = (
+            self.recon_weight * recon_loss
+            + self.adv_weight * adv_loss
+            + self.cycle_weight * cycle_loss
+        )
 
         to_log = {
             "training_enc/loss": loss,
@@ -294,40 +300,42 @@ class AE(CommonModel):
 
     @implements(LightningModule)
     def test_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
-        all_x = torch.cat([_r["x"] for _r in output_results], 0)
+        self.all_x = torch.cat([_r["x"] for _r in output_results], 0)
         all_z = torch.cat([_r["z"] for _r in output_results], 0)
         all_s = torch.cat([_r["s"] for _r in output_results], 0)
-        all_recon = torch.cat([_r["recon"] for _r in output_results], 0)
+        self.all_recon = torch.cat([_r["recon"] for _r in output_results], 0)
         torch.cat([_r["recons_0"] for _r in output_results], 0)
         torch.cat([_r["recons_1"] for _r in output_results], 0)
 
         logger.info(self.data_cols)
         if self.feature_groups["discrete"]:
             make_plot(
-                x=all_x[:, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])].clone(),
+                x=self.all_x[
+                    :, slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
+                ].clone(),
                 s=all_s.clone(),
                 logger=self.logger,
                 name="true_data",
                 cols=self.data_cols[
-                    slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                    slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ],
                 scaler=self.scaler,
             )
             make_plot(
-                x=all_recon[
-                    :, slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                x=self.all_recon[
+                    :, slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ].clone(),
                 s=all_s.clone(),
                 logger=self.logger,
                 name="recons",
                 cols=self.data_cols[
-                    slice(self.feature_groups["discrete"][-1].stop, all_x.shape[1])
+                    slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ],
                 scaler=self.scaler,
             )
             for group_slice in self.feature_groups["discrete"]:
                 make_plot(
-                    x=all_x[:, group_slice].clone(),
+                    x=self.all_x[:, group_slice].clone(),
                     s=all_s.clone(),
                     logger=self.logger,
                     name="true_data",
@@ -335,7 +343,7 @@ class AE(CommonModel):
                     cat_plot=True,
                 )
                 make_plot(
-                    x=all_recon[:, group_slice].clone(),
+                    x=self.all_recon[:, group_slice].clone(),
                     s=all_s.clone(),
                     logger=self.logger,
                     name="recons",
@@ -344,14 +352,14 @@ class AE(CommonModel):
                 )
         else:
             make_plot(
-                x=all_x.clone(),
+                x=self.all_x.clone(),
                 s=all_s.clone(),
                 logger=self.logger,
                 name="true_data",
                 cols=self.data_cols,
             )
             make_plot(
-                x=all_recon.clone(),
+                x=self.all_recon.clone(),
                 s=all_s.clone(),
                 logger=self.logger,
                 name="recons",
@@ -364,14 +372,6 @@ class AE(CommonModel):
             name="z",
             cols=[str(i) for i in range(self.latent_dims)],
         )
-        recon_mse = (all_x - all_recon).abs().mean(dim=0)
-        for i, feature_mse in enumerate(recon_mse):
-            feature_name = self.data_cols[i]
-            do_log(
-                f"Table6/Ours/recon_l1 - feature {feature_name}",
-                round(feature_mse.item(), 5),
-                self.logger,
-            )
 
         if self.cf_model:
             all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
@@ -421,14 +421,14 @@ class AE(CommonModel):
             else:
                 recons.append(r)
         assert recons is not None
-        recons = torch.cat(recons, dim=0)
-        return recons.detach().cpu().numpy()
+        _recons = torch.cat(recons, dim=0)
+        return _recons.detach().cpu().numpy()
 
     def run_through(self, dataloader: DataLoader) -> tuple[Tensor, Tensor, Tensor]:
         """Run through a dataloader and record the outputs with labels."""
-        recons: Tensor | None = None
-        sens: Tensor | None = None
-        labels: Tensor | None = None
+        recons: list[Tensor] | None = None
+        sens: list[Tensor] | None = None
+        labels: list[Tensor] | None = None
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
@@ -449,9 +449,9 @@ class AE(CommonModel):
             else:
                 labels.append(y)
         assert recons is not None
-        recons = torch.cat(recons, dim=0)
+        _recons = torch.cat(recons, dim=0)
         assert sens is not None
-        sens = torch.cat(sens, dim=0)
+        _sens = torch.cat(sens, dim=0)
         assert labels is not None
-        labels = torch.cat(labels, dim=0)
-        return recons.detach(), sens.detach(), labels.detach()
+        _labels = torch.cat(labels, dim=0)
+        return _recons.detach(), _sens.detach(), _labels.detach()

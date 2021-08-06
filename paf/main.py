@@ -8,7 +8,6 @@ from typing import Any, Final, Optional
 import warnings
 
 from ethicml import (
-    LRCV,
     TNR,
     TPR,
     Accuracy,
@@ -29,6 +28,7 @@ from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
 
 from paf.base_templates.base_module import BaseDataModule
+from paf.callbacks.callbacks import MseLogger
 from paf.config_classes.bolts.fair.data.configs import (  # type: ignore[import]
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
@@ -157,7 +157,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
 
     make_data_plots(data, cfg.trainer.logger)
 
-    if cfg.exp.model == ModelType.paf:
+    if cfg.exp.model is ModelType.paf:
         encoder: AE = cfg.enc
         encoder.build(
             num_s=data.card_s,
@@ -170,6 +170,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         )
 
         enc_trainer = cfg.trainer
+        enc_trainer.callbacks = [MseLogger()]
         enc_trainer.tune(model=encoder, datamodule=data)
         enc_trainer.fit(model=encoder, datamodule=data)
         if enc_trainer.fast_dev_run:
