@@ -115,7 +115,6 @@ cs.store(name="admiss-bolt", node=AdmissionsDataModuleConf, package=data_package
 cs.store(name="crime-bolt", node=CrimeDataModuleConf, package=data_package, group=data_group)
 cs.store(name="health-bolt", node=HealthDataModuleConf, package=data_package, group=data_group)
 cs.store(name="law-bolt", node=LawDataModuleConf, package=data_package, group=data_group)
-cs.store(name="adult", node=SimpleAdultDataModuleConf, package=data_package, group=data_group)
 cs.store(name="semi-synth", node=SemiAdultDataModuleConf, package=data_package, group=data_group)
 cs.store(name="lilliput", node=LilliputDataModuleConf, package=data_package, group=data_group)
 cs.store(name="synth", node=SimpleXDataModuleConf, package=data_package, group=data_group)

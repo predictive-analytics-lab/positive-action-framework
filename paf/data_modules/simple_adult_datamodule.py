@@ -1,7 +1,7 @@
 """Adult Dataset DataModule."""
 from __future__ import annotations
 
-from ethicml import DataTuple, ProportionalSplit
+from ethicml import ProportionalSplit, RandomSplit
 from kit import implements
 import numpy as np
 from pytorch_lightning import LightningDataModule
@@ -47,23 +47,25 @@ class SimpleAdultDataModule(BaseDataModule):
         self.column_names = self.dataset.discrete_features + self.dataset.continuous_features
         self.outcome_columns = self.factual_data.y.columns
 
-        num_train = int(self.factual_data.x.shape[0] * 0.8)
-        num_val = 0  # int(self.factual_data.x.shape[0] * 0.1)
+        num_train = int(self.factual_data.x.shape[0] * 0.7)
+        num_val = int(self.factual_data.x.shape[0] * 0.1)
         rng = np.random.RandomState(self.seed)
         idx = rng.permutation(self.factual_data.x.index)
         val_indices = idx[num_train : num_train + num_val]
 
-        self.train_datatuple, self.test_datatuple, split_info = ProportionalSplit(
+        train_val_datatuple, self.test_datatuple, split_info = ProportionalSplit(
             train_percentage=0.8
-        )(
-            self.factual_data  # TODO: Should this be train_data?
+        )(self.factual_data)
+
+        self.train_datatuple, self.val_datatuple, _ = RandomSplit(train_percentage=0.875)(
+            train_val_datatuple
         )
 
-        self.val_datatuple = DataTuple(
-            x=self.train_datatuple.x.iloc[val_indices].reset_index(drop=True),
-            s=self.train_datatuple.s.iloc[val_indices].reset_index(drop=True),
-            y=self.train_datatuple.y.iloc[val_indices].reset_index(drop=True),
-        )
+        # self.val_datatuple = DataTuple(
+        #     x=self.train_datatuple.x.iloc[val_indices].reset_index(drop=True),
+        #     s=self.train_datatuple.s.iloc[val_indices].reset_index(drop=True),
+        #     y=self.train_datatuple.y.iloc[val_indices].reset_index(drop=True),
+        # )
 
         self.scaler = MinMaxScaler()
         self.scaler = self.scaler.fit(self.train_datatuple.x[self.dataset.continuous_features])

@@ -33,7 +33,6 @@ class BaseDataModule(LightningDataModule):
         self._train_tuple: DataTuple | None = None
         self._x_dim: tuple[int, ...] | None = None
         self._feature_groups: dict[str, list[slice]] | None = None
-        self.train_means_train = True
         self._dataset: Dataset | None = None
 
     @property
@@ -164,10 +163,6 @@ class BaseDataModule(LightningDataModule):
     def true_test_data(self, datatuple: DataTuple) -> None:
         self._true_test_tuple = datatuple
 
-    def flip_train_test(self) -> None:
-        """Swap the train and test dataloaders."""
-        self.train_means_train = not self.train_means_train
-
     @abstractmethod
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         ...
@@ -182,10 +177,7 @@ class BaseDataModule(LightningDataModule):
 
     @implements(LightningDataModule)
     def train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
-        if self.train_means_train:
-            return self._train_dataloader(shuffle, drop_last)
-        else:
-            return self._test_dataloader(shuffle, drop_last)
+        return self._train_dataloader(shuffle, drop_last)
 
     @implements(LightningDataModule)
     def val_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
@@ -193,10 +185,7 @@ class BaseDataModule(LightningDataModule):
 
     @implements(LightningDataModule)
     def test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
-        if self.train_means_train:
-            return self._test_dataloader(shuffle, drop_last)
-        else:
-            return self._train_dataloader(shuffle, drop_last)
+        return self._test_dataloader(shuffle, drop_last)
 
     def scale_and_split(
         self,

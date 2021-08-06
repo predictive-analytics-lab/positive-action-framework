@@ -58,8 +58,8 @@ class SimpleXDataModule(BaseDataModule):
         self.column_names = true_data.x.columns
         self.outcome_columns = true_data.y.columns
 
-        num_train = int(self.factual_data.x.shape[0] * 0.8)
-        num_val = 0  # int(self.factual_data.x.shape[0] * 0.1)
+        num_train = int(self.factual_data.x.shape[0] * 0.7)
+        num_val = int(self.factual_data.x.shape[0] * 0.1)
         rng = np.random.RandomState(self.seed)
         idx = rng.permutation(self.factual_data.x.index)
         train_indices = idx[:num_train]

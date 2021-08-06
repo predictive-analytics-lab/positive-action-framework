@@ -21,17 +21,12 @@ from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import
 from paf.config_classes.pytorch_lightning.trainer.configs import (
     TrainerConf,  # type: ignore[import]
 )
-from paf.main import Config, data_group, data_package, run_aies
+from paf.main import Config, run_aies
 from paf.model.aies_model import AiesModel
 
 cs = ConfigStore.instance()
 cs.store(name="config_schema", node=Config)  # General Schema
 cs.store(name="trainer_schema", node=TrainerConf, package="trainer")
-
-cs.store(name="adult", node=SimpleAdultDataModuleConf, package=data_package, group=data_group)
-cs.store(name="lilliput", node=LilliputDataModuleConf, package=data_package, group=data_group)
-cs.store(name="synth", node=SimpleXDataModuleConf, package=data_package, group=data_group)
-cs.store(name="third", node=ThirdWayDataModuleConf, package=data_package, group=data_group)
 
 CFG_PTH: Final[str] = "../paf/configs"
 SCHEMAS: Final[list[str]] = [
@@ -43,7 +38,7 @@ SCHEMAS: Final[list[str]] = [
 
 
 @pytest.mark.parametrize(
-    "dm_schema", ["adult", "ad", "adm", "law", "semi", "lill", "synth"]  # "crime", "health"
+    "dm_schema", ["ad", "adm", "law", "semi", "lill", "synth"]  # "crime", "health"
 )
 def test_with_initialize(dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
@@ -58,7 +53,7 @@ def test_with_initialize(dm_schema: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("adult", False)]
+    "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("ad", False)]
 )
 def test_data(dm_schema: str, cf_available: bool) -> None:
     """Test the data module."""
@@ -72,11 +67,14 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
         seed_everything(0)
 
         cfg.data.prepare_data()
+        cfg.data.setup()
 
-        assert cf_available == cfg.data.cf_available
+        assert cf_available == (
+            cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False
+        )
 
         for batch in cfg.data.train_dataloader():
-            if cfg.data.cf_available:
+            if cf_available:
                 with pytest.raises(AssertionError):
                     torch.testing.assert_allclose(batch.x, batch.cfx)
                 with pytest.raises(AssertionError):
@@ -90,7 +88,7 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
 
 
 @pytest.mark.parametrize(
-    "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("adult", False)]
+    "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("ad", False)]
 )
 def test_datamods(dm_schema: str, cf_available: bool) -> None:
     """Test the flip dataset function."""
@@ -104,24 +102,17 @@ def test_datamods(dm_schema: str, cf_available: bool) -> None:
         seed_everything(0)
         data = cfg.data
         data.prepare_data()
+        cfg.data.setup()
 
         training_dl = data.train_dataloader(shuffle=False, drop_last=False)
-        data.flip_train_test()
-        training_dl2 = data.train_dataloader(shuffle=False, drop_last=False)
+        training_dl2 = data.test_dataloader()
 
         for (tr_batch, te_batch) in zip(training_dl, training_dl2):
-            if data.cf_available:
-                tr_x, tr_s, tr_y, _, _, _, _ = tr_batch
-                te_x, te_s, te_y, _, _, _, _ = te_batch
-            else:
-                tr_x, tr_s, tr_y, _ = tr_batch
-                te_x, te_s, te_y, _ = te_batch
-
             with pytest.raises(AssertionError):
-                torch.testing.assert_allclose(tr_x, te_x)
+                torch.testing.assert_allclose(tr_batch.x, te_batch.x)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult", "adm", "ad"])
+@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adm", "ad"])
 def test_enc(dm_schema: str) -> None:
     """Test the encoder network runs."""
     with initialize(config_path=CFG_PTH):
@@ -149,7 +140,7 @@ def test_enc(dm_schema: str) -> None:
         cfg.trainer.test(model=encoder, ckpt_path=None, datamodule=cfg.data)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
+@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
 def test_clf(dm_schema: str) -> None:
     """Test the classifier network runs."""
     with initialize(config_path=CFG_PTH):
@@ -176,7 +167,7 @@ def test_clf(dm_schema: str) -> None:
         cfg.trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adult"])
+@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
 def test_clfmod(dm_schema: str) -> None:
     """Test the end to end."""
     with initialize(config_path=CFG_PTH):

@@ -95,6 +95,10 @@ class Decoder(BaseModel):
 class AE(CommonModel):
     """Main Autoencoder."""
 
+    feature_groups: dict[str, list[slice]] | None = None
+    cf_model: bool | None = None
+    data_cols: list[str] | None = None
+
     @parsable
     def __init__(
         self,
@@ -280,6 +284,13 @@ class AE(CommonModel):
 
     @implements(LightningModule)
     def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
+        return self.shared_step(batch, batch_idx)
+
+    @implements(LightningModule)
+    def validation_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
+        return self.shared_step(batch, batch_idx)
+
+    def shared_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
         assert self.built
         z, _, recons = self(batch.x, batch.s)
 
@@ -300,6 +311,13 @@ class AE(CommonModel):
 
     @implements(LightningModule)
     def test_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
+        self.shared_epoch_end(output_results)
+
+    @implements(LightningModule)
+    def validation_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
+        self.shared_epoch_end(output_results)
+
+    def shared_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
         self.all_x = torch.cat([_r["x"] for _r in output_results], 0)
         all_z = torch.cat([_r["z"] for _r in output_results], 0)
         all_s = torch.cat([_r["s"] for _r in output_results], 0)
