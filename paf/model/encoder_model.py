@@ -1,7 +1,9 @@
 """Encoder model."""
 from __future__ import annotations
+from dataclasses import asdict, dataclass
 import logging
 
+from bolts.structures import Stage
 from kit import implements, parsable
 import numpy as np
 from pytorch_lightning import LightningModule
@@ -16,6 +18,7 @@ from torch.nn.functional import (
 )
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
+from torchmetrics import MeanSquaredError
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.config_classes.dataclasses import KernelType
@@ -27,6 +30,23 @@ from paf.model.model_utils import grad_reverse, index_by_s, to_discrete
 from paf.plotting import make_plot
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SharedStepOut:
+    x: Tensor
+    z: Tensor
+    s: Tensor
+    recon: Tensor
+    cf_pred: Tensor
+    recons_0: Tensor
+    recons_1: Tensor
+
+
+@dataclass
+class CfSharedStepOut(SharedStepOut):
+    cf_x: Tensor
+    cf_recon: Tensor
 
 
 class BaseModel(nn.Module):
@@ -134,6 +154,9 @@ class AE(CommonModel):
         self.adv_blocks = adv_blocks
         self.decoder_blocks = decoder_blocks
         self.built = False
+
+        self.val_mse = MeanSquaredError()
+        self.test_mse = MeanSquaredError()
 
     @implements(CommonModel)
     def build(
@@ -283,47 +306,58 @@ class AE(CommonModel):
         return k
 
     @implements(LightningModule)
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
-        return self.shared_step(batch, batch_idx)
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> SharedStepOut | CfSharedStepOut:
+        return self.shared_step(batch, batch_idx, Stage.test)
 
     @implements(LightningModule)
-    def validation_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
-        return self.shared_step(batch, batch_idx)
+    def validation_step(
+        self, batch: Batch | CfBatch, batch_idx: int
+    ) -> SharedStepOut | CfSharedStepOut:
+        return self.shared_step(batch, batch_idx, Stage.validate)
 
-    def shared_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
+    def shared_step(
+        self, batch: Batch | CfBatch, batch_idx: int, stage: Stage
+    ) -> SharedStepOut | CfSharedStepOut:
         assert self.built
         z, _, recons = self(batch.x, batch.s)
 
-        to_return = {
-            "x": batch.x,
-            "z": z,
-            "s": batch.s,
-            "recon": self.invert(index_by_s(recons, batch.s), batch.x),
-            "recons_0": self.invert(recons[0], batch.x),
-            "recons_1": self.invert(recons[1], batch.x),
-        }
+        to_return = SharedStepOut(
+            x=batch.x,
+            z=z,
+            s=batch.s,
+            recon=self.invert(index_by_s(recons, batch.s), batch.x),
+            cf_pred=self.invert(index_by_s(recons, 1 - batch.s), batch.x),
+            recons_0=self.invert(recons[0], batch.x),
+            recons_1=self.invert(recons[1], batch.x),
+        )
 
         if isinstance(batch, CfBatch):
-            to_return["cf_x"] = batch.cfx
-            to_return["cf_recon"] = self.invert(index_by_s(recons, batch.cfs), batch.x)
+            to_return = CfSharedStepOut(
+                cf_x=batch.cfx,
+                cf_recon=self.invert(index_by_s(recons, batch.cfs), batch.x),
+                **asdict(to_return),
+            )
 
         return to_return
 
     @implements(LightningModule)
-    def test_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
-        self.shared_epoch_end(output_results)
+    def test_epoch_end(self, output_results: list[SharedStepOut | CfSharedStepOut]) -> None:
+        self.shared_epoch_end(output_results, stage=Stage.test)
 
     @implements(LightningModule)
-    def validation_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
-        self.shared_epoch_end(output_results)
+    def validation_epoch_end(self, output_results: list[SharedStepOut | CfSharedStepOut]) -> None:
+        self.shared_epoch_end(output_results, stage=Stage.validate)
 
-    def shared_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
-        self.all_x = torch.cat([_r["x"] for _r in output_results], 0)
-        all_z = torch.cat([_r["z"] for _r in output_results], 0)
-        all_s = torch.cat([_r["s"] for _r in output_results], 0)
-        self.all_recon = torch.cat([_r["recon"] for _r in output_results], 0)
-        torch.cat([_r["recons_0"] for _r in output_results], 0)
-        torch.cat([_r["recons_1"] for _r in output_results], 0)
+    def shared_epoch_end(
+        self, output_results: list[SharedStepOut | CfSharedStepOut], stage: Stage
+    ) -> None:
+        self.all_x = torch.cat([_r.x for _r in output_results], 0)
+        all_z = torch.cat([_r.z for _r in output_results], 0)
+        self.all_s = torch.cat([_r.s for _r in output_results], 0)
+        self.all_recon = torch.cat([_r.recon for _r in output_results], 0)
+        self.all_cf_pred = torch.cat([_r.cf_pred for _r in output_results], 0)
+        torch.cat([_r.recons_0 for _r in output_results], 0)
+        torch.cat([_r.recons_1 for _r in output_results], 0)
 
         logger.info(self.data_cols)
         if self.feature_groups["discrete"]:
@@ -331,9 +365,9 @@ class AE(CommonModel):
                 x=self.all_x[
                     :, slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ].clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
-                name="true_data",
+                name=f"{stage.value}_true_data",
                 cols=self.data_cols[
                     slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ],
@@ -343,9 +377,9 @@ class AE(CommonModel):
                 x=self.all_recon[
                     :, slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ].clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
-                name="recons",
+                name=f"{stage.value}_recons",
                 cols=self.data_cols[
                     slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ],
@@ -354,58 +388,58 @@ class AE(CommonModel):
             for group_slice in self.feature_groups["discrete"]:
                 make_plot(
                     x=self.all_x[:, group_slice].clone(),
-                    s=all_s.clone(),
+                    s=self.all_s.clone(),
                     logger=self.logger,
-                    name="true_data",
+                    name=f"{stage.value}_true_data",
                     cols=self.data_cols[group_slice],
                     cat_plot=True,
                 )
                 make_plot(
                     x=self.all_recon[:, group_slice].clone(),
-                    s=all_s.clone(),
+                    s=self.all_s.clone(),
                     logger=self.logger,
-                    name="recons",
+                    name=f"{stage.value}_recons",
                     cols=self.data_cols[group_slice],
                     cat_plot=True,
                 )
         else:
             make_plot(
                 x=self.all_x.clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
-                name="true_data",
+                name=f"{stage.value}_true_data",
                 cols=self.data_cols,
             )
             make_plot(
                 x=self.all_recon.clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
-                name="recons",
+                name=f"{stage.value}_recons",
                 cols=self.data_cols,
             )
         make_plot(
             x=all_z.clone(),
-            s=all_s.clone(),
+            s=self.all_s.clone(),
             logger=self.logger,
-            name="z",
+            name=f"{stage.value}_z",
             cols=[str(i) for i in range(self.latent_dims)],
         )
 
-        if self.cf_model:
-            all_cf_x = torch.cat([_r["cf_x"] for _r in output_results], 0)
-            cf_recon = torch.cat([_r["cf_recon"] for _r in output_results], 0)
+        if isinstance(output_results[0], CfSharedStepOut):
+            all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)
+            cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)
             make_plot(
                 x=all_cf_x.clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
-                name="true_counterfactual",
+                name=f"{stage.value}_true_counterfactual",
                 cols=self.data_cols,
             )
             make_plot(
                 x=cf_recon.clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
-                name="cf_recons",
+                name=f"{stage.value}_cf_recons",
                 cols=self.data_cols,
             )
 
@@ -413,7 +447,7 @@ class AE(CommonModel):
             for i, feature_mse in enumerate(recon_mse):
                 feature_name = self.data_cols[i]
                 do_log(
-                    f"Table6/Ours/cf_recon_l1 - feature {feature_name}",
+                    f"Table6/Ours_{stage.value}/cf_recon_l1 - feature {feature_name}",
                     round(feature_mse.item(), 5),
                     self.logger,
                 )

@@ -53,7 +53,17 @@ def test_with_initialize(dm_schema: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("ad", False)]
+    "dm_schema,cf_available",
+    [
+        ("third", True),
+        ("lill", True),
+        ("synth", True),
+        ("ad", False),
+        ("adm", False),
+        ("crime", False),
+        ("law", False),
+        ("health", False),
+    ],
 )
 def test_data(dm_schema: str, cf_available: bool) -> None:
     """Test the data module."""
@@ -72,6 +82,9 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
         assert cf_available == (
             cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False
         )
+
+        assert cfg.data.card_s == 2
+        assert cfg.data.card_y == 2
 
         for batch in cfg.data.train_dataloader():
             if cf_available:

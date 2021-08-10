@@ -63,6 +63,7 @@ class LilliputDataModule(BaseDataModule):
         self.factual_data = factual_data
         self.cf_data = cf_data
         self.card_s = factual_data.s.nunique().values[0]
+        self.card_y = factual_data.y.nunique().values[0]
         self.data_dim = factual_data.x.shape[1:]
         self.dim_x = self.data_dim
         self.dims = self.data_dim

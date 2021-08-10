@@ -87,6 +87,7 @@ class ThirdWayDataModule(BaseDataModule):
         self.s1_1_s2_0_data = s1_1_s2_0_data
         self.s1_1_s2_1_data = s1_1_s2_1_data
         self.card_s = factual_data.s.nunique().values[0]
+        self.card_y = factual_data.y.nunique().values[0]
         self.data_dim = factual_data.x.shape[1:]
         self.dims = self.data_dim
         self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]

@@ -2,13 +2,16 @@
 from __future__ import annotations
 import itertools
 import logging
+from typing import Iterator, NamedTuple
 
+from bolts.structures import Stage
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.types import EPOCH_OUTPUT
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn, optim
+from torch.nn import Parameter
 from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
@@ -17,6 +20,15 @@ from paf.model.model_utils import index_by_s, to_discrete
 from paf.plotting import make_plot
 
 logger = logging.getLogger(__name__)
+
+
+class SharedStepOut(NamedTuple):
+    x: Tensor
+    s: Tensor
+    recon: Tensor
+    cf_pred: Tensor
+    recons_0: Tensor
+    recons_1: Tensor
 
 
 class Initializer:
@@ -53,7 +65,7 @@ class Initializer:
             nn.init.normal_(m.weight.data, mean=1.0, std=self.init_gain)
             nn.init.constant_(m.bias.data, val=0)
 
-    def __call__(self, net: nn.Module) -> Tensor:
+    def __call__(self, net: nn.Module) -> nn.Module:
 
         """
         Parameters:
@@ -372,6 +384,20 @@ class Discriminator(nn.Module):
 
 
 class CycleGan(pl.LightningModule):
+
+    loss: Loss
+    g_A2B: nn.Module
+    g_B2A: nn.Module
+    d_A: nn.Module
+    d_B: nn.Module
+    d_A_params: Iterator[Parameter]
+    d_B_params: Iterator[Parameter]
+    g_params: Iterator[Parameter]
+    data_cols: list[str]
+    scaler: MinMaxScaler
+    example_input_array: list[Tensor]
+    built: bool
+
     def __init__(
         self,
         d_lr: float = 2e-4,
@@ -548,7 +574,7 @@ class CycleGan(pl.LightningModule):
 
             return d_b_loss
 
-    def shared_step(self, batch: Batch | CfBatch, stage: str = 'val') -> dict[str, Tensor]:
+    def shared_step(self, batch: Batch | CfBatch, stage: Stage) -> SharedStepOut:
         real_a = batch.x
         real_b = batch.x
 
@@ -568,11 +594,11 @@ class CycleGan(pl.LightningModule):
         d_b_loss = self.loss.get_dis_loss(d_b_pred_real_data, d_b_pred_fake_data)
 
         dict_ = {
-            f'g_tot_{stage}_loss': g_tot_loss,
-            f'g_A2B_{stage}_loss': g_a2b_loss,
-            f'g_B2A_{stage}_loss': g_b2a_loss,
-            f'd_A_{stage}_loss': d_a_loss,
-            f'd_B_{stage}_loss': d_b_loss,
+            f'g_tot_{stage.value}_loss': g_tot_loss,
+            f'g_A2B_{stage.value}_loss': g_a2b_loss,
+            f'g_B2A_{stage.value}_loss': g_b2a_loss,
+            f'd_A_{stage.value}_loss': d_a_loss,
+            f'd_B_{stage.value}_loss': d_b_loss,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
@@ -590,21 +616,28 @@ class CycleGan(pl.LightningModule):
             )
             _tensor = (_tensor + 1) / 2
 
-        return {
-            "x": batch.x,
-            "s": batch.s,
-            "recon": self.invert(index_by_s([fake_b, fake_a], batch.s), batch.x),
-            "recons_0": self.invert(fake_b, batch.x),
-            "recons_1": self.invert(fake_a, batch.x),
-        }
+        return SharedStepOut(
+            x=batch.x,
+            s=batch.s,
+            recon=self.invert(index_by_s([fake_b, fake_a], batch.s), batch.x),
+            cf_pred=self.invert(index_by_s([fake_b, fake_a], 1 - batch.s), batch.x),
+            recons_0=self.invert(fake_b, batch.x),
+            recons_1=self.invert(fake_a, batch.x),
+        )
 
-    def test_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+    def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:
+        self.shared_epoch_end(outputs)
 
-        self.all_x = torch.cat([_r["x"] for _r in outputs], 0)
-        all_s = torch.cat([_r["s"] for _r in outputs], 0)
-        self.all_recon = torch.cat([_r["recon"] for _r in outputs], 0)
-        torch.cat([_r["recons_0"] for _r in outputs], 0)
-        torch.cat([_r["recons_1"] for _r in outputs], 0)
+    def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+        self.shared_epoch_end(outputs)
+
+    def shared_epoch_end(self, outputs: list[SharedStepOut]):
+        self.all_x = torch.cat([_r.x for _r in outputs], 0)
+        self.all_s = torch.cat([_r.s for _r in outputs], 0)
+        self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
+        self.all_cf_pred = torch.cat([_r.recon for _r in outputs], 0)
+        torch.cat([_r.recons_0 for _r in outputs], 0)
+        torch.cat([_r.recons_1 for _r in outputs], 0)
 
         logger.info(self.data_cols)
         if self.loss.feature_groups["discrete"]:
@@ -612,7 +645,7 @@ class CycleGan(pl.LightningModule):
                 x=self.all_x[
                     :, slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ].clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
                 name="true_data",
                 cols=self.data_cols[
@@ -624,7 +657,7 @@ class CycleGan(pl.LightningModule):
                 x=self.all_recon[
                     :, slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
                 ].clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
                 name="recons",
                 cols=self.data_cols[
@@ -635,15 +668,15 @@ class CycleGan(pl.LightningModule):
             for group_slice in self.loss.feature_groups["discrete"]:
                 make_plot(
                     x=self.all_x[:, group_slice].clone(),
-                    s=all_s.clone(),
+                    s=self.all_s.clone(),
                     logger=self.logger,
                     name="true_data",
                     cols=self.data_cols[group_slice],
                     cat_plot=True,
                 )
                 make_plot(
-                    x=all_recon[:, group_slice].clone(),
-                    s=all_s.clone(),
+                    x=self.all_recon[:, group_slice].clone(),
+                    s=self.all_s.clone(),
                     logger=self.logger,
                     name="recons",
                     cols=self.data_cols[group_slice],
@@ -652,14 +685,14 @@ class CycleGan(pl.LightningModule):
         else:
             make_plot(
                 x=self.all_x.clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
                 name="true_data",
                 cols=self.data_cols,
             )
             make_plot(
                 x=self.all_recon.clone(),
-                s=all_s.clone(),
+                s=self.all_s.clone(),
                 logger=self.logger,
                 name="recons",
                 cols=self.data_cols,
@@ -673,11 +706,11 @@ class CycleGan(pl.LightningModule):
                 self.logger,
             )
 
-    def validation_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
-        return self.shared_step(batch, 'val')
+    def validation_step(self, batch: Batch | CfBatch, batch_idx: int) -> SharedStepOut:
+        return self.shared_step(batch, Stage.validate)
 
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
-        return self.shared_step(batch, 'test')
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> SharedStepOut:
+        return self.shared_step(batch, Stage.test)
 
     def lr_lambda(self, epoch: int) -> float:
 

@@ -52,6 +52,7 @@ class SimpleXDataModule(BaseDataModule):
         self.best_guess = None
         self.factual_data = true_data
         self.card_s = true_data.s.nunique().values[0]
+        self.card_y = true_data.y.nunique().values[0]
         self.data_dim = true_data.x.shape[1:]
         self.dims = self.data_dim
         self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
