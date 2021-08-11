@@ -169,7 +169,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         )
 
         enc_trainer = cfg.trainer
-        enc_trainer.callbacks = [MseLogger(), MmdLogger()]
+        enc_trainer.callbacks += [MseLogger(), MmdLogger()]
         enc_trainer.tune(model=encoder, datamodule=data)
         enc_trainer.fit(model=encoder, datamodule=data)
         if enc_trainer.fast_dev_run:
