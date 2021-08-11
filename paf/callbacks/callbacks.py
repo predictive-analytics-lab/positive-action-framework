@@ -35,16 +35,18 @@ class MmdLogger(Callback):
         return self._shared(pl_module, Stage.test)
 
     def _shared(self, pl_module: pl.LightningModule, stage: Stage) -> None:
-        recon_mmd = mmd2(pl_module.all_x, pl_module.all_recon, kernel=KernelType.rbf)
+        kernel = KernelType.linear
+
+        recon_mmd = mmd2(pl_module.all_x, pl_module.all_recon, kernel=kernel)
         s0_dist_mmd = mmd2(
             pl_module.all_x[pl_module.all_s == 0],
             pl_module.all_cf_pred[pl_module.all_s == 1],
-            kernel=KernelType.rbf,
+            kernel=kernel,
         )
         s1_dist_mmd = mmd2(
             pl_module.all_x[pl_module.all_s == 1],
             pl_module.all_cf_pred[pl_module.all_s == 0],
-            kernel=KernelType.rbf,
+            kernel=kernel,
         )
 
         do_log(
