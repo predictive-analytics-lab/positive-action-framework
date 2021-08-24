@@ -4,5 +4,5 @@ defaults:
   - data: synth # `configs/data/synthetic_1.yaml`
   - enc: basic  # `configs/model/basic.yaml`
   - clf: basic  # `configs/model/basic.yaml`
-  - exp: local
-  - trainer: local # `configs/training/simple.yaml`
+  - exp: srv
+  - trainer: srv # `configs/training/simple.yaml`
