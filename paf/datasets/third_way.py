@@ -22,9 +22,7 @@ def make_x_bar(
     return np.stack([scipy.stats.norm.ppf(l, loc=0, scale=1) for l in x_tilde])
 
 
-def make_s(
-    alpha: float, n: int, random_state: np.random.Generator, binary_s: bool
-) -> npt.NDArray[np.float_]:
+def make_s(alpha: float, n: int, random_state: np.random.Generator, binary_s: bool) -> npt.NDArray:
     """Set S."""
     if binary_s:
         return random_state.binomial(1, alpha, n)

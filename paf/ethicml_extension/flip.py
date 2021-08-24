@@ -122,7 +122,7 @@ class EqOppFlip(FlipBase):
 
         _pred = preds.hard[preds.hard == pre_y_val]
         _s = preds.hard[dt.s[dt.s.columns[0]] == s_group]
-        _y = preds.hard[dt.y[dt.y.columns[0]] == 1]
+        _y = preds.hard[dt.y[dt.y.columns[0]] == 1]  # type: ignore[attr-defined]
         idx_s_y = _pred.index & _s.index & _y.index
         if len(idx_s_y) < num_to_flip:
             raise AssertionError("Not enough valid candidates to flip")
@@ -132,11 +132,11 @@ class EqOppFlip(FlipBase):
         preds.hard.update({idx: post_y_val for idx in idxs[:num_to_flip]})
         return preds
 
-    def _fit(self, test: DataTuple, preds: Prediction) -> tuple[int, int]:
+    def _fit(self, test: TestTuple, preds: Prediction) -> tuple[int, int]:
         preds_1 = preds.hard[preds.hard == 1]
         s_0 = test.s[test.s[test.s.columns[0]] == 0]
         s_1 = test.s[test.s[test.s.columns[0]] == 1]
-        y_1 = test.y[test.y[test.y.columns[0]] == 1]
+        y_1 = test.y[test.y[test.y.columns[0]] == 1]  # type: ignore[attr-defined]
 
         r0 = preds.hard[(s_0.index) & (y_1.index) & (preds_1.index)].count()
         r1 = preds.hard[(s_1.index) & (y_1.index) & (preds_1.index)].count()
