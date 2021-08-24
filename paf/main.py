@@ -294,7 +294,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             except ValueError:
                 continue
             multiple_metrics(results, data.test_datatuple, base_model.name, wandb_logger)
-            if data.cf_available:
+            if isinstance(data, BaseDataModule):
                 log.info(f"=== {base_model.name} and \"True\" Data ===")
                 results = base_model.run(data.train_datatuple, data.test_datatuple)
                 multiple_metrics(
