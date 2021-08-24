@@ -18,8 +18,13 @@ from ethicml import (
     metric_per_sensitive_attribute,
     ratio_per_sensitive_attribute,
     InAlgorithm,
+    LRCV,
+    Kamiran,
+    ZafarFairness,
+    Agarwal,
 )
 import hydra
+from ethicml.algorithms.inprocess.oracle import Oracle
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
@@ -273,14 +278,14 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
     if cfg.exp.baseline:
         baselines: set[InAlgorithm] = {
             # NaiveModel(in_size=data.data_dim[0]),
-            # LRCV(),
-            # Oracle(),
+            LRCV(),
+            Oracle(),
             DPOracle(),
             # EqOppOracle(),
-            # Kamiran(),
+            Kamiran(),
             # ZafarFairness(),
             # Kamishima(),
-            # Agarwal(),
+            Agarwal(),
         }
         for base_model in baselines:
             log.info(f"=== {base_model.name} ===")
