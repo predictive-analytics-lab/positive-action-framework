@@ -206,8 +206,7 @@ class Clf(CommonModel):
             ).abs(),
         }
 
-        for k, v in to_log.items():
-            do_log(k, v, self.logger)
+        self.log_dict(to_log, logger=True)
 
         return loss
 

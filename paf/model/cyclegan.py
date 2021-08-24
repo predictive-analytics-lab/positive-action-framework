@@ -687,10 +687,10 @@ class CycleGan(pl.LightningModule):
         recon_mse = (self.all_x - self.all_recon).abs().mean(dim=0)
         for i, feature_mse in enumerate(recon_mse):
             feature_name = self.data_cols[i]
-            do_log(
-                f"Table6/Ours/recon_l1 - feature {feature_name}",
-                round(feature_mse.item(), 5),
-                self.logger,
+            self.log(
+                name=f"Table6/Ours/recon_l1 - feature {feature_name}",
+                value=round(feature_mse.item(), 5),
+                logger=True,
             )
 
     def validation_step(self, batch: Batch | CfBatch, batch_idx: int) -> SharedStepOut:

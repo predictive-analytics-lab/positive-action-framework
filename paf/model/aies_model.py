@@ -111,11 +111,7 @@ class AiesModel(AiesProperties):
             columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
         )
         cycle_loss: Tensor = sum(_r.cycle_loss for _r in output_results) / self.all_y.shape[0]  # type: ignore[assignment]
-        do_log(
-            "cycle_loss",
-            cycle_loss.item(),
-            self.logger,
-        )
+        self.log(name="cycle_loss", value=cycle_loss.item(), logger=True)
 
 
 class TestStepOut(NamedTuple):

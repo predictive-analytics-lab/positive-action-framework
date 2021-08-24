@@ -17,15 +17,15 @@ class MseLogger(Callback):
         recon_mse = (pl_module.all_x - pl_module.all_recon).abs().mean(dim=0)
         for i, feature_mse in enumerate(recon_mse):
             feature_name = pl_module.data_cols[i]
-            do_log(
-                f"Table6/Ours/recon_l1 - feature {feature_name}",
-                round(feature_mse.item(), 5),
-                pl_module.logger,
+            pl_module.log(
+                name=f"Table6/Ours/recon_l1 - feature {feature_name}",
+                value=round(feature_mse.item(), 5),
+                logger=True,
             )
 
 
 class MmdLogger(Callback):
-    def __init__(self)-> None:
+    def __init__(self) -> None:
         super().__init__()
 
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
@@ -49,20 +49,20 @@ class MmdLogger(Callback):
             kernel=kernel,
         )
 
-        do_log(
-            f"Logging/{stage.value}/MMD",
-            round(recon_mmd.item(), 5),
-            pl_module.logger,
+        pl_module.log(
+            name=f"Logging/{stage.value}/MMD",
+            value=round(recon_mmd.item(), 5),
+            logger=True,
         )
 
-        do_log(
-            f"Logging/{stage.value}/MMD S0 vs Cf",
-            round(s0_dist_mmd.item(), 5),
-            pl_module.logger,
+        pl_module.log(
+            name=f"Logging/{stage.value}/MMD S0 vs Cf",
+            value=round(s0_dist_mmd.item(), 5),
+            logger=True,
         )
 
-        do_log(
-            f"Logging/{stage.value}/MMD S1 vs Cf",
-            round(s1_dist_mmd.item(), 5),
-            pl_module.logger,
+        pl_module.log(
+            name=f"Logging/{stage.value}/MMD S1 vs Cf",
+            value=round(s1_dist_mmd.item(), 5),
+            logger=True,
         )

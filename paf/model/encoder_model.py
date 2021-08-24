@@ -280,8 +280,8 @@ class AE(CommonModel):
                 to_log["training_enc/cf_loss"] = cf_loss
                 to_log["training_enc/cf_recon_loss"] = cf_recon_loss
 
-        for k, v in to_log.items():
-            do_log(k, v, self.logger)
+        self.log_dict(to_log, logger=True)
+
         return loss
 
     @torch.no_grad()
@@ -452,10 +452,10 @@ class AE(CommonModel):
             recon_mse = (all_cf_x - cf_recon).abs().mean(dim=0)
             for i, feature_mse in enumerate(recon_mse):
                 feature_name = self.data_cols[i]
-                do_log(
-                    f"Table6/Ours_{stage.value}/cf_recon_l1 - feature {feature_name}",
-                    round(feature_mse.item(), 5),
-                    self.logger,
+                self.log(
+                    name=f"Table6/Ours_{stage.value}/cf_recon_l1 - feature {feature_name}",
+                    value=round(feature_mse.item(), 5),
+                    logger=True,
                 )
 
     @implements(LightningModule)
