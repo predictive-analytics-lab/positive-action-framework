@@ -12,6 +12,7 @@ from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn, optim
 from torch.nn import Parameter
+from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
@@ -52,18 +53,18 @@ class Initializer:
             if self.init_type == 'kaiming':
                 nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
             elif self.init_type == 'xavier':
-                nn.init.xavier_normal_(m.weight.data, gain=self.init_gain)
+                nn.init.xavier_normal_(m.weight.data, gain=self.init_gain)  # type: ignore[arg-type]
             elif self.init_type == 'normal':
-                nn.init.normal_(m.weight.data, mean=0, std=self.init_gain)
+                nn.init.normal_(m.weight.data, mean=0, std=self.init_gain)  # type: ignore[arg-type]
             else:
                 raise ValueError('Initialization not found!!')
 
             if m.bias is not None:
-                nn.init.constant_(m.bias.data, val=0)
+                nn.init.constant_(m.bias.data, val=0)  # type: ignore[arg-type]
 
         if hasattr(m, 'weight') and cls_name.find('BatchNorm2d') != -1:
-            nn.init.normal_(m.weight.data, mean=1.0, std=self.init_gain)
-            nn.init.constant_(m.bias.data, val=0)
+            nn.init.normal_(m.weight.data, mean=1.0, std=self.init_gain)  # type: ignore[arg-type]
+            nn.init.constant_(m.bias.data, val=0)  # type: ignore[arg-type]
 
     def __call__(self, net: nn.Module) -> nn.Module:
 
@@ -111,7 +112,7 @@ class HistoryPool:
                 self.history_pool.append(sample)
                 samples_to_return.append(sample)
                 self.nb_samples += 1
-            elif np.random.uniform(0, 1) > 0.5:  # type: ignore[call-overload]
+            elif np.random.uniform(0, 1) > 0.5:
 
                 rand_int = np.random.randint(0, self.pool_sz)
                 temp_img = self.history_pool[rand_int].clone()
@@ -244,13 +245,10 @@ class Loss:
         self,
         real_a: Tensor,
         real_b: Tensor,
-        cyc_a: Tensor,
-        cyc_b: Tensor,
-        idt_a: Tensor,
-        idt_b: Tensor,
+        gen_fwd: GenFwd,
         d_a_pred_fake_data: Tensor,
         d_b_pred_fake_data: Tensor,
-    ) -> Tensor:
+    ) -> GenLoss:
 
         """
         Implements the total Generator loss
@@ -258,8 +256,8 @@ class Loss:
         """
 
         # Cycle loss
-        cyc_loss_a = self.get_gen_cyc_loss(real_a, cyc_a)
-        cyc_loss_b = self.get_gen_cyc_loss(real_b, cyc_b)
+        cyc_loss_a = self.get_gen_cyc_loss(real_a, gen_fwd.cyc_a)
+        cyc_loss_b = self.get_gen_cyc_loss(real_b, gen_fwd.cyc_b)
         tot_cyc_loss = cyc_loss_a + cyc_loss_b
 
         # GAN loss
@@ -267,15 +265,21 @@ class Loss:
         g_b2a_gan_loss = self.get_gen_gan_loss(d_a_pred_fake_data)
 
         # Identity loss
-        g_b2a_idt_loss = self.get_gen_idt_loss(real_a, idt_a)
-        g_a2b_idt_loss = self.get_gen_idt_loss(real_b, idt_b)
+        g_b2a_idt_loss = self.get_gen_idt_loss(real_a, gen_fwd.idt_a)
+        g_a2b_idt_loss = self.get_gen_idt_loss(real_b, gen_fwd.idt_b)
 
         # Total individual losses
         g_a2b_loss = g_a2b_gan_loss + g_a2b_idt_loss + tot_cyc_loss
         g_b2a_loss = g_b2a_gan_loss + g_b2a_idt_loss + tot_cyc_loss
         g_tot_loss = g_a2b_loss + g_b2a_loss - tot_cyc_loss
 
-        return g_a2b_loss, g_b2a_loss, g_tot_loss
+        return GenLoss(a2b=g_a2b_loss, b2a=g_b2a_loss, tot=g_tot_loss)
+
+
+class GenLoss(NamedTuple):
+    a2b: Tensor
+    b2a: Tensor
+    tot: Tensor
 
 
 class ResBlock(nn.Module):
@@ -311,6 +315,8 @@ class ResBlock(nn.Module):
 
 
 class Generator(nn.Module):
+    net: nn.Module
+
     def __init__(self, in_dims: int, nb_resblks: int = 3):
 
         """
@@ -332,22 +338,24 @@ class Generator(nn.Module):
         super().__init__()
         out_dims = in_dims * 3
         conv = nn.Linear(in_dims, out_dims)
-        self.layers = [conv]
+        layers: list[nn.Module] = [conv]
 
         for _ in range(nb_resblks):
             res_blk = ResBlock(in_channels=out_dims, apply_dp=False)
-            self.layers += [res_blk]
+            layers += [res_blk]
 
         conv = nn.Linear(out_dims, in_dims)
-        self.layers += [conv]
+        layers += [conv]
 
-        self.net = nn.Sequential(*self.layers)
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.net(x)
 
 
 class Discriminator(nn.Module):
+    net: nn.Module
+
     def __init__(self, in_dims: int, nb_layers: int = 3):
 
         """
@@ -365,19 +373,19 @@ class Discriminator(nn.Module):
         super().__init__()
         out_dims = in_dims * 3
         conv = nn.Linear(in_dims, out_dims)
-        self.layers = [conv, nn.LeakyReLU(0.2, True)]
+        layers = [conv, nn.LeakyReLU(0.2, True)]
 
         for _ in range(1, nb_layers):
             conv = nn.Linear(out_dims, out_dims)
-            self.layers += [conv, nn.LeakyReLU(0.2, True)]
+            layers += [conv, nn.LeakyReLU(0.2, True)]
 
         conv = nn.Linear(out_dims, out_dims)
-        self.layers += [conv, nn.LeakyReLU(0.2, True)]
+        layers += [conv, nn.LeakyReLU(0.2, True)]
 
         conv = nn.Linear(out_dims, 1)
-        self.layers += [conv]
+        layers += [conv]
 
-        self.net = nn.Sequential(*self.layers)
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.net(x)
@@ -464,44 +472,21 @@ class CycleGan(pl.LightningModule):
             for param in net.parameters():
                 param.requires_grad = requires_grad
 
-    def forward(self, real_a: Tensor, real_b: Tensor) -> tuple[Tensor, Tensor]:
-
-        """
-        This is different from the training step. You should treat this as the final inference code
-        (final outputs that you are looking for!), but you can definitely use it in the training_step
-        to make some code reusable.
-        Parameters:
-            real_A -- real image of A
-            real_B -- real image of B
-        """
+    def forward(self, real_a: Tensor, real_b: Tensor) -> CycleFwd:
         fake_b = self.g_A2B(real_a)
         fake_a = self.g_B2A(real_b)
+        return CycleFwd(fake_b=fake_b, fake_a=fake_a)
 
-        return fake_b, fake_a
-
-    def forward_gen(
-        self, real_a: Tensor, real_b: Tensor, fake_a: Tensor, fake_b: Tensor
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-
-        """
-        Gets the remaining output of both the generators for the training/validation step
-        Parameters:
-            real_A -- real image of A
-            real_B -- real image of B
-            fake_A -- fake image of A
-            fake_B -- fake image of B
-        """
-
+    def forward_gen(self, real_a: Tensor, real_b: Tensor, fake_a: Tensor, fake_b: Tensor) -> GenFwd:
         cyc_a = self.g_B2A(fake_b)
         idt_a = self.g_B2A(real_a)
 
         cyc_b = self.g_A2B(fake_a)
         idt_b = self.g_A2B(real_b)
-
-        return cyc_a, idt_a, cyc_b, idt_b
+        return GenFwd(cyc_a=cyc_a, idt_a=idt_a, cyc_b=cyc_b, idt_b=idt_b)
 
     @staticmethod
-    def forward_dis(dis: nn.Module, real_data: Tensor, fake_data: Tensor) -> tuple[Tensor, Tensor]:
+    def forward_dis(dis: nn.Module, real_data: Tensor, fake_data: Tensor) -> DisFwd:
 
         """
         Gets the Discriminator output
@@ -514,45 +499,47 @@ class CycleGan(pl.LightningModule):
         pred_real_data = dis(real_data)
         pred_fake_data = dis(fake_data)
 
-        return pred_real_data, pred_fake_data
+        return DisFwd(real=pred_real_data, fake=pred_fake_data)
 
     def training_step(self, batch: Batch | CfBatch, batch_idx: int, optimizer_idx: int) -> Tensor:
         real_a, real_b = batch.x[batch.s == 0], batch.x[batch.s == 1]
         size = min(len(real_a), len(real_b))
         real_a = real_a[:size]
         real_b = real_b[:size]
-        fake_b, fake_a = self(real_a, real_b)
+        cyc_out = self.forward(real_a, real_b)
 
         if optimizer_idx == 0:
-            cyc_a, idt_a, cyc_b, idt_b = self.forward_gen(real_a, real_b, fake_a, fake_b)
+            gen_fwd = self.forward_gen(real_a, real_b, cyc_out.fake_a, cyc_out.fake_b)
 
             # No need to calculate the gradients for Discriminators' parameters
             self.set_requires_grad([self.d_A, self.d_B], requires_grad=False)
-            d_a_pred_fake_data = self.d_A(fake_a)
-            d_b_pred_fake_data = self.d_B(fake_b)
+            d_a_pred_fake_data = self.d_A(cyc_out.fake_a)
+            d_b_pred_fake_data = self.d_B(cyc_out.fake_b)
 
-            g_a2b_loss, g_b2a_loss, g_tot_loss = self.loss.get_gen_loss(
-                real_a, real_b, cyc_a, cyc_b, idt_a, idt_b, d_a_pred_fake_data, d_b_pred_fake_data
+            gen_loss = self.loss.get_gen_loss(
+                real_a,
+                real_b,
+                gen_fwd,
+                d_a_pred_fake_data,
+                d_b_pred_fake_data,
             )
 
             dict_ = {
-                'g_tot_train_loss': g_tot_loss,
-                'g_A2B_train_loss': g_a2b_loss,
-                'g_B2A_train_loss': g_b2a_loss,
+                'g_tot_train_loss': gen_loss.tot,
+                'g_A2B_train_loss': gen_loss.a2b,
+                'g_B2A_train_loss': gen_loss.b2a,
             }
             self.log_dict(dict_, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-            return g_tot_loss
+            return gen_loss.tot
 
         if optimizer_idx == 1:
             self.set_requires_grad([self.d_A], requires_grad=True)
-            fake_a = self.fake_pool_A.push_and_pop(fake_a)
-            d_a_pred_real_data, d_a_pred_fake_data = self.forward_dis(
-                self.d_A, real_a, fake_a.detach()
-            )
+            fake_a = self.fake_pool_A.push_and_pop(cyc_out.fake_a)
+            dis_out = self.forward_dis(self.d_A, real_a, fake_a.detach())
 
             # GAN loss
-            d_a_loss = self.loss.get_dis_loss(d_a_pred_real_data, d_a_pred_fake_data)
+            d_a_loss = self.loss.get_dis_loss(dis_out.real, dis_out.fake)
             self.log(
                 "d_A_train_loss", d_a_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
             )
@@ -561,37 +548,37 @@ class CycleGan(pl.LightningModule):
 
         if optimizer_idx == 2:
             self.set_requires_grad([self.d_B], requires_grad=True)
-            fake_b = self.fake_pool_B.push_and_pop(fake_b)
-            d_b_pred_real_data, d_b_pred_fake_data = self.forward_dis(
-                self.d_B, real_b, fake_b.detach()
-            )
+            fake_b = self.fake_pool_B.push_and_pop(cyc_out.fake_b)
+            dis_b_out = self.forward_dis(self.d_B, real_b, fake_b.detach())
 
             # GAN loss
-            d_b_loss = self.loss.get_dis_loss(d_b_pred_real_data, d_b_pred_fake_data)
+            d_b_loss = self.loss.get_dis_loss(dis_b_out.real, dis_b_out.fake)
             self.log(
                 "d_B_train_loss", d_b_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
             )
 
             return d_b_loss
+        else:
+            raise NotImplementedError("There should only be 3 optimizers.")
 
     def shared_step(self, batch: Batch | CfBatch, stage: Stage) -> SharedStepOut:
         real_a = batch.x
         real_b = batch.x
 
-        fake_b, fake_a = self(real_a, real_b)
-        cyc_a, idt_a, cyc_b, idt_b = self.forward_gen(real_a, real_b, fake_a, fake_b)
+        cyc_out = self.forward(real_a, real_b)
+        gen_fwd = self.forward_gen(real_a, real_b, cyc_out.fake_a, cyc_out.fake_b)
 
-        d_a_pred_real_data, d_a_pred_fake_data = self.forward_dis(self.d_A, real_a, fake_a)
-        d_b_pred_real_data, d_b_pred_fake_data = self.forward_dis(self.d_B, real_b, fake_b)
+        dis_out_a = self.forward_dis(self.d_A, real_a, cyc_out.fake_a)
+        dis_out_b = self.forward_dis(self.d_B, real_b, cyc_out.fake_b)
 
         # G_A2B loss, G_B2A loss, G loss
         g_a2b_loss, g_b2a_loss, g_tot_loss = self.loss.get_gen_loss(
-            real_a, real_b, cyc_a, cyc_b, idt_a, idt_b, d_a_pred_fake_data, d_b_pred_fake_data
+            real_a, real_b, gen_fwd, dis_out_a.fake, dis_out_b.fake
         )
 
         # D_A loss, D_B loss
-        d_a_loss = self.loss.get_dis_loss(d_a_pred_real_data, d_a_pred_fake_data)
-        d_b_loss = self.loss.get_dis_loss(d_b_pred_real_data, d_b_pred_fake_data)
+        d_a_loss = self.loss.get_dis_loss(dis_out_a.real, dis_out_a.fake)
+        d_b_loss = self.loss.get_dis_loss(dis_out_b.real, dis_out_b.fake)
 
         dict_ = {
             f'g_tot_{stage.value}_loss': g_tot_loss,
@@ -607,11 +594,11 @@ class CycleGan(pl.LightningModule):
             _tensor = torch.stack(
                 [
                     real_a[rand_int],
-                    fake_b[rand_int],
-                    cyc_a[rand_int],
+                    cyc_out.fake_b[rand_int],
+                    gen_fwd.cyc_a[rand_int],
                     real_b[rand_int],
-                    fake_a[rand_int],
-                    cyc_b[rand_int],
+                    cyc_out.fake_a[rand_int],
+                    gen_fwd.cyc_b[rand_int],
                 ]
             )
             _tensor = (_tensor + 1) / 2
@@ -619,10 +606,10 @@ class CycleGan(pl.LightningModule):
         return SharedStepOut(
             x=batch.x,
             s=batch.s,
-            recon=self.invert(index_by_s([fake_b, fake_a], batch.s), batch.x),
-            cf_pred=self.invert(index_by_s([fake_b, fake_a], 1 - batch.s), batch.x),
-            recons_0=self.invert(fake_b, batch.x),
-            recons_1=self.invert(fake_a, batch.x),
+            recon=self.invert(index_by_s([cyc_out.fake_b, cyc_out.fake_a], batch.s), batch.x),
+            cf_pred=self.invert(index_by_s([cyc_out.fake_b, cyc_out.fake_a], 1 - batch.s), batch.x),
+            recons_0=self.invert(cyc_out.fake_b, batch.x),
+            recons_1=self.invert(cyc_out.fake_a, batch.x),
         )
 
     def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:
@@ -631,7 +618,7 @@ class CycleGan(pl.LightningModule):
     def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
         self.shared_epoch_end(outputs)
 
-    def shared_epoch_end(self, outputs: list[SharedStepOut]):
+    def shared_epoch_end(self, outputs: list[SharedStepOut]) -> None:
         self.all_x = torch.cat([_r.x for _r in outputs], 0)
         self.all_s = torch.cat([_r.s for _r in outputs], 0)
         self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
@@ -719,7 +706,7 @@ class CycleGan(pl.LightningModule):
 
     def configure_optimizers(
         self,
-    ) -> tuple[list[torch.optim.Optimizer], list[torch.optim._LRScheduler]]:
+    ) -> tuple[list[torch.optim.Optimizer], list[LambdaLR]]:
 
         # define the optimizers here
         g_opt = torch.optim.Adam(self.g_params, lr=self.g_lr, betas=(self.beta_1, self.beta_2))
@@ -727,28 +714,13 @@ class CycleGan(pl.LightningModule):
         d_b_opt = torch.optim.Adam(self.d_B_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
 
         # define the lr_schedulers here
-        g_sch = optim.lr_scheduler.LambdaLR(g_opt, lr_lambda=self.lr_lambda)
-        d_a_sch = optim.lr_scheduler.LambdaLR(d_a_opt, lr_lambda=self.lr_lambda)
-        d_b_sch = optim.lr_scheduler.LambdaLR(d_b_opt, lr_lambda=self.lr_lambda)
+        g_sch = LambdaLR(g_opt, lr_lambda=self.lr_lambda)
+        d_a_sch = LambdaLR(d_a_opt, lr_lambda=self.lr_lambda)
+        d_b_sch = LambdaLR(d_b_opt, lr_lambda=self.lr_lambda)
 
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
         return [g_opt, d_a_opt, d_b_opt], [g_sch, d_a_sch, d_b_sch]
-
-    def get_latent(self, dataloader: DataLoader) -> np.ndarray:
-        """Get Latents to be used post train/test."""
-        latent: list[Tensor] | None = None
-        for batch in dataloader:
-            x = batch.x.to(self.device)
-            batch.s.to(self.device)
-            z, _, _ = self(x, x)
-            if latent is None:
-                latent = [z]
-            else:
-                latent.append(z)
-        assert latent is not None
-        latent = torch.cat(latent, dim=0)
-        return latent.detach().cpu().numpy()
 
     @torch.no_grad()
     def invert(self, z: Tensor, x: Tensor) -> Tensor:
@@ -778,3 +750,20 @@ class CycleGan(pl.LightningModule):
             k = k.sigmoid()
 
         return k
+
+
+class GenFwd(NamedTuple):
+    cyc_a: Tensor
+    idt_a: Tensor
+    cyc_b: Tensor
+    idt_b: Tensor
+
+
+class DisFwd(NamedTuple):
+    real: Tensor
+    fake: Tensor
+
+
+class CycleFwd(NamedTuple):
+    fake_b: Tensor
+    fake_a: Tensor

@@ -15,11 +15,13 @@ from paf.log_progress import do_log
 from paf.model.common_model import CommonModel
 from paf.model.encoder_model import AE
 
+import numpy.typing as npt
+
 
 def lrcv_results(
     *,
-    train: np.ndarray,
-    test: np.ndarray,
+    train: npt.NDArray[np.float32],
+    test: npt.NDArray[np.float32],
     dm: BaseDataModule,
     logger: LightningLoggerBase,
     component: str,

@@ -1,10 +1,13 @@
 """Encoder model."""
 from __future__ import annotations
 
+from typing import NamedTuple
+
 from kit import implements
 import numpy as np
 from pytorch_lightning import LightningModule
 import torch
+from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor, cat, nn
 from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
@@ -22,6 +25,9 @@ from paf.plotting import make_plot
 
 class BaseModel(nn.Module):
     """Base AE Model."""
+
+    hid: nn.Module
+    out: nn.Module
 
     def __init__(self, *, in_size: int, hid_size: int, out_size: int, blocks: int):
         super().__init__()
@@ -86,6 +92,12 @@ class Decoder(BaseModel):
 class Clf(CommonModel):
     """Main Autoencoder."""
 
+    cf_model: bool
+    outcome_cols: list[str]
+    enc: nn.Module
+    decoders: nn.ModuleList
+    built: bool
+
     def __init__(
         self,
         adv_weight: float,
@@ -130,6 +142,7 @@ class Clf(CommonModel):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
+        scaler: MinMaxScaler,
     ) -> None:
         self.cf_model = cf_available
         self.outcome_cols = outcome_cols
@@ -159,26 +172,26 @@ class Clf(CommonModel):
         self.built = True
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor) -> tuple[Tensor, Tensor, list[Tensor]]:
+    def forward(self, x: Tensor, s: Tensor) -> ClfFwd:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc(_x)
         s_pred = self.adv(z)
         preds = [dec(z) for dec in self.decoders]
-        return z, s_pred, preds
+        return ClfFwd(z=z, s=s_pred, y=preds)
 
     @implements(LightningModule)
     def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
         assert self.built
-        z, s_pred, preds = self(batch.x, batch.s)
+        clf_out = self.forward(batch.x, batch.s)
         _iw = batch.iw if self.use_iw else None
         pred_loss = binary_cross_entropy_with_logits(
-            index_by_s(preds, batch.s).squeeze(-1), batch.y, reduction="mean", weight=_iw
+            index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y, reduction="mean", weight=_iw
         )
         adv_loss = (
-            mmd2(z[batch.s == 0], z[batch.s == 1], kernel=self.mmd_kernel)
+            mmd2(clf_out.z[batch.s == 0], clf_out.z[batch.s == 1], kernel=self.mmd_kernel)
             + binary_cross_entropy_with_logits(
-                s_pred.squeeze(-1), batch.s, reduction="mean", weight=_iw
+                clf_out.s.squeeze(-1), batch.s, reduction="mean", weight=_iw
             )
         ) / 2
         loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
@@ -187,8 +200,10 @@ class Clf(CommonModel):
             "training_clf/loss": loss,
             "training_clf/pred_loss": pred_loss,
             "training_clf/adv_loss": adv_loss,
-            "training_clf/z_norm": z.detach().norm(dim=1).mean(),
-            "training_clf/z_mean_abs_diff": (z[batch.s <= 0].mean() - z[batch.s > 0].mean()).abs(),
+            "training_clf/z_norm": clf_out.z.detach().norm(dim=1).mean(),
+            "training_clf/z_mean_abs_diff": (
+                clf_out.z[batch.s <= 0].mean() - clf_out.z[batch.s > 0].mean()
+            ).abs(),
         }
 
         for k, v in to_log.items():
@@ -202,33 +217,31 @@ class Clf(CommonModel):
         return z.sigmoid().round()
 
     @implements(LightningModule)
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> dict[str, Tensor]:
+    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> ClfInferenceOut:
         assert self.built
-        z, _, preds = self(batch.x, batch.s)
+        clf_out = self.forward(batch.x, batch.s)
 
-        to_return = {
-            "y": batch.y,
-            "z": z,
-            "s": batch.s,
-            "preds": self.threshold(index_by_s(preds, batch.s)),
-            "preds_0": self.threshold(preds[0]),
-            "preds_1": self.threshold(preds[1]),
-        }
-
-        if isinstance(batch, CfBatch):
-            to_return["cf_y"] = batch.cfy
-            to_return["cf_preds"] = self.threshold(index_by_s(preds, batch.cfs))
-
-        return to_return
+        return ClfInferenceOut(
+            y=batch.y,
+            z=clf_out.z,
+            s=batch.s,
+            preds=self.threshold(index_by_s(clf_out.y, batch.s)),
+            preds_0=self.threshold(clf_out.y[0]),
+            preds_1=self.threshold(clf_out.y[1]),
+            cf_y=batch.cfy if isinstance(batch, CfBatch) else None,
+            cf_preds=self.threshold(index_by_s(clf_out.y, batch.cfs))
+            if isinstance(batch, CfBatch)
+            else None,
+        )
 
     @implements(LightningModule)
-    def test_epoch_end(self, output_results: list[dict[str, Tensor]]) -> None:
-        all_y = torch.cat([_r["y"] for _r in output_results], 0)
-        all_z = torch.cat([_r["z"] for _r in output_results], 0)
-        all_s = torch.cat([_r["s"] for _r in output_results], 0)
-        all_preds = torch.cat([_r["preds"] for _r in output_results], 0)
-        preds_0 = torch.cat([_r["preds_0"] for _r in output_results], 0)
-        preds_1 = torch.cat([_r["preds_1"] for _r in output_results], 0)
+    def test_epoch_end(self, output_results: list[ClfInferenceOut]) -> None:
+        all_y = torch.cat([_r.y for _r in output_results], 0)
+        all_z = torch.cat([_r.z for _r in output_results], 0)
+        all_s = torch.cat([_r.s for _r in output_results], 0)
+        all_preds = torch.cat([_r.preds for _r in output_results], 0)
+        preds_0 = torch.cat([_r.preds_0 for _r in output_results], 0)
+        preds_1 = torch.cat([_r.preds_1 for _r in output_results], 0)
 
         make_plot(
             x=all_y.unsqueeze(-1),
@@ -249,8 +262,10 @@ class Clf(CommonModel):
         )
 
         if self.cf_model:
-            all_cf_y = torch.cat([_r["cf_y"] for _r in output_results], 0)
-            cf_preds = torch.cat([_r["cf_preds"] for _r in output_results], 0)
+            all_cf_y = torch.cat([_r.cf_y for _r in output_results if _r.cf_y is not None], 0)
+            cf_preds = torch.cat(
+                [_r.cf_preds for _r in output_results if _r.cf_preds is not None], 0
+            )
             make_plot(
                 x=all_cf_y.unsqueeze(-1),
                 s=all_s,
@@ -266,22 +281,44 @@ class Clf(CommonModel):
 
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
-        recons = None
+        """Should really be called get_preds."""
+        preds: list[Tensor] | None = None
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
-            _, _, _r = self(x, s)
-            r = self.threshold(index_by_s(_r, s))
-            recons = r if recons is None else cat([recons, r], dim=0)
-        assert recons is not None
-        return recons.detach().cpu().numpy()
+            clf_out = self.forward(x, s)
+            pred = self.threshold(index_by_s(clf_out.y, s))
+            if preds is None:
+                preds = [pred]
+            else:
+                preds.append(pred)
+        assert preds is not None
+        _preds = torch.cat(preds, dim=0)
+        return _preds.detach().cpu().numpy()
 
     def from_recons(self, recons: list[Tensor]) -> dict[str, tuple[Tensor, ...]]:
         """Given recons, give all possible predictions."""
         preds_dict: dict[str, tuple[Tensor, ...]] = {}
 
         for i, rec in enumerate(recons):
-            z, s_pred, preds = self(rec, torch.ones_like(rec[:, 0]) * i)
+            z, s_pred, preds = self.forward(rec, torch.ones_like(rec[:, 0]) * i)
             for _s in range(2):
                 preds_dict[f"{i}_{_s}"] = (z, s_pred, preds[_s])
         return preds_dict
+
+
+class ClfInferenceOut(NamedTuple):
+    y: Tensor
+    z: Tensor
+    s: Tensor
+    preds: Tensor
+    preds_0: Tensor
+    preds_1: Tensor
+    cf_y: Tensor | None
+    cf_preds: Tensor | None
+
+
+class ClfFwd(NamedTuple):
+    z: Tensor
+    s: Tensor
+    y: list[Tensor]

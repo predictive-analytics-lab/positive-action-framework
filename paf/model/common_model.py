@@ -5,6 +5,7 @@ from abc import abstractmethod
 import numpy as np
 from pytorch_lightning import LightningModule
 import torch
+from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor
 from torch.utils.data import DataLoader
 
@@ -22,7 +23,7 @@ class CommonModel(LightningModule):
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
-            z, _, _ = self(x, s)
+            z, _, _ = self.forward(x, s)
             if latent is None:
                 latent = [z]
             else:
@@ -44,5 +45,6 @@ class CommonModel(LightningModule):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
+        scaler: MinMaxScaler,
     ) -> None:
         """Build the network using data not available in advance."""

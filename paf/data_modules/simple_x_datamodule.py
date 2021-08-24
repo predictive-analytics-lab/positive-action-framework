@@ -40,7 +40,7 @@ class SimpleXDataModule(BaseDataModule):
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
-        dataset, true_data, cf_data, data_true_outcome = simple_x_data(
+        data = simple_x_data(
             seed=self.seed,
             num_samples=self.num_samples,
             alpha=self.alpha,
@@ -48,16 +48,16 @@ class SimpleXDataModule(BaseDataModule):
             random_shift=0,
             binary_s=1,
         )
-        self.dataset = dataset
+        self.dataset = data.dataset
         self.best_guess = None
-        self.factual_data = true_data
-        self.card_s = true_data.s.nunique().values[0]
-        self.card_y = true_data.y.nunique().values[0]
-        self.data_dim = true_data.x.shape[1:]
+        self.factual_data = data.true
+        self.card_s = data.true.s.nunique().values[0]
+        self.card_y = data.true.y.nunique().values[0]
+        self.data_dim = data.true.x.shape[1:]
         self.dims = self.data_dim
         self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
-        self.column_names = true_data.x.columns
-        self.outcome_columns = true_data.y.columns
+        self.column_names = [str(col) for col in data.true.x.columns]
+        self.outcome_columns = [str(col) for col in data.true.y.columns]
 
         num_train = int(self.factual_data.x.shape[0] * 0.7)
         num_val = int(self.factual_data.x.shape[0] * 0.1)
@@ -67,23 +67,23 @@ class SimpleXDataModule(BaseDataModule):
         val_indices = idx[num_train : num_train + num_val]
         test_indices = idx[num_train + num_val :]
 
-        self.make_feature_groups(dataset, true_data)
+        self.make_feature_groups(data.dataset, data.true)
 
         self.train_datatuple, self.val_datatuple, self.test_datatuple = self.scale_and_split(
-            true_data, dataset, train_indices, val_indices, test_indices
+            data.true, data.dataset, train_indices, val_indices, test_indices
         )
         (
             self.true_train_datatuple,
             self.true_val_datatuple,
             self.true_test_datatuple,
         ) = self.scale_and_split(
-            data_true_outcome, dataset, train_indices, val_indices, test_indices
+            data.true_outcomes, data.dataset, train_indices, val_indices, test_indices
         )
         (
             self.cf_train_datatuple,
             self.cf_val_datatuple,
             self.cf_test_datatuple,
-        ) = self.scale_and_split(cf_data, dataset, train_indices, val_indices, test_indices)
+        ) = self.scale_and_split(data.cf, data.dataset, train_indices, val_indices, test_indices)
 
     @implements(BaseDataModule)
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:

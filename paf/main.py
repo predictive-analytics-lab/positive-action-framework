@@ -17,6 +17,7 @@ from ethicml import (
     diff_per_sensitive_attribute,
     metric_per_sensitive_attribute,
     ratio_per_sensitive_attribute,
+    InAlgorithm,
 )
 import hydra
 from hydra.core.config_store import ConfigStore
@@ -48,8 +49,8 @@ from paf.config_classes.paf.model.configs import (  # type: ignore[import]
     ClfConf,
     CycleGanConf,
 )
-from paf.config_classes.pytorch_lightning.trainer.configs import (
-    TrainerConf,  # type: ignore[import]
+from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
+    TrainerConf,
 )
 from paf.ethicml_extension.oracle import DPOracle
 from paf.log_progress import do_log
@@ -185,6 +186,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             cf_available=data.cf_available if hasattr(data, "cf_available") else False,
             feature_groups=data.feature_groups,
             outcome_cols=data.disc_features + data.cont_features,
+            scaler=MinMaxScaler(),
         )
         clf_trainer.tune(model=classifier, datamodule=data)
         clf_trainer.fit(model=classifier, datamodule=data)
@@ -269,8 +271,8 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         preds = baseline_selection_rules(model.pd_results, wandb_logger)
 
     if cfg.exp.baseline:
-        for model in [
-            NaiveModel(in_size=data.data_dim[0]),
+        baselines: set[InAlgorithm] = {
+            # NaiveModel(in_size=data.data_dim[0]),
             # LRCV(),
             # Oracle(),
             DPOracle(),
@@ -279,21 +281,22 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             # ZafarFairness(),
             # Kamishima(),
             # Agarwal(),
-        ]:
-            log.info(f"=== {model.name} ===")
+        }
+        for base_model in baselines:
+            log.info(f"=== {base_model.name} ===")
             try:
-                results = model.run(data.train_datatuple, data.test_datatuple)
+                results = base_model.run(data.train_datatuple, data.test_datatuple)
             except ValueError:
                 continue
-            multiple_metrics(results, data.test_datatuple, model.name, wandb_logger)
+            multiple_metrics(results, data.test_datatuple, base_model.name, wandb_logger)
             if data.cf_available:
-                log.info(f"=== {model.name} and \"True\" Data ===")
-                results = model.run(data.train_datatuple, data.test_datatuple)
+                log.info(f"=== {base_model.name} and \"True\" Data ===")
+                results = base_model.run(data.train_datatuple, data.test_datatuple)
                 multiple_metrics(
-                    results, data.true_test_datatuple, f"{model.name}-TrueLabels", wandb_logger
+                    results, data.true_test_datatuple, f"{base_model.name}-TrueLabels", wandb_logger
                 )
                 get_miri_metrics(
-                    method=f"Miri/{model.name}",
+                    method=f"Miri/{base_model.name}",
                     acceptance=DataTuple(
                         x=data.test_datatuple.x.copy(),
                         s=data.test_datatuple.s.copy(),

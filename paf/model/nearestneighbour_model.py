@@ -6,6 +6,7 @@ from pytorch_lightning.utilities.types import EPOCH_OUTPUT, STEP_OUTPUT
 import torch
 from torch import Tensor, nn
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
@@ -23,7 +24,7 @@ class NearestNeighbourModel(pl.LightningModule):
         ).float()
         self.train_labels = nn.Parameter(self.train_labels.detach(), requires_grad=False).float()
 
-    def forward(self, test_features: Tensor, sens_label: Tensor) -> Tensor:
+    def forward(self, test_features: Tensor, sens_label: Tensor) -> tuple[Tensor, Tensor]:
         test_features = F.normalize(test_features, dim=1, p=2)
 
         features = []
@@ -44,7 +45,7 @@ class NearestNeighbourModel(pl.LightningModule):
         ...
 
     def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> STEP_OUTPUT | None:
-        cf_feats, cf_outcome = self(batch.x, batch.s)
+        cf_feats, cf_outcome = self.forward(batch.x, batch.s)
         preds = self.clf(batch.x)
 
         return {
@@ -90,5 +91,5 @@ class NearestNeighbourModel(pl.LightningModule):
 
     def configure_optimizers(
         self,
-    ) -> tuple[list[torch.optim.Optimizer], list[torch.optim._LRScheduler]]:
+    ) -> tuple[list[torch.optim.Optimizer], list[CosineAnnealingWarmRestarts]]:
         ...

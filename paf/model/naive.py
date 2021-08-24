@@ -21,14 +21,14 @@ class NaiveModel(pl.LightningModule):
         return self._loss(logits, batch.y.view(-1, 1))
 
     def test_step(self, batch: Batch | CfBatch, batch_dx: int) -> dict[str, Tensor]:
-        return {"preds": self(batch.x)}
+        return {"preds": self.forward(batch.x)}
 
     def test_epoch_end(self, outputs: dict[str, Tensor]) -> None:
         """Not used anywhere, but needed for super."""
 
     def configure_optimizers(
         self,
-    ) -> tuple[list[torch.optim.Optimizer], list[torch.optim._LRScheduler]]:
+    ) -> tuple[list[torch.optim.Optimizer], list[CosineAnnealingWarmRestarts]]:
         optim = AdamW(self.net.parameters(), lr=self.learning_rate)
         sched = CosineAnnealingWarmRestarts(optimizer=optim, T_0=1, T_mult=2)
         return [optim], [sched]

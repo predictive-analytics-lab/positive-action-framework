@@ -1,7 +1,9 @@
 """The hand crafted synthetic data."""
 from __future__ import annotations
 
-from ethicml import Dataset, DataTuple
+from typing import NamedTuple
+
+from ethicml import Dataset, DataTuple, Prediction
 import numpy as np
 import pandas as pd
 import scipy
@@ -9,22 +11,32 @@ from scipy import stats
 
 from paf.selection import produce_selection_groups
 
+import numpy.typing as npt
 
-def lilliput(
-    *, seed: int, num_samples: int, alpha: float, gamma: float
-) -> tuple[
-    Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple
-]:
+
+class CfData(NamedTuple):
+    dataset: Dataset
+    data: DataTuple
+    cf_data: DataTuple
+    data_true_outcome: DataTuple
+    cf_groups: Prediction
+    data_xs0_ys0: DataTuple
+    data_xs0_ys1: DataTuple
+    data_xs1_ys0: DataTuple
+    data_xs1_ys1: DataTuple
+
+
+def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfData:
     """Make the `lilliput` dataset."""
     num_gen = np.random.default_rng(seed)
 
     # Green is 1, Blue is 0
     s = num_gen.binomial(1, alpha, num_samples)
-    cf_s: np.ndarray = np.ones_like(s) - s
+    cf_s: npt.NDArray[np.int_] = np.ones_like(s) - s
     s_all_0 = np.zeros_like(s)
     s_all_1 = np.ones_like(s)
 
-    potions_percent = num_gen.random(len(s))  # type: ignore[attr-defined]
+    potions_percent = num_gen.random(len(s))
 
     potions_score_nrm = (
         scipy.stats.norm.ppf(potions_percent, loc=0.65, scale=0.15).round(2).clip(0, 1)
@@ -70,18 +82,18 @@ def lilliput(
     video_score_all_1: np.ndarray = video_mean_all_1 + vid_score_nrm
 
     vid_bane_err = num_gen.normal(0, 0.02, len(s)).clip(0, 1)
-    video_bane = (video_score + vid_bane_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
-    cf_video_bane = (cf_video_score + vid_bane_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
-    video_bane_all_0 = (video_score_all_0 + vid_bane_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
-    video_bane_all_1 = (video_score_all_1 + vid_bane_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
+    video_bane = (video_score + vid_bane_err).round(2).clip(0, 1)
+    cf_video_bane = (cf_video_score + vid_bane_err).round(2).clip(0, 1)
+    video_bane_all_0 = (video_score_all_0 + vid_bane_err).round(2).clip(0, 1)
+    video_bane_all_1 = (video_score_all_1 + vid_bane_err).round(2).clip(0, 1)
 
     vid_wolf_err = num_gen.normal(0, 0.05, len(s)).clip(0, 1)
-    video_wolf = (video_score + vid_wolf_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
-    cf_video_wolf = (cf_video_score + vid_wolf_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
-    video_wolf_all_0 = (video_score_all_0 + vid_wolf_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
-    video_wolf_all_1 = (video_score_all_1 + vid_wolf_err).round(2).clip(0, 1)  # type: ignore[attr-defined]
+    video_wolf = (video_score + vid_wolf_err).round(2).clip(0, 1)
+    cf_video_wolf = (cf_video_score + vid_wolf_err).round(2).clip(0, 1)
+    video_wolf_all_0 = (video_score_all_0 + vid_wolf_err).round(2).clip(0, 1)
+    video_wolf_all_1 = (video_score_all_1 + vid_wolf_err).round(2).clip(0, 1)
 
-    random_nums = num_gen.random(len(s))  # type: ignore[attr-defined]
+    random_nums = num_gen.random(len(s))
 
     essay_score_vnm = (
         scipy.stats.t.ppf(random_nums, df=100, loc=0.4, scale=0.15).round(2).clip(0, 1)
@@ -396,40 +408,40 @@ def lilliput(
         discrete_only=False,
     )
 
-    return (
-        dataset,
-        DataTuple(
+    return CfData(
+        dataset=dataset,
+        data=DataTuple(
             x=data[dataset.discrete_features + dataset.continuous_features],
             s=data[dataset.sens_attrs],
             y=data[dataset.class_labels],
         ),
-        DataTuple(
+        cf_data=DataTuple(
             x=cf_data[dataset.discrete_features + dataset.continuous_features],
             s=cf_data[dataset.sens_attrs],
             y=cf_data[dataset.class_labels],
         ),
-        DataTuple(
+        data_true_outcome=DataTuple(
             x=data[dataset.discrete_features + dataset.continuous_features],
             s=data[dataset.sens_attrs],
             y=data[[GRAD_MT_60]],
         ),
-        best_aim,
-        DataTuple(
+        cf_groups=best_aim,
+        data_xs0_ys0=DataTuple(
             x=data_all_0[dataset.discrete_features + dataset.continuous_features],
             s=data_all_0[dataset.sens_attrs],
             y=gt_results["s1_0_s2_0"].to_frame(),
         ),
-        DataTuple(
+        data_xs0_ys1=DataTuple(
             x=data_all_0[dataset.discrete_features + dataset.continuous_features],
             s=data_all_0[dataset.sens_attrs],
             y=gt_results["s1_0_s2_1"].to_frame(),
         ),
-        DataTuple(
+        data_xs1_ys0=DataTuple(
             x=data_all_1[dataset.discrete_features + dataset.continuous_features],
             s=data_all_1[dataset.sens_attrs],
             y=gt_results["s1_1_s2_0"].to_frame(),
         ),
-        DataTuple(
+        data_xs1_ys1=DataTuple(
             x=data_all_1[dataset.discrete_features + dataset.continuous_features],
             s=data_all_1[dataset.sens_attrs],
             y=gt_results["s1_1_s2_1"].to_frame(),

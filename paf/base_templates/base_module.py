@@ -2,6 +2,7 @@
 from __future__ import annotations
 from abc import abstractmethod
 import warnings
+from typing import NamedTuple
 
 from ethicml import Dataset, DataTuple
 from kit import implements
@@ -11,7 +12,7 @@ from pytorch_lightning import LightningDataModule
 from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
-
+import numpy.typing as npt
 from paf.base_templates.dataset_utils import grouped_features_indexes
 from paf.plotting import label_plot
 
@@ -191,25 +192,25 @@ class BaseDataModule(LightningDataModule):
         self,
         datatuple: DataTuple,
         dataset: Dataset,
-        train_indices: np.ndarray,
-        val_indices: np.ndarray,
-        test_indices: np.ndarray,
-    ) -> tuple[DataTuple, DataTuple, DataTuple]:
+        train_indices: npt.NDArray[np.int_],
+        val_indices: npt.NDArray[np.int_],
+        test_indices: npt.NDArray[np.int_],
+    ) -> ScaleSplitOut:
         """Scale a datatuple and split to train/test."""
         train = DataTuple(
-            x=datatuple.x.iloc[train_indices].reset_index(drop=True),
-            s=datatuple.s.iloc[train_indices].reset_index(drop=True),
-            y=datatuple.y.iloc[train_indices].reset_index(drop=True),
+            x=datatuple.x.iloc[train_indices].reset_index(drop=True),  # type: ignore[call-overload]
+            s=datatuple.s.iloc[train_indices].reset_index(drop=True),  # type: ignore[call-overload]
+            y=datatuple.y.iloc[train_indices].reset_index(drop=True),  # type: ignore[call-overload]
         )
         val = DataTuple(
-            x=datatuple.x.iloc[val_indices].reset_index(drop=True),
-            s=datatuple.s.iloc[val_indices].reset_index(drop=True),
-            y=datatuple.y.iloc[val_indices].reset_index(drop=True),
+            x=datatuple.x.iloc[val_indices].reset_index(drop=True),  # type: ignore[call-overload]
+            s=datatuple.s.iloc[val_indices].reset_index(drop=True),  # type: ignore[call-overload]
+            y=datatuple.y.iloc[val_indices].reset_index(drop=True),  # type: ignore[call-overload]
         )
         test = DataTuple(
-            x=datatuple.x.iloc[test_indices].reset_index(drop=True),
-            s=datatuple.s.iloc[test_indices].reset_index(drop=True),
-            y=datatuple.y.iloc[test_indices].reset_index(drop=True),
+            x=datatuple.x.iloc[test_indices].reset_index(drop=True),  # type: ignore[call-overload]
+            s=datatuple.s.iloc[test_indices].reset_index(drop=True),  # type: ignore[call-overload]
+            y=datatuple.y.iloc[test_indices].reset_index(drop=True),  # type: ignore[call-overload]
         )
 
         scaler = MinMaxScaler()
@@ -223,7 +224,7 @@ class BaseDataModule(LightningDataModule):
             else val.x[dataset.continuous_features]
         )
         test.x[dataset.continuous_features] = scaler.transform(test.x[dataset.continuous_features])
-        return train, val, test
+        return ScaleSplitOut(train=train, val=val, test=test)
 
     def make_data_plots(self, cf_available: bool, logger: WandbLogger | None) -> None:
         """Make plots of the data."""
@@ -250,3 +251,9 @@ class BaseDataModule(LightningDataModule):
                 label_plot(self.s1_s1, logger, "s1_s1")
             except (IndexError, KeyError):
                 pass
+
+
+class ScaleSplitOut(NamedTuple):
+    train: DataTuple
+    val: DataTuple
+    test: DataTuple

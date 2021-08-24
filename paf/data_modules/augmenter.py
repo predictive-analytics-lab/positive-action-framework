@@ -1,6 +1,8 @@
 """Augmented dataset."""
 from __future__ import annotations
 
+from typing import NamedTuple
+
 from ethicml import DataTuple, compute_instance_weights
 import pandas as pd
 import torch
@@ -35,23 +37,36 @@ class AugDataset(Dataset):
     def __len__(self) -> int:
         return self.sens.shape[0]
 
-    def __getitem__(self, index: int) -> T_co:
-        return (
-            (
-                self.recons[0][index],
-                self.sens[index],
-                self.sens_0[index],
-                self.labels[index],
-                self.instance_weight[index],
+    def __getitem__(self, index: int) -> AugBatch:
+        return AugBatch(
+            s0=AugItem(
+                x=self.recons[0][index],
+                s=self.sens[index],
+                s0=self.sens_0[index],
+                y=self.labels[index],
+                iw=self.instance_weight[index],
             ),
-            (
-                self.recons[1][index],
-                self.sens[index],
-                self.sens_1[index],
-                self.labels[index],
-                self.instance_weight[index],
+            s1=AugItem(
+                x=self.recons[1][index],
+                s=self.sens[index],
+                s0=self.sens_1[index],
+                y=self.labels[index],
+                iw=self.instance_weight[index],
             ),
         )
+
+
+class AugItem(NamedTuple):
+    x: Tensor
+    s: Tensor
+    s0: Tensor
+    y: Tensor
+    iw: Tensor
+
+
+class AugBatch(NamedTuple):
+    s0: AugItem
+    s1: AugItem
 
 
 class AugmentedDataModule(BaseDataModule):
@@ -62,14 +77,14 @@ class AugmentedDataModule(BaseDataModule):
         self.recons, self.sens, self.labels = model.run_through(data.train_dataloader())
 
     @staticmethod
-    def collate_tuples(batch: Tensor) -> list[Tensor]:
+    def collate_tuples(batch: list[Tensor]) -> list[Tensor]:
         """Callate functin returning outpusts concatenated."""
         it = iter(batch)
         elem_size = len(next(it))
         if any(len(elem) != elem_size for elem in it):
             raise RuntimeError('each element in list of batch should be of equal size')
         transposed = zip(*batch)
-        collated = [default_collate(samples) for samples in transposed]
+        collated = [default_collate(list(samples)) for samples in transposed]
         return [torch.cat([a, b]) for a, b in zip(collated[0], collated[1])]
 
     def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:

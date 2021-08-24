@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import asdict, dataclass
 import logging
+from typing import NamedTuple
 
 from bolts.structures import Stage
 from kit import implements, parsable
@@ -51,6 +52,9 @@ class CfSharedStepOut(SharedStepOut):
 
 class BaseModel(nn.Module):
     """Base AE Model."""
+
+    hid: nn.Module
+    out: nn.Module
 
     def __init__(self, *, in_size: int, hid_size: int, out_size: int, blocks: int):
         super().__init__()
@@ -115,9 +119,9 @@ class Decoder(BaseModel):
 class AE(CommonModel):
     """Main Autoencoder."""
 
-    feature_groups: dict[str, list[slice]] | None = None
-    cf_model: bool | None = None
-    data_cols: list[str] | None = None
+    feature_groups: dict[str, list[slice]]
+    cf_model: bool
+    data_cols: list[str]
 
     @parsable
     def __init__(
@@ -157,6 +161,8 @@ class AE(CommonModel):
 
         self.val_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
+
+        self._cycle_loss_fn = nn.MSELoss(reduction="mean")
 
     @implements(CommonModel)
     def build(
@@ -200,13 +206,13 @@ class AE(CommonModel):
         self.built = True
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor) -> tuple[Tensor, Tensor, list[Tensor]]:
+    def forward(self, x: Tensor, s: Tensor) -> EncFwd:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc(_x)
         s_pred = self.adv(z)
         recons = [dec(z) for dec in self.decoders]
-        return z, s_pred, recons
+        return EncFwd(z=z, s=s_pred, x=recons)
 
     def combined_loss(self, recons: list[Tensor], batch: Batch | CfBatch) -> Tensor:
         if self.feature_groups["discrete"]:
@@ -238,17 +244,15 @@ class AE(CommonModel):
     @implements(LightningModule)
     def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
         assert self.built
-        z, s_pred, recons = self(batch.x, batch.s)
+        enc_fwd = self.forward(batch.x, batch.s)
 
-        recon_loss = self.combined_loss(recons, batch)
+        recon_loss = self.combined_loss(enc_fwd.x, batch)
         adv_loss = (
-            mmd2(z[batch.s == 0], z[batch.s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(s_pred.squeeze(-1), batch.s, reduction="mean")
+            mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=self.mmd_kernel)
+            + binary_cross_entropy_with_logits(enc_fwd.s.squeeze(-1), batch.s, reduction="mean")
         ) / 2
-        _, _, cycle_preds = self(index_by_s(recons, 1 - batch.s), 1 - batch.s)
-        cycle_loss = nn.MSELoss(reduction="mean")(
-            index_by_s(cycle_preds, batch.s).squeeze(-1), batch.x
-        )
+        cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
+        cycle_loss = self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
 
         loss = (
             self.recon_weight * recon_loss
@@ -260,13 +264,15 @@ class AE(CommonModel):
             "training_enc/loss": loss,
             "training_enc/recon_loss": recon_loss,
             "training_enc/adv_loss": adv_loss,
-            "training_enc/z_norm": z.detach().norm(dim=1).mean(),
-            "training_enc/z_mean_abs_diff": (z[batch.s <= 0].mean() - z[batch.s > 0].mean()).abs(),
+            "training_enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
+            "training_enc/z_mean_abs_diff": (
+                enc_fwd.z[batch.s <= 0].mean() - enc_fwd.z[batch.s > 0].mean()
+            ).abs(),
         }
 
         if isinstance(batch, CfBatch):
             with no_grad():
-                _, _, cf_recons = self(batch.cfx, batch.cfs)
+                _, _, cf_recons = self.forward(batch.cfx, batch.cfs)
                 cf_recon_loss = l1_loss(
                     index_by_s(cf_recons, batch.cfs), batch.cfx, reduction="mean"
                 )
@@ -319,22 +325,22 @@ class AE(CommonModel):
         self, batch: Batch | CfBatch, batch_idx: int, stage: Stage
     ) -> SharedStepOut | CfSharedStepOut:
         assert self.built
-        z, _, recons = self(batch.x, batch.s)
+        enc_fwd = self.forward(batch.x, batch.s)
 
         to_return = SharedStepOut(
             x=batch.x,
-            z=z,
+            z=enc_fwd.z,
             s=batch.s,
-            recon=self.invert(index_by_s(recons, batch.s), batch.x),
-            cf_pred=self.invert(index_by_s(recons, 1 - batch.s), batch.x),
-            recons_0=self.invert(recons[0], batch.x),
-            recons_1=self.invert(recons[1], batch.x),
+            recon=self.invert(index_by_s(enc_fwd.x, batch.s), batch.x),
+            cf_pred=self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.x),
+            recons_0=self.invert(enc_fwd.x[0], batch.x),
+            recons_1=self.invert(enc_fwd.x[1], batch.x),
         )
 
         if isinstance(batch, CfBatch):
             to_return = CfSharedStepOut(
                 cf_x=batch.cfx,
-                cf_recon=self.invert(index_by_s(recons, batch.cfs), batch.x),
+                cf_recon=self.invert(index_by_s(enc_fwd.x, batch.cfs), batch.x),
                 **asdict(to_return),
             )
 
@@ -426,8 +432,8 @@ class AE(CommonModel):
         )
 
         if isinstance(output_results[0], CfSharedStepOut):
-            all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)
-            cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)
+            all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)  # type: ignore[union-attr]
+            cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)  # type: ignore[union-attr]
             make_plot(
                 x=all_cf_x.clone(),
                 s=self.all_s.clone(),
@@ -466,8 +472,8 @@ class AE(CommonModel):
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
-            _, _, _r = self(x, s)
-            r = self.invert(index_by_s(_r, s), x)
+            enc_fwd = self.forward(x, s)
+            r = self.invert(index_by_s(enc_fwd.x, s), x)
             if recons is None:
                 recons = [r]
             else:
@@ -485,9 +491,9 @@ class AE(CommonModel):
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
             y = batch.y.to(self.device)
-            _, _, _r = self(x, s)
-            r0 = self.invert(_r[0], x)
-            r1 = self.invert(_r[1], x)
+            enc_fwd = self.forward(x, s)
+            r0 = self.invert(enc_fwd.x[0], x)
+            r1 = self.invert(enc_fwd.x[1], x)
             if recons is None:
                 recons = [torch.stack([r0, r1])]
             else:
@@ -506,4 +512,16 @@ class AE(CommonModel):
         _sens = torch.cat(sens, dim=0)
         assert labels is not None
         _labels = torch.cat(labels, dim=0)
-        return _recons.detach(), _sens.detach(), _labels.detach()
+        return RunThroughOut(x=_recons.detach(), s=_sens.detach(), y=_labels.detach())
+
+
+class RunThroughOut(NamedTuple):
+    x: Tensor
+    s: Tensor
+    y: Tensor
+
+
+class EncFwd(NamedTuple):
+    z: Tensor
+    s: Tensor
+    x: list[Tensor]

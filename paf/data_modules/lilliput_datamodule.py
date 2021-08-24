@@ -68,8 +68,8 @@ class LilliputDataModule(BaseDataModule):
         self.dim_x = self.data_dim
         self.dims = self.data_dim
         self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
-        self.column_names = factual_data.x.columns
-        self.outcome_columns = factual_data.y.columns
+        self.column_names = [str(col) for col in factual_data.x.columns]
+        self.outcome_columns = [str(col) for col in factual_data.y.columns]
 
         num_train = int(self.factual_data.x.shape[0] * 0.7)
         num_val = int(self.factual_data.x.shape[0] * 0.1)
@@ -79,21 +79,26 @@ class LilliputDataModule(BaseDataModule):
         val_indices = idx[num_train : num_train + num_val]
         test_indices = idx[num_train + num_val :]
 
-        self.train_datatuple, self.val_datatuple, self.test_datatuple = self.scale_and_split(
+        scale_split = self.scale_and_split(
             self.factual_data, dataset, train_indices, val_indices, test_indices
         )
-        (
-            self.true_train_datatuple,
-            self.true_val_datatuple,
-            self.true_test_datatuple,
-        ) = self.scale_and_split(
+        self.train_datatuple = scale_split.train
+        self.val_datatuple = scale_split.val
+        self.test_datatuple = scale_split.test
+
+        true_scale_split = self.scale_and_split(
             data_true_outcome, dataset, train_indices, val_indices, test_indices
         )
-        (
-            self.cf_train_datatuple,
-            self.cf_val_datatuple,
-            self.cf_test_datatuple,
-        ) = self.scale_and_split(self.cf_data, dataset, train_indices, val_indices, test_indices)
+        self.true_train_datatuple = true_scale_split.train
+        self.true_val_datatuple = true_scale_split.val
+        self.true_test_datatuple = true_scale_split.test
+
+        cf_scale_split = self.scale_and_split(
+            self.cf_data, dataset, train_indices, val_indices, test_indices
+        )
+        self.cf_train_datatuple = cf_scale_split.train
+        self.cf_val_datatuple = cf_scale_split.val
+        self.cf_test_datatuple = cf_scale_split.test
 
         self.make_feature_groups(dataset, factual_data)
 

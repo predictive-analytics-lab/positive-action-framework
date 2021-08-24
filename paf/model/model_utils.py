@@ -36,13 +36,13 @@ class GradReverse(autograd.Function):
     """Gradient reversal layer."""
 
     @staticmethod
-    def forward(ctx: autograd.Function, x: Tensor, lambda_: float) -> Tensor:
+    def forward(ctx: autograd.Function, x: Tensor, lambda_: float) -> Tensor:  # type: ignore[override]
         """Do GRL."""
         ctx.lambda_ = lambda_
         return x.view_as(x)
 
     @staticmethod
-    def backward(ctx: autograd.Function, grad_output: Tensor) -> tuple[Tensor, Tensor | None]:
+    def backward(ctx: autograd.Function, grad_output: Tensor) -> tuple[Tensor, Tensor | None]:  # type: ignore[override]
         """Do GRL."""
         return grad_output.neg().mul(ctx.lambda_), None
 

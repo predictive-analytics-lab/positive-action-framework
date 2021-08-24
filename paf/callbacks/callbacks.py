@@ -10,7 +10,7 @@ from paf.mmd import mmd2
 
 
 class MseLogger(Callback):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def on_test_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
@@ -25,7 +25,7 @@ class MseLogger(Callback):
 
 
 class MmdLogger(Callback):
-    def __init__(self):
+    def __init__(self)-> None:
         super().__init__()
 
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:

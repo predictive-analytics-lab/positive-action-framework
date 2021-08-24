@@ -1,7 +1,7 @@
 """MMD functions."""
 from __future__ import annotations
 import logging
-from typing import Any, Sequence
+from typing import Any, Sequence, NamedTuple
 
 import torch
 from torch import Tensor
@@ -13,12 +13,19 @@ from paf.config_classes.dataclasses import KernelType
 log = logging.getLogger(__name__)
 
 
-def _dot_kernel(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor, float]:
+class KernelOut(NamedTuple):
+    xx: Tensor
+    xy: Tensor
+    yy: Tensor
+    const_diag: float
+
+
+def _dot_kernel(x: Tensor, y: Tensor) -> KernelOut:
     xx_gm = x @ x.t()
     xy_gm = x @ y.t()
     yy_gm = y @ y.t()
 
-    return xx_gm, xy_gm, yy_gm, 0.0
+    return KernelOut(xx=xx_gm, xy=xy_gm, yy=yy_gm, const_diag=0.0)
 
 
 def _mix_rq_kernel(
@@ -27,7 +34,7 @@ def _mix_rq_kernel(
     scales: Sequence[float] | None = None,
     wts: Sequence[float] | None = None,
     add_dot: float = 0.0,
-) -> tuple[Tensor, Tensor, Tensor, float]:
+) -> KernelOut:
     """Rational quadratic kernel.
 
     http://www.cs.toronto.edu/~duvenaud/cookbook/index.html
@@ -71,7 +78,7 @@ def _mix_rq_kernel(
         k_xx += add_dot * xx_gm
         k_yy += add_dot * yy_gm
 
-    return k_xx, k_xy, k_yy, sum(wts)
+    return KernelOut(xx=k_xx, xy=k_xy, yy=k_yy, const_diag=sum(wts))
 
 
 def _mix_rbf_kernel(
@@ -80,7 +87,7 @@ def _mix_rbf_kernel(
     scales: Sequence[float] | None = None,
     wts: Sequence[float] | None = None,
     add_dot: float = 0.0,
-) -> tuple[Tensor, Tensor, Tensor, float]:
+) -> KernelOut:
     """RBF Kernel."""
     scales = (2.0, 5.0, 10.0, 20.0, 40.0, 80.0) if scales is None else scales
     wts = [1.0] * len(scales) if wts is None else wts
@@ -114,27 +121,25 @@ def _mix_rbf_kernel(
         k_xy += wt * torch.exp(-gamma * xy_sqnorm)
         k_yy += wt * torch.exp(-gamma * yy_sqnorm)
 
-    return k_xx, k_xy, k_yy, sum(wts)
+    return KernelOut(xx=k_xx, xy=k_xy, yy=k_yy, const_diag=sum(wts))
 
 
-def _mmd2(
-    k_xx: Tensor, k_xy: Tensor, k_yy: Tensor, const_diagonal: float = 0.0, biased: bool = False
-) -> Tensor:
-    m = k_xx.size(0)
-    n = k_yy.size(0)
+def _mmd2(kernel: KernelOut, biased: bool = False) -> Tensor:
+    m = kernel.xx.size(0)
+    n = kernel.yy.size(0)
 
     if biased:
-        return k_xx.sum() / (m * m) + k_yy.sum() / (n * n) - 2 * k_xy.sum() / (m * n)
-    if const_diagonal != 0.0:
+        return kernel.xx.sum() / (m * m) + kernel.yy.sum() / (n * n) - 2 * kernel.xy.sum() / (m * n)
+    if kernel.const_diag != 0.0:
         trace_x = torch.tensor(m)
         trace_y = torch.tensor(n)
     else:
-        trace_x = k_xx.trace()
-        trace_y = k_yy.trace()
+        trace_x = kernel.xx.trace()
+        trace_y = kernel.yy.trace()
     return (
-        (k_xx.sum() - trace_x) / (m * (m - 1))
-        + (k_yy.sum() - trace_y) / (n * (n - 1))
-        - (2 * k_xy.sum() / (m * n))
+        (kernel.xx.sum() - trace_x) / (m * (m - 1))
+        + (kernel.yy.sum() - trace_y) / (n * (n - 1))
+        - (2 * kernel.xy.sum() / (m * n))
     )
 
 
@@ -143,7 +148,9 @@ def mmd2(
     y: Tensor,
     kernel: KernelType = KernelType.rbf,
     biased: bool = False,
-    **kwargs: Any,
+    scales: Sequence[float] | None = None,
+    wts: Sequence[float] | None = None,
+    add_dot: float = 0.0,
 ) -> Tensor:
     """MMD."""
     if x.shape[0] < 2 or y.shape[0] < 2:
@@ -151,13 +158,13 @@ def mmd2(
             "Not enough samples in one group to perform MMD. "
             "Returning 0 to not crash, but you should increase the batch size."
         )
-        return 0
+        return torch.tensor(0.0)
     if kernel.value == "linear":
-        kernel_out = _dot_kernel(x, y)
+        kernel_out = _dot_kernel(x=x, y=y)
     elif kernel.value == "rbf":
-        kernel_out = _mix_rbf_kernel(x, y, **kwargs)
+        kernel_out = _mix_rbf_kernel(x=x, y=y, scales=scales, wts=wts, add_dot=add_dot)
     elif kernel.value == "rq":
-        kernel_out = _mix_rq_kernel(x, y, **kwargs)
+        kernel_out = _mix_rq_kernel(x=x, y=y, scales=scales, wts=wts, add_dot=add_dot)
     else:
         raise NotImplementedError("Only RBF, Linear and RQ kernels implemented.")
-    return _mmd2(*kernel_out, biased)
+    return _mmd2(kernel_out, biased)

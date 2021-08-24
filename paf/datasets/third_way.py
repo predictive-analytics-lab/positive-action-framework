@@ -10,15 +10,21 @@ from sklearn import preprocessing
 
 log = logging.getLogger(__name__)
 
+import numpy.typing as npt
 
-def make_x_bar(num_features: int, n: int, random_state: np.random.Generator) -> np.ndarray:
+
+def make_x_bar(
+    num_features: int, n: int, random_state: np.random.Generator
+) -> npt.NDArray[np.float_]:
     """Initial potential."""
     x_tilde = random_state.uniform(0, 1, size=(n, num_features))
 
     return np.stack([scipy.stats.norm.ppf(l, loc=0, scale=1) for l in x_tilde])
 
 
-def make_s(alpha: float, n: int, random_state: np.random.Generator, binary_s: bool) -> np.ndarray:
+def make_s(
+    alpha: float, n: int, random_state: np.random.Generator, binary_s: bool
+) -> npt.NDArray[np.float_]:
     """Set S."""
     if binary_s:
         return random_state.binomial(1, alpha, n)
@@ -175,7 +181,7 @@ def third_way_data(
     s1_1_s2_0_data = pd.concat([s1_x_df, s0_df, s1_1_s2_0_y_df], axis=1).sort_index()
     s1_1_s2_1_data = pd.concat([s1_x_df, s0_df, s1_1_s2_1_y_df], axis=1).sort_index()
 
-    idx = num_gen.permutation(data.index)  # type: ignore[arg-type]
+    idx = num_gen.permutation(data.index)
 
     data = data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
     counterfactual_data = counterfactual_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]

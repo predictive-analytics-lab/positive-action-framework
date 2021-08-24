@@ -16,8 +16,10 @@ from paf.log_progress import do_log
 from paf.plotting import outcomes_hist
 from paf.utils import facct_mapper, facct_mapper_2, facct_mapper_outcomes
 
+import numpy.typing as npt
 
-def selection_rules(outcome_df: pd.DataFrame) -> np.ndarray:
+
+def selection_rules(outcome_df: pd.DataFrame) -> npt.NDArray[np.int_]:
     """Apply selection rules."""
     conditions = [
         (outcome_df['s1_0_s2_0'] == a)
@@ -76,6 +78,8 @@ def produce_selection_groups(
         do_log(f"Table3/Ours_{data_name}/pre_selection_rule_group_{idx}", val, logger)
 
     if recon_1 is not None:
+        assert recon_0 is not None
+        assert recon_1 is not None
         assert data is not None
         analyse_selection_groups(
             data=data,
@@ -92,6 +96,8 @@ def produce_selection_groups(
         do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
 
     if recon_1 is not None:
+        assert recon_0 is not None
+        assert recon_1 is not None
         assert data is not None
         analyse_selection_groups(
             data=data,
@@ -124,7 +130,7 @@ def analyse_selection_groups(
     for selection_group in range(selected.hard.min(), selected.hard.max()):
         try:
             selected_data = data.test_datatuple.x.iloc[
-                selected.hard[selected.hard == selection_group].index
+                selected.hard[selected.hard == selection_group].index  # type: ignore[call-overload]
             ]
         except IndexError:
             continue

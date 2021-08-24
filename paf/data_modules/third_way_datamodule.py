@@ -91,8 +91,8 @@ class ThirdWayDataModule(BaseDataModule):
         self.data_dim = factual_data.x.shape[1:]
         self.dims = self.data_dim
         self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
-        self.column_names = factual_data.x.columns
-        self.outcome_columns = factual_data.y.columns
+        self.column_names = [str(col) for col in factual_data.x.columns]
+        self.outcome_columns = [str(col) for col in factual_data.y.columns]
 
         num_train = int(self.factual_data.x.shape[0] * 0.7)
         num_val = int(self.factual_data.x.shape[0] * 0.1)

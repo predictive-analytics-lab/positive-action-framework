@@ -45,13 +45,7 @@ class SimpleAdultDataModule(BaseDataModule):
         self.dims = self.data_dim
         self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
         self.column_names = self.dataset.discrete_features + self.dataset.continuous_features
-        self.outcome_columns = self.factual_data.y.columns
-
-        num_train = int(self.factual_data.x.shape[0] * 0.7)
-        num_val = int(self.factual_data.x.shape[0] * 0.1)
-        rng = np.random.RandomState(self.seed)
-        idx = rng.permutation(self.factual_data.x.index)
-        val_indices = idx[num_train : num_train + num_val]
+        self.outcome_columns = [str(col) for col in self.factual_data.y.columns]
 
         train_val_datatuple, self.test_datatuple, split_info = ProportionalSplit(
             train_percentage=0.8
@@ -60,12 +54,6 @@ class SimpleAdultDataModule(BaseDataModule):
         self.train_datatuple, self.val_datatuple, _ = RandomSplit(train_percentage=0.875)(
             train_val_datatuple
         )
-
-        # self.val_datatuple = DataTuple(
-        #     x=self.train_datatuple.x.iloc[val_indices].reset_index(drop=True),
-        #     s=self.train_datatuple.s.iloc[val_indices].reset_index(drop=True),
-        #     y=self.train_datatuple.y.iloc[val_indices].reset_index(drop=True),
-        # )
 
         self.scaler = MinMaxScaler()
         self.scaler = self.scaler.fit(self.train_datatuple.x[self.dataset.continuous_features])

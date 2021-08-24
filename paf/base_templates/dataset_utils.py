@@ -8,6 +8,7 @@ from ethicml.implementations.pytorch_common import _get_info
 import numpy as np
 import torch
 from torch import Tensor
+from torch.utils.data import Dataset
 
 
 class Batch(NamedTuple):
@@ -54,7 +55,7 @@ def grouped_features_indexes(disc_feats: list[str]) -> list[slice]:
     return feature_slices
 
 
-class DataTupleDatasetBase:
+class DataTupleDatasetBase(Dataset):
     """Wrapper for EthicML datasets."""
 
     def __init__(self, dataset: DataTuple, disc_features: list[str], cont_features: list[str]):
@@ -66,12 +67,12 @@ class DataTupleDatasetBase:
         self.cont_features = cont_features
         self.feature_groups = dict(discrete=grouped_features_indexes(self.disc_features))
 
-        self.x_disc = dataset.x[self.disc_features].to_numpy(dtype=np.float32)
-        self.x_cont = dataset.x[self.cont_features].to_numpy(dtype=np.float32)
+        self.x_disc = dataset.x[self.disc_features].astype("float32").to_numpy()
+        self.x_cont = dataset.x[self.cont_features].astype("float32").to_numpy()
 
         _, self.s, self.num, self.xdim, self.sdim, self.x_names, self.s_names = _get_info(dataset)
 
-        self.y = dataset.y.to_numpy(dtype=np.float32)
+        self.y = dataset.y.astype("float32").to_numpy()
 
         self.ydim = dataset.y.shape[1]
         self.y_names = dataset.y.columns
@@ -82,10 +83,8 @@ class DataTupleDatasetBase:
     def _x(self, index: int) -> Tensor:
         x_disc = self.x_disc[index]
         x_cont = self.x_cont[index]
-        x = np.concatenate([x_disc, x_cont], axis=0)
+        x = np.concatenate([x_disc, x_cont], axis=0, dtype=np.float32)
         x = torch.from_numpy(x)
-        if x.shape == 1:
-            x = x.squeeze(0)
         return x
 
     def _s(self, index: int) -> Tensor:
@@ -133,10 +132,10 @@ class CFDataTupleDataset(DataTupleDatasetBase):
         self, datatuple: DataTuple
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Split a datatuple to components."""
-        x_disc = datatuple.x[self.disc_features].to_numpy(dtype=np.float32)
-        x_cont = datatuple.x[self.cont_features].to_numpy(dtype=np.float32)
-        s = datatuple.s.to_numpy(dtype=np.float32)
-        y = datatuple.y.to_numpy(dtype=np.float32)
+        x_disc = datatuple.x[self.disc_features].astype("float32").to_numpy()
+        x_cont = datatuple.x[self.cont_features].astype("float32").to_numpy()
+        s = datatuple.s.astype("float32").to_numpy()
+        y = datatuple.y.astype("float32").to_numpy()
         return x_disc, x_cont, s, y
 
     def _make_from_arr(self, np_array: np.ndarray, index: int) -> Tensor:
@@ -146,10 +145,8 @@ class CFDataTupleDataset(DataTupleDatasetBase):
     def _make_x(self, disc: np.ndarray, cont: np.ndarray, index: int) -> Tensor:
         x_disc = disc[index]
         x_cont = cont[index]
-        x = np.concatenate([x_disc, x_cont], axis=0)
+        x = np.concatenate([x_disc, x_cont], axis=0, dtype=np.float32)
         x = torch.from_numpy(x)
-        if x.shape == 1:
-            x = x.squeeze(0)
         return x
 
     def _cf_x(self, index: int) -> Tensor:

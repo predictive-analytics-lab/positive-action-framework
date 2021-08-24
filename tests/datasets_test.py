@@ -18,8 +18,8 @@ from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import
     SimpleXDataModuleConf,
     ThirdWayDataModuleConf,
 )
-from paf.config_classes.pytorch_lightning.trainer.configs import (
-    TrainerConf,  # type: ignore[import]
+from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
+    TrainerConf,
 )
 from paf.main import Config, run_aies
 from paf.model.aies_model import AiesModel
@@ -175,6 +175,7 @@ def test_clf(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
+            scaler=cfg.data.scaler,
         )
         cfg.trainer.fit(model=classifier, datamodule=cfg.data)
         cfg.trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
@@ -220,6 +221,7 @@ def test_clfmod(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
+            scaler=cfg.data.scaler,
         )
         clf_trainer.fit(model=classifier, datamodule=data)
         clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
