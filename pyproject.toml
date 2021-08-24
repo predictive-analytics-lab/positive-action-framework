@@ -10,7 +10,7 @@ typer = "^0.3.2"
 optuna = "^2.9.1"
 wandb = "^0.12.0"
 plotly = "^5.1.0"
-ethicml = "^0.3.2"
+ethicml = {extras = ["all"], version = "^0.3.2"}
 pytorch-lightning = "^1.4.2"
 neoconfigen = {git = "https://github.com/predictive-analytics-lab/neoconfigen.git", branch = "master"}
 palbolts = {git = "https://github.com/predictive-analytics-lab/palbolts.git", branch = "main", develop = true}
