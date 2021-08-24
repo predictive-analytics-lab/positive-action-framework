@@ -5,7 +5,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 
 from paf.config_classes.dataclasses import KernelType
-from paf.log_progress import do_log
 from paf.mmd import mmd2
 
 
@@ -13,7 +12,8 @@ class MseLogger(Callback):
     def __init__(self) -> None:
         super().__init__()
 
-    def on_test_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    # def on_test_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    def on_test_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         recon_mse = (pl_module.all_x - pl_module.all_recon).abs().mean(dim=0)
         for i, feature_mse in enumerate(recon_mse):
             feature_name = pl_module.data_cols[i]
@@ -31,7 +31,7 @@ class MmdLogger(Callback):
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.validate)
 
-    def on_test_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    def on_test_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.test)
 
     def _shared(self, pl_module: pl.LightningModule, stage: Stage) -> None:
