@@ -23,7 +23,6 @@ from torchmetrics import MeanSquaredError
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.config_classes.dataclasses import KernelType
-from paf.log_progress import do_log
 from paf.mmd import mmd2
 from paf.model.blocks import block, mid_blocks
 from paf.model.common_model import CommonModel
@@ -116,6 +115,66 @@ class Decoder(BaseModel):
         )
 
 
+class Loss:
+    def __init__(
+        self,
+        loss_type: str = 'MSE',
+        lambda_: int = 1,
+        feature_groups: dict[str, list[slice]] | None = None,
+        adv_weight: float = 1.0,
+        cycle_weight: float = 1.0,
+        recon_weight: float = 1.0,
+    ):
+        self.loss_fn = nn.MSELoss() if loss_type == 'MSE' else nn.BCEWithLogitsLoss()
+        self._recon_loss = nn.L1Loss(reduction="mean")
+        self.lambda_ = lambda_
+        self.feature_groups = feature_groups if feature_groups is not None else {}
+        self._adv_weight = adv_weight
+        self._cycle_weight = cycle_weight
+        self._recon_weight = recon_weight
+        self._cycle_loss_fn = nn.MSELoss(reduction="mean")
+
+    def recon_loss(self, recons: list[Tensor], batch: Batch | CfBatch) -> Tensor:
+
+        if self.feature_groups["discrete"]:
+            recon_loss = batch.x.new_tensor(0.0)
+            for i in range(
+                batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])].shape[
+                    1
+                ]
+            ):
+                recon_loss += mse_loss(
+                    index_by_s(recons, batch.s)[
+                        :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
+                    ][:, i].sigmoid(),
+                    batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])][
+                        :, i
+                    ],
+                )
+            for group_slice in self.feature_groups["discrete"]:
+                recon_loss += cross_entropy(
+                    index_by_s(recons, batch.s)[:, group_slice],
+                    torch.argmax(batch.x[:, group_slice], dim=-1),
+                    reduction="mean",
+                )
+        else:
+            recon_loss = mse_loss(index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean")
+
+        return recon_loss * self._recon_weight
+
+    def adv_loss(self, enc_fwd: EncFwd, batch: Batch | CfBatch, kernel: KernelType) -> Tensor:
+        return (
+            (
+                mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel)
+                + binary_cross_entropy_with_logits(enc_fwd.s.squeeze(-1), batch.s, reduction="mean")
+            )
+            / 2
+        ) * self._adv_weight
+
+    def cycle_loss(self, cyc_fwd: EncFwd, batch: Batch | CfBatch) -> Tensor:
+        return self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
+
+
 class AE(CommonModel):
     """Main Autoencoder."""
 
@@ -143,9 +202,9 @@ class AE(CommonModel):
     ):
         super().__init__(name="Enc")
 
-        self.adv_weight = adv_weight
-        self.cycle_weight = cycle_weight
-        self.recon_weight = target_weight
+        self._adv_weight = adv_weight
+        self._cycle_weight = cycle_weight
+        self._recon_weight = target_weight
         self.lr = lr
         self.s_as_input = s_as_input
         self.latent_dims = latent_dims
@@ -162,8 +221,6 @@ class AE(CommonModel):
         self.val_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
 
-        self._cycle_loss_fn = nn.MSELoss(reduction="mean")
-
     @implements(CommonModel)
     def build(
         self,
@@ -176,7 +233,6 @@ class AE(CommonModel):
         scaler: MinMaxScaler,
     ) -> None:
         self.cf_model = cf_available
-        self.feature_groups = feature_groups
         self.data_cols = outcome_cols
         self.scaler = scaler
 
@@ -203,6 +259,12 @@ class AE(CommonModel):
                 for _ in range(num_s)
             ]
         )
+        self.loss = Loss(
+            feature_groups=feature_groups,
+            adv_weight=self._adv_weight,
+            cycle_weight=self._cycle_weight,
+            recon_weight=self._recon_weight,
+        )
         self.built = True
 
     @implements(nn.Module)
@@ -214,51 +276,17 @@ class AE(CommonModel):
         recons = [dec(z) for dec in self.decoders]
         return EncFwd(z=z, s=s_pred, x=recons)
 
-    def combined_loss(self, recons: list[Tensor], batch: Batch | CfBatch) -> Tensor:
-        if self.feature_groups["discrete"]:
-            recon_loss = batch.x.new_tensor(0.0)
-            for i in range(
-                batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])].shape[
-                    1
-                ]
-            ):
-                recon_loss += mse_loss(
-                    index_by_s(recons, batch.s)[
-                        :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
-                    ][:, i].sigmoid(),
-                    batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])][
-                        :, i
-                    ],
-                )
-            for group_slice in self.feature_groups["discrete"]:
-                recon_loss += cross_entropy(
-                    index_by_s(recons, batch.s)[:, group_slice],
-                    torch.argmax(batch.x[:, group_slice], dim=-1),
-                    reduction="mean",
-                )
-        else:
-            recon_loss = mse_loss(index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean")
-
-        return recon_loss
-
     @implements(LightningModule)
     def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
 
-        recon_loss = self.combined_loss(enc_fwd.x, batch)
-        adv_loss = (
-            mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(enc_fwd.s.squeeze(-1), batch.s, reduction="mean")
-        ) / 2
+        recon_loss = self.loss.recon_loss(enc_fwd.x, batch)
+        adv_loss = self.loss.adv_loss(enc_fwd, batch, self.mmd_kernel)
         cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
-        cycle_loss = self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
+        cycle_loss = self.loss.cycle_loss(cyc_fwd, batch)
 
-        loss = (
-            self.recon_weight * recon_loss
-            + self.adv_weight * adv_loss
-            + self.cycle_weight * cycle_loss
-        )
+        loss = recon_loss + adv_loss + cycle_loss
 
         to_log = {
             "training_enc/loss": loss,
@@ -288,19 +316,21 @@ class AE(CommonModel):
     def invert(self, z: Tensor, x: Tensor) -> Tensor:
         """Go from soft to discrete features."""
         k = z.detach().clone()
-        if self.feature_groups["discrete"]:
+        if self.loss.feature_groups["discrete"]:
             for i in range(
-                k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
+                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
             ):
                 if i in []:  # [0]: Features to transplant to the reconstrcution
-                    k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = x[
-                        :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
-                    ][:, i]
+                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
+                        :, i
+                    ] = x[:, slice(self.loss.feature_groups["discrete"][-1].stop, x.shape[1])][:, i]
                 else:
-                    k[:, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = k[
-                        :, slice(self.feature_groups["discrete"][-1].stop, k.shape[1])
-                    ][:, i].sigmoid()
-            for i, group_slice in enumerate(self.feature_groups["discrete"]):
+                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
+                        :, i
+                    ] = k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
+                        :, i
+                    ].sigmoid()
+            for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
                 if i in []:  # [2, 4]: Features to transplant
                     k[:, group_slice] = x[:, group_slice]
                 else:
@@ -362,67 +392,7 @@ class AE(CommonModel):
         self.all_s = torch.cat([_r.s for _r in output_results], 0)
         self.all_recon = torch.cat([_r.recon for _r in output_results], 0)
         self.all_cf_pred = torch.cat([_r.cf_pred for _r in output_results], 0)
-        torch.cat([_r.recons_0 for _r in output_results], 0)
-        torch.cat([_r.recons_1 for _r in output_results], 0)
 
-        logger.info(self.data_cols)
-        if self.feature_groups["discrete"]:
-            make_plot(
-                x=self.all_x[
-                    :, slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
-                ].clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name=f"{stage.value}_true_data",
-                cols=self.data_cols[
-                    slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
-                ],
-                scaler=self.scaler,
-            )
-            make_plot(
-                x=self.all_recon[
-                    :, slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
-                ].clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name=f"{stage.value}_recons",
-                cols=self.data_cols[
-                    slice(self.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
-                ],
-                scaler=self.scaler,
-            )
-            for group_slice in self.feature_groups["discrete"]:
-                make_plot(
-                    x=self.all_x[:, group_slice].clone(),
-                    s=self.all_s.clone(),
-                    logger=self.logger,
-                    name=f"{stage.value}_true_data",
-                    cols=self.data_cols[group_slice],
-                    cat_plot=True,
-                )
-                make_plot(
-                    x=self.all_recon[:, group_slice].clone(),
-                    s=self.all_s.clone(),
-                    logger=self.logger,
-                    name=f"{stage.value}_recons",
-                    cols=self.data_cols[group_slice],
-                    cat_plot=True,
-                )
-        else:
-            make_plot(
-                x=self.all_x.clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name=f"{stage.value}_true_data",
-                cols=self.data_cols,
-            )
-            make_plot(
-                x=self.all_recon.clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name=f"{stage.value}_recons",
-                cols=self.data_cols,
-            )
         make_plot(
             x=all_z.clone(),
             s=self.all_s.clone(),
@@ -448,15 +418,6 @@ class AE(CommonModel):
                 name=f"{stage.value}_cf_recons",
                 cols=self.data_cols,
             )
-
-            recon_mse = (all_cf_x - cf_recon).abs().mean(dim=0)
-            for i, feature_mse in enumerate(recon_mse):
-                feature_name = self.data_cols[i]
-                self.log(
-                    name=f"Table6/Ours_{stage.value}/cf_recon_l1 - feature {feature_name}",
-                    value=round(feature_mse.item(), 5),
-                    logger=True,
-                )
 
     @implements(LightningModule)
     def configure_optimizers(

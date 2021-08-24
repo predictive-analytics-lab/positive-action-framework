@@ -7,18 +7,14 @@ from typing import Iterator, NamedTuple
 from bolts.structures import Stage
 import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.utilities.types import EPOCH_OUTPUT
 from sklearn.preprocessing import MinMaxScaler
 import torch
-from torch import Tensor, nn, optim
+from torch import Tensor, nn
 from torch.nn import Parameter
 from torch.optim.lr_scheduler import LambdaLR
-from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
-from paf.log_progress import do_log
 from paf.model.model_utils import index_by_s, to_discrete
-from paf.plotting import make_plot
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +140,7 @@ class Loss:
         """
 
         self.loss_fn = nn.MSELoss() if loss_type == 'MSE' else nn.BCEWithLogitsLoss()
-        self.recon_loss = nn.L1Loss(reduction="mean")
+        self.recon_loss = nn.L1Loss(reduction="mean")  # TODO: Make this MSE
         self.lambda_ = lambda_
         self.feature_groups = feature_groups if feature_groups is not None else {}
 
@@ -613,85 +609,16 @@ class CycleGan(pl.LightningModule):
         )
 
     def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:
-        self.shared_epoch_end(outputs)
+        self.shared_epoch_end(outputs, stage=Stage.test)
 
-    def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
-        self.shared_epoch_end(outputs)
+    def validation_epoch_end(self, outputs: list[SharedStepOut]) -> None:
+        self.shared_epoch_end(outputs, stage=Stage.validate)
 
-    def shared_epoch_end(self, outputs: list[SharedStepOut]) -> None:
+    def shared_epoch_end(self, outputs: list[SharedStepOut], stage: Stage) -> None:
         self.all_x = torch.cat([_r.x for _r in outputs], 0)
         self.all_s = torch.cat([_r.s for _r in outputs], 0)
         self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
         self.all_cf_pred = torch.cat([_r.recon for _r in outputs], 0)
-        torch.cat([_r.recons_0 for _r in outputs], 0)
-        torch.cat([_r.recons_1 for _r in outputs], 0)
-
-        logger.info(self.data_cols)
-        if self.loss.feature_groups["discrete"]:
-            make_plot(
-                x=self.all_x[
-                    :, slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
-                ].clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name="true_data",
-                cols=self.data_cols[
-                    slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
-                ],
-                scaler=self.scaler,
-            )
-            make_plot(
-                x=self.all_recon[
-                    :, slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
-                ].clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name="recons",
-                cols=self.data_cols[
-                    slice(self.loss.feature_groups["discrete"][-1].stop, self.all_x.shape[1])
-                ],
-                scaler=self.scaler,
-            )
-            for group_slice in self.loss.feature_groups["discrete"]:
-                make_plot(
-                    x=self.all_x[:, group_slice].clone(),
-                    s=self.all_s.clone(),
-                    logger=self.logger,
-                    name="true_data",
-                    cols=self.data_cols[group_slice],
-                    cat_plot=True,
-                )
-                make_plot(
-                    x=self.all_recon[:, group_slice].clone(),
-                    s=self.all_s.clone(),
-                    logger=self.logger,
-                    name="recons",
-                    cols=self.data_cols[group_slice],
-                    cat_plot=True,
-                )
-        else:
-            make_plot(
-                x=self.all_x.clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name="true_data",
-                cols=self.data_cols,
-            )
-            make_plot(
-                x=self.all_recon.clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name="recons",
-                cols=self.data_cols,
-            )
-        recon_mse = (self.all_x - self.all_recon).abs().mean(dim=0)
-        for i, feature_mse in enumerate(recon_mse):
-            feature_name = self.data_cols[i]
-            self.log(
-                name=f"Table6/Ours/recon_l1 - feature {feature_name}",
-                value=round(feature_mse.item(), 5),
-                logger=True,
-            )
 
     def validation_step(self, batch: Batch | CfBatch, batch_idx: int) -> SharedStepOut:
         return self.shared_step(batch, Stage.validate)

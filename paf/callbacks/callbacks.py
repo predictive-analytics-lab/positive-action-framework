@@ -6,21 +6,107 @@ from pytorch_lightning.callbacks import Callback
 
 from paf.config_classes.dataclasses import KernelType
 from paf.mmd import mmd2
+from paf.plotting import make_plot
 
 
 class MseLogger(Callback):
     def __init__(self) -> None:
         super().__init__()
 
-    # def on_test_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        return self._shared(pl_module, Stage.validate)
+
     def on_test_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        return self._shared(pl_module, Stage.test)
+
+    def _shared(self, pl_module: pl.LightningModule, stage: Stage) -> None:
         recon_mse = (pl_module.all_x - pl_module.all_recon).abs().mean(dim=0)
         for i, feature_mse in enumerate(recon_mse):
             feature_name = pl_module.data_cols[i]
             pl_module.log(
-                name=f"Table6/Ours/recon_l1 - feature {feature_name}",
+                name=f"Table6_{stage}/Ours/recon_l1 - feature {feature_name}",
                 value=round(feature_mse.item(), 5),
                 logger=True,
+            )
+
+
+class FeaturePlots(Callback):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        return self._shared(pl_module, Stage.validate)
+
+    def on_test_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        return self._shared(pl_module, Stage.test)
+
+    def _shared(self, pl_module: pl.LightningModule, stage: Stage) -> None:
+        if pl_module.loss.feature_groups["discrete"]:
+            make_plot(
+                x=pl_module.all_x[
+                    :,
+                    slice(
+                        pl_module.loss.feature_groups["discrete"][-1].stop, pl_module.all_x.shape[1]
+                    ),
+                ].clone(),
+                s=pl_module.all_s.clone(),
+                logger=pl_module.logger,
+                name=f"{stage}_true_data",
+                cols=pl_module.data_cols[
+                    slice(
+                        pl_module.loss.feature_groups["discrete"][-1].stop, pl_module.all_x.shape[1]
+                    )
+                ],
+                scaler=pl_module.scaler,
+            )
+            make_plot(
+                x=pl_module.all_recon[
+                    :,
+                    slice(
+                        pl_module.loss.feature_groups["discrete"][-1].stop, pl_module.all_x.shape[1]
+                    ),
+                ].clone(),
+                s=pl_module.all_s.clone(),
+                logger=pl_module.logger,
+                name=f"{stage}_recons",
+                cols=pl_module.data_cols[
+                    slice(
+                        pl_module.loss.feature_groups["discrete"][-1].stop, pl_module.all_x.shape[1]
+                    )
+                ],
+                scaler=pl_module.scaler,
+            )
+            for group_slice in pl_module.loss.feature_groups["discrete"]:
+                make_plot(
+                    x=pl_module.all_x[:, group_slice].clone(),
+                    s=pl_module.all_s.clone(),
+                    logger=pl_module.logger,
+                    name=f"{stage}_true_data",
+                    cols=pl_module.data_cols[group_slice],
+                    cat_plot=True,
+                )
+                make_plot(
+                    x=pl_module.all_recon[:, group_slice].clone(),
+                    s=pl_module.all_s.clone(),
+                    logger=pl_module.logger,
+                    name=f"{stage}_recons",
+                    cols=pl_module.data_cols[group_slice],
+                    cat_plot=True,
+                )
+        else:
+            make_plot(
+                x=pl_module.all_x.clone(),
+                s=pl_module.all_s.clone(),
+                logger=pl_module.logger,
+                name=f"{stage}_true_data",
+                cols=pl_module.data_cols,
+            )
+            make_plot(
+                x=pl_module.all_recon.clone(),
+                s=pl_module.all_s.clone(),
+                logger=pl_module.logger,
+                name=f"{stage}_recons",
+                cols=pl_module.data_cols,
             )
 
 
