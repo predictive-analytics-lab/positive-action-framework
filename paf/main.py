@@ -330,7 +330,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             "Ours-Real-World-Preds",
             wandb_logger,
         )
-        if data.cf_available:
+        if isinstance(data, BaseDataModule):
             get_miri_metrics(
                 method="Miri/Ours-Post-Selection",
                 acceptance=DataTuple(
