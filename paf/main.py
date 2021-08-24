@@ -8,23 +8,23 @@ from typing import Any, Final, Optional
 import warnings
 
 from ethicml import (
+    LRCV,
     TNR,
     TPR,
     Accuracy,
+    Agarwal,
     DataTuple,
+    InAlgorithm,
+    Kamiran,
     Prediction,
     ProbPos,
+    ZafarFairness,
     diff_per_sensitive_attribute,
     metric_per_sensitive_attribute,
     ratio_per_sensitive_attribute,
-    InAlgorithm,
-    LRCV,
-    Kamiran,
-    ZafarFairness,
-    Agarwal,
 )
-import hydra
 from ethicml.algorithms.inprocess.oracle import Oracle
+import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf

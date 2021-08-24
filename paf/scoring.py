@@ -5,6 +5,7 @@ import logging
 
 from ethicml import Accuracy, DataTuple, Prediction
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from pytorch_lightning.loggers import LightningLoggerBase
 from sklearn.linear_model import LogisticRegressionCV
@@ -14,8 +15,6 @@ from paf.base_templates.base_module import BaseDataModule
 from paf.log_progress import do_log
 from paf.model.common_model import CommonModel
 from paf.model.encoder_model import AE
-
-import numpy.typing as npt
 
 
 def lrcv_results(

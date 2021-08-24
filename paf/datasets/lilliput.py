@@ -1,17 +1,15 @@
 """The hand crafted synthetic data."""
 from __future__ import annotations
-
 from typing import NamedTuple
 
 from ethicml import Dataset, DataTuple, Prediction
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import scipy
 from scipy import stats
 
 from paf.selection import produce_selection_groups
-
-import numpy.typing as npt
 
 
 class CfData(NamedTuple):

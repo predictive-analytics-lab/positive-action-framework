@@ -1,6 +1,5 @@
 """AIES Model."""
 from __future__ import annotations
-
 from typing import NamedTuple
 
 from kit import implements
@@ -11,7 +10,6 @@ from torch import Tensor, nn
 from torch.optim.lr_scheduler import ExponentialLR
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
-from paf.log_progress import do_log
 from paf.model import CycleGan
 from paf.model.aies_properties import AiesProperties
 from paf.model.classifier_model import Clf

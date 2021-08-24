@@ -1,6 +1,5 @@
 """Augmented dataset."""
 from __future__ import annotations
-
 from typing import NamedTuple
 
 from ethicml import DataTuple, compute_instance_weights
@@ -9,7 +8,6 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
-from torch.utils.data.dataset import T_co
 
 from paf.base_templates.base_module import BaseDataModule
 from paf.model.encoder_model import AE

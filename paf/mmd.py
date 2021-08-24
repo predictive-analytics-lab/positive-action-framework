@@ -1,7 +1,7 @@
 """MMD functions."""
 from __future__ import annotations
 import logging
-from typing import Any, Sequence, NamedTuple
+from typing import NamedTuple, Sequence
 
 import torch
 from torch import Tensor

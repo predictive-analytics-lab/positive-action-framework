@@ -1,21 +1,19 @@
 """Encoder model."""
 from __future__ import annotations
-
 from typing import NamedTuple
 
 from kit import implements
 import numpy as np
 from pytorch_lightning import LightningModule
-import torch
 from sklearn.preprocessing import MinMaxScaler
-from torch import Tensor, cat, nn
+import torch
+from torch import Tensor, nn
 from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.config_classes.dataclasses import KernelType
-from paf.log_progress import do_log
 from paf.mmd import mmd2
 from paf.model.blocks import block, mid_blocks
 from paf.model.common_model import CommonModel

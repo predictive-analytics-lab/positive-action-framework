@@ -1,18 +1,19 @@
 """Base Data Module."""
 from __future__ import annotations
 from abc import abstractmethod
-import warnings
 from typing import NamedTuple
+import warnings
 
 from ethicml import Dataset, DataTuple
 from kit import implements
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
-import numpy.typing as npt
+
 from paf.base_templates.dataset_utils import grouped_features_indexes
 from paf.plotting import label_plot
 

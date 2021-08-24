@@ -1,7 +1,6 @@
 """Functions for synthetic data."""
 
 from __future__ import annotations
-
 from typing import NamedTuple
 
 from ethicml import Dataset, DataTuple

@@ -4,8 +4,8 @@ from abc import abstractmethod
 
 import numpy as np
 from pytorch_lightning import LightningModule
-import torch
 from sklearn.preprocessing import MinMaxScaler
+import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
