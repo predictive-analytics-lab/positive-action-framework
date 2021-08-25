@@ -119,15 +119,12 @@ class Loss:
     def __init__(
         self,
         loss_type: str = 'MSE',
-        lambda_: int = 1,
         feature_groups: dict[str, list[slice]] | None = None,
         adv_weight: float = 1.0,
         cycle_weight: float = 1.0,
         recon_weight: float = 1.0,
     ):
-        self.loss_fn = nn.MSELoss() if loss_type == 'MSE' else nn.BCEWithLogitsLoss()
-        self._recon_loss = nn.L1Loss(reduction="mean")
-        self.lambda_ = lambda_
+        self._recon_loss_fn = nn.L1Loss(reduction="mean")
         self.feature_groups = feature_groups if feature_groups is not None else {}
         self._adv_weight = adv_weight
         self._cycle_weight = cycle_weight
@@ -143,7 +140,7 @@ class Loss:
                     1
                 ]
             ):
-                recon_loss += mse_loss(
+                recon_loss += self._recon_loss_fn(
                     index_by_s(recons, batch.s)[
                         :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
                     ][:, i].sigmoid(),
@@ -158,7 +155,9 @@ class Loss:
                     reduction="mean",
                 )
         else:
-            recon_loss = mse_loss(index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean")
+            recon_loss = self._recon_loss_fn(
+                index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean"
+            )
 
         return recon_loss * self._recon_weight
 

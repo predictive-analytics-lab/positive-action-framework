@@ -139,8 +139,8 @@ class Loss:
             lambda_:   Weightage of Cycle-consistency loss
         """
 
-        self.loss_fn = nn.MSELoss() if loss_type == 'MSE' else nn.BCEWithLogitsLoss()
-        self.recon_loss = nn.L1Loss(reduction="mean")  # TODO: Make this MSE
+        self._loss_fn = nn.MSELoss() if loss_type == 'MSE' else nn.BCEWithLogitsLoss()
+        self._recon_loss_fn = nn.L1Loss(reduction="mean")  # TODO: Make this MSE
         self.lambda_ = lambda_
         self.feature_groups = feature_groups if feature_groups is not None else {}
 
@@ -155,8 +155,8 @@ class Loss:
         dis_tar_real_data = torch.ones_like(dis_pred_real_data, requires_grad=False)
         dis_tar_fake_data = torch.zeros_like(dis_pred_fake_data, requires_grad=False)
 
-        loss_real_data = self.loss_fn(dis_pred_real_data, dis_tar_real_data)
-        loss_fake_data = self.loss_fn(dis_pred_fake_data, dis_tar_fake_data)
+        loss_real_data = self._loss_fn(dis_pred_real_data, dis_tar_real_data)
+        loss_fake_data = self._loss_fn(dis_pred_fake_data, dis_tar_fake_data)
 
         return (loss_real_data + loss_fake_data) * 0.5
 
@@ -168,7 +168,7 @@ class Loss:
         """
 
         gen_tar_fake_data = torch.ones_like(dis_pred_fake_data, requires_grad=False)
-        return self.loss_fn(dis_pred_fake_data, gen_tar_fake_data)
+        return self._loss_fn(dis_pred_fake_data, gen_tar_fake_data)
 
     def get_gen_cyc_loss(self, real_data: Tensor, cyc_data: Tensor) -> Tensor:
 
@@ -186,7 +186,7 @@ class Loss:
                     :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                 ].shape[1]
             ):
-                gen_cyc_loss += self.recon_loss(
+                gen_cyc_loss += self._recon_loss_fn(
                     cyc_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i].sigmoid(),
@@ -200,7 +200,7 @@ class Loss:
                     torch.argmax(real_data[:, group_slice], dim=-1),
                 )
         else:
-            gen_cyc_loss = self.recon_loss(cyc_data.sigmoid(), real_data)
+            gen_cyc_loss = self._recon_loss_fn(cyc_data.sigmoid(), real_data)
 
         return gen_cyc_loss * self.lambda_
 
@@ -219,7 +219,7 @@ class Loss:
                     :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                 ].shape[1]
             ):
-                gen_idt_loss += self.recon_loss(
+                gen_idt_loss += self._recon_loss_fn(
                     idt_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i].sigmoid(),
@@ -233,7 +233,7 @@ class Loss:
                     torch.argmax(real_data[:, group_slice], dim=-1),
                 )
         else:
-            gen_idt_loss = self.recon_loss(idt_data.sigmoid(), real_data)
+            gen_idt_loss = self._recon_loss_fn(idt_data.sigmoid(), real_data)
 
         return gen_idt_loss * self.lambda_ * 0.5
 
