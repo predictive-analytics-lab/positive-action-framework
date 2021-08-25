@@ -585,20 +585,6 @@ class CycleGan(pl.LightningModule):
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-        for _ in range(12):
-            rand_int = np.random.randint(0, len(real_a))
-            _tensor = torch.stack(
-                [
-                    real_a[rand_int],
-                    cyc_out.fake_b[rand_int],
-                    gen_fwd.cyc_a[rand_int],
-                    real_b[rand_int],
-                    cyc_out.fake_a[rand_int],
-                    gen_fwd.cyc_b[rand_int],
-                ]
-            )
-            _tensor = (_tensor + 1) / 2
-
         return SharedStepOut(
             x=batch.x,
             s=batch.s,

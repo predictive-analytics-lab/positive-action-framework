@@ -46,7 +46,7 @@ class NearestNeighbourModel(pl.LightningModule):
 
     def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> STEP_OUTPUT | None:
         cf_feats, cf_outcome = self.forward(batch.x, batch.s)
-        preds = self.clf(batch.x)
+        preds = self.clf.forward(batch.x)
 
         return {
             "cf_preds": cf_outcome,

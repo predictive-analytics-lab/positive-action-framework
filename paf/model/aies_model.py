@@ -27,7 +27,12 @@ class AiesModel(AiesProperties):
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
-        enc_z, enc_s_pred, recons = self.enc(x, s)
+        if isinstance(self.enc, AE):
+            enc_fwd = self.enc.forward(x, s)
+            recons = enc_fwd.x
+        elif isinstance(self.enc, CycleGan):
+            cyc_fwd = self.enc.forward(x, x)
+            recons = [cyc_fwd.fake_b, cyc_fwd.fake_a]
         return self.clf.from_recons(recons)
 
     @implements(LightningModule)
@@ -41,9 +46,13 @@ class AiesModel(AiesProperties):
     @implements(LightningModule)
     def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> TestStepOut:
         if isinstance(self.enc, AE):
-            enc_z, enc_s_pred, recons = self.enc(batch.x, batch.s)
+            enc_fwd = self.enc.forward(batch.x, batch.s)
+            enc_z = enc_fwd.z
+            enc_s_pred = enc_fwd.s
+            recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
-            recons = list(self.enc(batch.x, batch.x))
+            cyc_fwd = self.enc.forward(batch.x, batch.x)
+            recons = [cyc_fwd.fake_b, cyc_fwd.fake_a]
             enc_z = torch.ones_like(batch.x)
             enc_s_pred = torch.ones_like(batch.s)
         else:
@@ -66,7 +75,9 @@ class AiesModel(AiesProperties):
             "recon": index_by_s(augmented_recons, batch.s),
             "recons_0": self.enc.invert(recons[0], batch.x),
             "recons_1": self.enc.invert(recons[1], batch.x),
-            "preds": self.clf.threshold(index_by_s(self.clf(batch.x, batch.s)[-1], batch.s)),
+            "preds": self.clf.threshold(
+                index_by_s(self.clf.forward(batch.x, batch.s)[-1], batch.s)
+            ),
             "cycle_loss": cycle_loss,
         }
 

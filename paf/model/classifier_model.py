@@ -173,8 +173,8 @@ class Clf(CommonModel):
     def forward(self, x: Tensor, s: Tensor) -> ClfFwd:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
-        z = self.enc(_x)
-        s_pred = self.adv(z)
+        z = self.enc.forward(_x)
+        s_pred = self.adv.forward(z)
         preds = [dec(z) for dec in self.decoders]
         return ClfFwd(z=z, s=s_pred, y=preds)
 
