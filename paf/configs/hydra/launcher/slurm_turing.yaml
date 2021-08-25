@@ -7,3 +7,4 @@ defaults:
 partition: turing
 cpus_per_task: 10  # on turing, we have 10 CPUs per GPU
 timeout_min: 99999  # 99999 minutes = a few months
+mem_gb: 18
