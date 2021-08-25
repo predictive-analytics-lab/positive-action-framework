@@ -171,7 +171,10 @@ class Loss:
         ) * self._adv_weight
 
     def cycle_loss(self, cyc_fwd: EncFwd, batch: Batch | CfBatch) -> Tensor:
-        return self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
+        return (
+            self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
+            * self._cycle_weight
+        )
 
 
 class AE(CommonModel):
