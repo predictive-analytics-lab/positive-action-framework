@@ -155,9 +155,7 @@ class Loss:
                     reduction="mean",
                 )
         else:
-            recon_loss = self._recon_loss_fn(
-                index_by_s(recons, batch.s).sigmoid(), batch.x, reduction="mean"
-            )
+            recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
 
         return recon_loss * self._recon_weight
 
