@@ -20,6 +20,8 @@ from paf.model.model_utils import augment_recons, index_by_s
 class AiesModel(AiesProperties):
     """Model."""
 
+    name = "PAF"
+
     def __init__(self, encoder: AE | CycleGan, classifier: Clf):
         super().__init__()
         self.enc = encoder
