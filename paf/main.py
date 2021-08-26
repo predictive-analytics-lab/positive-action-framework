@@ -274,7 +274,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
 
     else:
         for fair_bool in (True, False):
-            preds = baseline_selection_rules(model.pd_results, wandb_logger)
+            preds = baseline_selection_rules(model.pd_results, wandb_logger, fair=fair_bool)
             multiple_metrics(
                 preds,
                 DataTuple(
