@@ -73,4 +73,4 @@ if __name__ == "__main__":
 
 
 def test():
-    main(Path("~/Downloads/wandb_export_2021-08-26T16_05_07.708+01_00.csv"))
+    main(Path("~/Downloads/wandb_export_2021-08-26T16_20_15.135+01_00.csv"))

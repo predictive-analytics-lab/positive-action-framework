@@ -435,7 +435,7 @@ class CycleGan(pl.LightningModule):
         scaler: MinMaxScaler,
     ) -> None:
 
-        self.loss = Loss(loss_type='MSE', lambda_=10, feature_groups=feature_groups)
+        self.loss = Loss(loss_type='MSE', lambda_=1, feature_groups=feature_groups)
         self.g_A2B = self.init_fn(Generator(in_dims=data_dim))
         self.g_B2A = self.init_fn(Generator(in_dims=data_dim))
         self.d_A = self.init_fn(Discriminator(in_dims=data_dim))
