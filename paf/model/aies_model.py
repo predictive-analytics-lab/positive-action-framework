@@ -61,11 +61,14 @@ class AiesModel(AiesProperties):
         augmented_recons = augment_recons(batch.x, cf_recons, batch.s)
 
         mse_loss_fn = nn.MSELoss(reduction="mean")
+        _cf_recons = recons.copy()
         for i in range(100):
             cfs = index_by_s(augmented_recons, 1 - batch.s)
-            _cf_recons = self.enc.invert(index_by_s(recons, 1 - batch.s), cfs)
+            _cf_recons = self.enc.invert(index_by_s(_cf_recons, 1 - batch.s), cfs)
             _augmented_recons = augment_recons(cfs, _cf_recons, batch.s)
             cycle_loss = mse_loss_fn(index_by_s(_augmented_recons, batch.s), batch.x)
+            if i == 0:
+                _cyc_loss = cycle_loss
             self.log(f"Cycle_loss_{i}", cycle_loss)
 
         vals = {
@@ -80,7 +83,7 @@ class AiesModel(AiesProperties):
             "preds": self.clf.threshold(
                 index_by_s(self.clf.forward(batch.x, batch.s)[-1], batch.s)
             ),
-            "cycle_loss": cycle_loss,
+            "cycle_loss": _cyc_loss,
         }
 
         for i, recon in enumerate(augmented_recons):
