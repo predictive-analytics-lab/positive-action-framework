@@ -12,6 +12,8 @@ from paf.base_templates.dataset_utils import Batch, CfBatch
 
 
 class NearestNeighbourModel(pl.LightningModule):
+    name = "NearestNeighbour"
+
     def __init__(self, clf_model: nn.Module, data: pl.LightningDataModule):
         super().__init__()
         self.clf = clf_model

@@ -284,6 +284,20 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             "NearestNeighbour-Post-Selection",
             wandb_logger,
         )
+        if isinstance(data, BaseDataModule):
+            multiple_metrics(
+                preds, data.true_test_datatuple, f"{model.name}-TrueLabels", wandb_logger
+            )
+            get_miri_metrics(
+                method=f"Miri/{model.name}",
+                acceptance=DataTuple(
+                    x=data.test_datatuple.x.copy(),
+                    s=data.test_datatuple.s.copy(),
+                    y=preds.hard.to_frame(),
+                ),
+                graduated=data.true_test_datatuple,
+                logger=wandb_logger,
+            )
 
     if cfg.exp.baseline:
         baselines: set[InAlgorithm] = {

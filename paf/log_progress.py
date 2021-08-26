@@ -13,6 +13,6 @@ def do_log(name: str, val: Any, logger: WandbLogger | DummyLogger | None) -> Non
     """Log to experiment tracker and also the logger."""
     if isinstance(val, (float, int)):
         log.info(f"{name}: {val}")
-        print(f"{name}: {val}")
+        # print(f"{name}: {val}")
     if logger is not None and not isinstance(logger, DummyLogger):
         logger.experiment.log({name: val})
