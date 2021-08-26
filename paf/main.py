@@ -34,7 +34,7 @@ from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
 
 from paf.base_templates.base_module import BaseDataModule
-from paf.callbacks.callbacks import FeaturePlots, MmdLogger, MseLogger
+from paf.callbacks.callbacks import FeaturePlots, L1Logger, MmdLogger
 from paf.config_classes.bolts.fair.data.configs import (  # type: ignore[import]
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
@@ -175,7 +175,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         )
 
         enc_trainer = cfg.trainer
-        enc_trainer.callbacks += [MseLogger(), MmdLogger(), FeaturePlots()]
+        enc_trainer.callbacks += [L1Logger(), MmdLogger(), FeaturePlots()]
         enc_trainer.tune(model=encoder, datamodule=data)
         enc_trainer.fit(model=encoder, datamodule=data)
         if enc_trainer.fast_dev_run:
@@ -274,6 +274,16 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
 
     else:
         preds = baseline_selection_rules(model.pd_results, wandb_logger)
+        multiple_metrics(
+            preds,
+            DataTuple(
+                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns),
+                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
+                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
+            ),
+            "NearestNeighbour-Post-Selection",
+            wandb_logger,
+        )
 
     if cfg.exp.baseline:
         baselines: set[InAlgorithm] = {

@@ -9,7 +9,7 @@ from paf.mmd import mmd2
 from paf.plotting import make_plot
 
 
-class MseLogger(Callback):
+class L1Logger(Callback):
     def __init__(self) -> None:
         super().__init__()
 
@@ -20,12 +20,12 @@ class MseLogger(Callback):
         return self._shared(pl_module, Stage.test)
 
     def _shared(self, pl_module: pl.LightningModule, stage: Stage) -> None:
-        recon_mse = (pl_module.all_x - pl_module.all_recon).abs().mean(dim=0)
-        for i, feature_mse in enumerate(recon_mse):
+        recon_l1 = (pl_module.all_x - pl_module.all_recon).abs().mean(dim=0)
+        for i, feature_l1 in enumerate(recon_l1):
             feature_name = pl_module.data_cols[i]
             pl_module.log(
                 name=f"Table6_{stage}/Ours/recon_l1 - feature {feature_name}",
-                value=round(feature_mse.item(), 5),
+                value=round(feature_l1.item(), 5),
                 logger=True,
             )
 

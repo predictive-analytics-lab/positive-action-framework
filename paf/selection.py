@@ -38,13 +38,17 @@ def baseline_selection_rules(
     outcomes: pd.DataFrame, logger: LightningLoggerBase | None
 ) -> Prediction:
     conditions = [
-        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0),
-        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 1),
-        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 1),
-        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 0),
+        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 0),
+        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 1),
+        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 1) & (outcomes['true_s'] == 0),
+        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 1) & (outcomes['true_s'] == 1),
+        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 1) & (outcomes['true_s'] == 0),
+        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 1) & (outcomes['true_s'] == 1),
+        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 0),
+        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 1),
     ]
 
-    values = [0, 1, 2, 3]
+    values = [0, 1, 2, 3, 4, 5, 6, 7]
 
     outcomes["decision"] = np.select(conditions, values, -1)
 
@@ -52,11 +56,14 @@ def baseline_selection_rules(
     for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours_Test/selection_rule_group_{idx}", val, logger)
 
-    lookup = {0: 0, 1: 1, 2: 2, 3: 2}
+    lookup = {0: 0, 1: 0, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 7: 0}
 
     preds = pd.Series({i: lookup[d] for i, d in enumerate(_to_return.hard)})
 
     _to_return = Prediction(hard=preds, info=_to_return.info)
+
+    for idx, val in _to_return.hard.value_counts().iteritems():
+        do_log(f"Table3/Ours_Test/group_{idx}", val, logger)
 
     return facct_mapper_outcomes(_to_return, fair=False)
 
