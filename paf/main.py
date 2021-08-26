@@ -215,10 +215,13 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
     else:
         model_trainer.test(datamodule=data)
 
-    if cfg.exp.model == ModelType.paf:
-        preds = produce_selection_groups(
-            model.pd_results, data, model.recon_0, model.recon_1, wandb_logger
-        )
+    for fair_bool in (True, False):
+        if cfg.exp.model == ModelType.paf:
+            preds = produce_selection_groups(
+                model.pd_results, data, model.recon_0, model.recon_1, wandb_logger
+            )
+        else:
+            preds = baseline_selection_rules(model.pd_results, wandb_logger, fair=fair_bool)
         multiple_metrics(
             preds,
             DataTuple(
@@ -226,23 +229,25 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
                 s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
                 y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
             ),
-            "Ours-Post-Selection",
+            f"{model.name}_{'_fair12' if fair_bool else '1'}-Post-Selection",
             wandb_logger,
         )
-        fair_preds = produce_selection_groups(
-            model.pd_results, data, model.recon_0, model.recon_1, wandb_logger, fair=True
-        )
-        multiple_metrics(
-            fair_preds,
-            DataTuple(
-                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns),
-                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
-                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
-            ),
-            "Ours-Fair",
-            wandb_logger,
-        )
+        if isinstance(data, BaseDataModule):
+            multiple_metrics(
+                preds, data.true_test_datatuple, f"{model.name}-TrueLabels", wandb_logger
+            )
+            get_miri_metrics(
+                method=f"Miri/{model.name}_{fair_bool=}",
+                acceptance=DataTuple(
+                    x=data.test_datatuple.x.copy(),
+                    s=data.test_datatuple.s.copy(),
+                    y=preds.hard.to_frame(),
+                ),
+                graduated=data.true_test_datatuple,
+                logger=wandb_logger,
+            )
 
+    if cfg.exp.model == ModelType.paf:
         # === This is only for reporting ====
         _model = AiesModel(encoder=encoder, classifier=classifier)
         _model_trainer.test(model=_model, ckpt_path=None, dataloaders=data.train_dataloader())
@@ -271,40 +276,6 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             produce_baselines(
                 encoder=classifier, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
             )
-
-    else:
-        for fair_bool in (True, False):
-            preds = baseline_selection_rules(model.pd_results, wandb_logger, fair=fair_bool)
-            multiple_metrics(
-                preds,
-                DataTuple(
-                    x=pd.DataFrame(
-                        model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns
-                    ),
-                    s=pd.DataFrame(
-                        model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns
-                    ),
-                    y=pd.DataFrame(
-                        model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns
-                    ),
-                ),
-                f"NearestNeighbour{'_fair12' if fair_bool else '1'}-Post-Selection",
-                wandb_logger,
-            )
-            if isinstance(data, BaseDataModule):
-                multiple_metrics(
-                    preds, data.true_test_datatuple, f"{model.name}-TrueLabels", wandb_logger
-                )
-                get_miri_metrics(
-                    method=f"Miri/{model.name}_{fair_bool=}",
-                    acceptance=DataTuple(
-                        x=data.test_datatuple.x.copy(),
-                        s=data.test_datatuple.s.copy(),
-                        y=preds.hard.to_frame(),
-                    ),
-                    graduated=data.true_test_datatuple,
-                    logger=wandb_logger,
-                )
 
     if cfg.exp.baseline:
         baselines: set[InAlgorithm] = {

@@ -60,11 +60,13 @@ class AiesModel(AiesProperties):
         cf_recons = self.enc.invert(index_by_s(recons, 1 - batch.s), batch.x)
         augmented_recons = augment_recons(batch.x, cf_recons, batch.s)
 
-        cfs = index_by_s(augmented_recons, 1 - batch.s)
-        _cf_recons = self.enc.invert(index_by_s(recons, 1 - batch.s), cfs)
-        _augmented_recons = augment_recons(cfs, _cf_recons, batch.s)
-
-        cycle_loss = nn.MSELoss()(index_by_s(_augmented_recons, batch.s), batch.x)
+        mse_loss_fn = nn.MSELoss(reduction="mean")
+        for i in range(100):
+            cfs = index_by_s(augmented_recons, 1 - batch.s)
+            _cf_recons = self.enc.invert(index_by_s(recons, 1 - batch.s), cfs)
+            _augmented_recons = augment_recons(cfs, _cf_recons, batch.s)
+            cycle_loss = mse_loss_fn(index_by_s(_augmented_recons, batch.s), batch.x)
+            self.log(f"Cycle_loss_{i}", cycle_loss)
 
         vals = {
             "enc_z": enc_z,
