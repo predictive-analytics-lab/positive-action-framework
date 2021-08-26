@@ -14,7 +14,7 @@ def main(raw_csv: Path) -> None:
     data = pd.DataFrame(
         [
             {
-                a: f"{b:.2f} +/- {d:.2f}"
+                a: f"{b*100:.4f} +/- {d*100:.4f}"
                 for (a, b), (c, d) in zip(data.mean().iteritems(), data.std().iteritems())
             }
         ]
@@ -34,6 +34,8 @@ def main(raw_csv: Path) -> None:
         [
             "P(Y=1|S=0)",
             "P(Y=1|S=1)",
+            "P(Y=1|S=0,Ty=1)",
+            "P(Y=1|S=1,Ty=1)",
             "P(Ty=1|S=0)",
             "P(Ty=1|S=1)",
             'P(Ty=1|S=0,Y=1)',
@@ -44,11 +46,17 @@ def main(raw_csv: Path) -> None:
             'P(Ty=0|S=1,Y=1)',
             'Accuracy',
             'TPR-sens_0',
+            'TPR-sens_0.0',
             'TPR-sens_1',
+            'TPR-sens_1.0',
             'TNR-sens_0',
+            'TNR-sens_0.0',
             'TNR-sens_1',
+            'TNR-sens_1.0',
             'prob_pos-sens_0',
+            'prob_pos-sens_0.0',
             'prob_pos-sens_1',
+            'prob_pos-sens_1.0',
         ]
         + [
             f"pre_selection_rule_group_{i}"
@@ -57,8 +65,12 @@ def main(raw_csv: Path) -> None:
         ]
     ]
 
-    data.to_csv('./show.csv')
+    data.dropna(axis=0, how="all").transpose().to_csv('./show.csv')
 
 
 if __name__ == "__main__":
     typer.run(main)
+
+
+def test():
+    main(Path("~/Downloads/wandb_export_2021-08-26T15_08_03.292+01_00.csv"))

@@ -273,31 +273,38 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             )
 
     else:
-        preds = baseline_selection_rules(model.pd_results, wandb_logger)
-        multiple_metrics(
-            preds,
-            DataTuple(
-                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns),
-                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
-                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
-            ),
-            "NearestNeighbour-Post-Selection",
-            wandb_logger,
-        )
-        if isinstance(data, BaseDataModule):
+        for fair_bool in (True, False):
+            preds = baseline_selection_rules(model.pd_results, wandb_logger)
             multiple_metrics(
-                preds, data.true_test_datatuple, f"{model.name}-TrueLabels", wandb_logger
-            )
-            get_miri_metrics(
-                method=f"Miri/{model.name}",
-                acceptance=DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=preds.hard.to_frame(),
+                preds,
+                DataTuple(
+                    x=pd.DataFrame(
+                        model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns
+                    ),
+                    s=pd.DataFrame(
+                        model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns
+                    ),
+                    y=pd.DataFrame(
+                        model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns
+                    ),
                 ),
-                graduated=data.true_test_datatuple,
-                logger=wandb_logger,
+                f"NearestNeighbour{'_fair12' if fair_bool else '1'}-Post-Selection",
+                wandb_logger,
             )
+            if isinstance(data, BaseDataModule):
+                multiple_metrics(
+                    preds, data.true_test_datatuple, f"{model.name}-TrueLabels", wandb_logger
+                )
+                get_miri_metrics(
+                    method=f"Miri/{model.name}_{fair_bool=}",
+                    acceptance=DataTuple(
+                        x=data.test_datatuple.x.copy(),
+                        s=data.test_datatuple.s.copy(),
+                        y=preds.hard.to_frame(),
+                    ),
+                    graduated=data.true_test_datatuple,
+                    logger=wandb_logger,
+                )
 
     if cfg.exp.baseline:
         baselines: set[InAlgorithm] = {

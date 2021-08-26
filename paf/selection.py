@@ -35,7 +35,7 @@ def selection_rules(outcome_df: pd.DataFrame) -> npt.NDArray[np.int_]:
 
 
 def baseline_selection_rules(
-    outcomes: pd.DataFrame, logger: LightningLoggerBase | None
+    outcomes: pd.DataFrame, logger: LightningLoggerBase | None, fair: bool
 ) -> Prediction:
     conditions = [
         (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 0),
@@ -65,7 +65,7 @@ def baseline_selection_rules(
     for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours_Test/group_{idx}", val, logger)
 
-    return facct_mapper_outcomes(_to_return, fair=False)
+    return facct_mapper_outcomes(_to_return, fair=fair)
 
 
 def produce_selection_groups(
