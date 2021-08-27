@@ -149,7 +149,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         if cfg.exp.log_offline
         else WandbLogger(
             entity="predictive-analytics-lab",
-            project="paf_journal",
+            project=f"paf_journal_{cfg.exp_group}",
             tags=cfg.exp.tags.split("/")[:-1],
             config=raw_config,
         )
