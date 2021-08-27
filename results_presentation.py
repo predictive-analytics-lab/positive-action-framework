@@ -46,17 +46,11 @@ def main(raw_csv: Path) -> None:
             'P(Ty=0|S=1,Y=1)',
             'Accuracy',
             'TPR-sens_0',
-            'TPR-sens_0.0',
             'TPR-sens_1',
-            'TPR-sens_1.0',
             'TNR-sens_0',
-            'TNR-sens_0.0',
             'TNR-sens_1',
-            'TNR-sens_1.0',
             'prob_pos-sens_0',
-            'prob_pos-sens_0.0',
             'prob_pos-sens_1',
-            'prob_pos-sens_1.0',
         ]
         + [
             f"pre_selection_rule_group_{i}"
