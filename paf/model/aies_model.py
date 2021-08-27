@@ -20,12 +20,14 @@ from paf.model.model_utils import augment_recons, index_by_s
 class AiesModel(AiesProperties):
     """Model."""
 
-    name = "PAF"
-
     def __init__(self, encoder: AE | CycleGan, classifier: Clf):
         super().__init__()
         self.enc = encoder
         self.clf = classifier
+
+    @property
+    def name(self) -> str:
+        return f"PAF_{self.enc.name}"
 
     @implements(nn.Module)
     def forward(self, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
@@ -34,7 +36,7 @@ class AiesModel(AiesProperties):
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
             cyc_fwd = self.enc.forward(x, x)
-            recons = [cyc_fwd.fake_b, cyc_fwd.fake_a]
+            recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
         return self.clf.from_recons(recons)
 
     @implements(LightningModule)
@@ -54,7 +56,7 @@ class AiesModel(AiesProperties):
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
             cyc_fwd = self.enc.forward(batch.x, batch.x)
-            recons = [cyc_fwd.fake_b, cyc_fwd.fake_a]
+            recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
             enc_z = torch.ones_like(batch.x)
             enc_s_pred = torch.ones_like(batch.s)
         else:

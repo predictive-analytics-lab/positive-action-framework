@@ -390,6 +390,7 @@ class Discriminator(nn.Module):
 class CycleGan(pl.LightningModule):
 
     loss: Loss
+    name = "CycleGan"
     g_A2B: nn.Module
     g_B2A: nn.Module
     d_A: nn.Module
@@ -588,10 +589,10 @@ class CycleGan(pl.LightningModule):
         return SharedStepOut(
             x=batch.x,
             s=batch.s,
-            recon=self.invert(index_by_s([cyc_out.fake_b, cyc_out.fake_a], batch.s), batch.x),
-            cf_pred=self.invert(index_by_s([cyc_out.fake_b, cyc_out.fake_a], 1 - batch.s), batch.x),
-            recons_0=self.invert(cyc_out.fake_b, batch.x),
-            recons_1=self.invert(cyc_out.fake_a, batch.x),
+            recon=self.invert(index_by_s([cyc_out.fake_a, cyc_out.fake_b], batch.s), batch.x),
+            cf_pred=self.invert(index_by_s([cyc_out.fake_a, cyc_out.fake_b], 1 - batch.s), batch.x),
+            recons_0=self.invert(cyc_out.fake_a, batch.x),
+            recons_1=self.invert(cyc_out.fake_b, batch.x),
         )
 
     def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:
@@ -683,4 +684,4 @@ class CycleFwd(NamedTuple):
 
     @property
     def x(self) -> list[Tensor]:
-        return [self.fake_b, self.fake_a]
+        return [self.fake_a, self.fake_b]
