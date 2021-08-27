@@ -149,7 +149,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         if cfg.exp.log_offline
         else WandbLogger(
             entity="predictive-analytics-lab",
-            project="paf",
+            project="paf_journal",
             tags=cfg.exp.tags.split("/")[:-1],
             config=raw_config,
         )
@@ -224,17 +224,16 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             preds = baseline_selection_rules(model.pd_results, wandb_logger, fair=fair_bool)
         multiple_metrics(
             preds,
-            DataTuple(
-                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns),
-                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
-                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
-            ),
-            f"{model.name}_{'_fair12' if fair_bool else '1'}-Post-Selection",
+            data.test_datatuple,
+            f"{model.name}_{fair_bool=}-Post-Selection",
             wandb_logger,
         )
         if isinstance(data, BaseDataModule):
             multiple_metrics(
-                preds, data.true_test_datatuple, f"{model.name}-TrueLabels", wandb_logger
+                preds,
+                data.true_test_datatuple,
+                f"{model.name}_{fair_bool=}-TrueLabels",
+                wandb_logger,
             )
             get_miri_metrics(
                 method=f"Miri/{model.name}_{fair_bool=}",
@@ -261,23 +260,19 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         )
         multiple_metrics(
             our_clf_preds,
-            DataTuple(
-                x=pd.DataFrame(model.all_x.cpu().numpy(), columns=data.test_datatuple.x.columns),
-                s=pd.DataFrame(model.all_s.cpu().numpy(), columns=data.test_datatuple.s.columns),
-                y=pd.DataFrame(model.all_y.cpu().numpy(), columns=data.test_datatuple.y.columns),
-            ),
-            "Ours-Real-World-Preds",
+            data.test_datatuple,
+            f"{model.name}-Real-World-Preds",
             wandb_logger,
         )
         if isinstance(data, BaseDataModule):
             multiple_metrics(
                 our_clf_preds,
                 data.test_datatuple,
-                "Ours-Real-World-Preds",
+                f"{model.name}-Real-World-Preds",
                 wandb_logger,
             )
             get_miri_metrics(
-                method="Miri/Ours-Real-World-Preds",
+                method=f"Miri/{model.name}-Real-World-Preds",
                 acceptance=DataTuple(
                     x=data.test_datatuple.x.copy(),
                     s=data.test_datatuple.s.copy(),
