@@ -65,14 +65,14 @@ class AiesModel(AiesProperties):
 
         mse_loss_fn = nn.MSELoss(reduction="mean")
         _recons = recons.copy()
-        for i in range(100):
+        for i in range(1):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
             cf_fwd = self.enc.forward(_cfx, 1 - batch.s)
             _og = self.enc.invert(index_by_s(cf_fwd.x, batch.s), batch.x)
             cycle_loss = mse_loss_fn(_og, batch.x)
             if i == 0:
                 _cyc_loss = cycle_loss
-            self.log(f"Cycle_loss_{i}", cycle_loss)
+            # self.log(f"Cycle_loss_{i}", cycle_loss)
             _fwd = self.enc.forward(_og, batch.s)
             _recons = _fwd.x
 
