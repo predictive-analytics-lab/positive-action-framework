@@ -59,19 +59,22 @@ class AiesModel(AiesProperties):
             enc_s_pred = torch.ones_like(batch.s)
         else:
             raise NotImplementedError()
-        cf_recons = self.enc.invert(index_by_s(recons, 1 - batch.s), batch.x)
-        augmented_recons = augment_recons(batch.x, cf_recons, batch.s)
+        augmented_recons = augment_recons(
+            batch.x, self.enc.invert(index_by_s(recons, 1 - batch.s), batch.x), batch.s
+        )
 
         mse_loss_fn = nn.MSELoss(reduction="mean")
-        _cf_recons = recons.copy()
+        _recons = recons.copy()
         for i in range(100):
-            cfs = index_by_s(augmented_recons, 1 - batch.s)
-            _cf_recons = self.enc.invert(index_by_s(_cf_recons, 1 - batch.s), cfs)
-            _augmented_recons = augment_recons(cfs, _cf_recons, batch.s)
-            cycle_loss = mse_loss_fn(index_by_s(_augmented_recons, batch.s), batch.x)
+            _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
+            cf_fwd = self.enc.forward(_cfx, 1 - batch.s)
+            _og = self.enc.invert(index_by_s(cf_fwd.x, batch.s), batch.x)
+            cycle_loss = mse_loss_fn(_og, batch.x)
             if i == 0:
                 _cyc_loss = cycle_loss
             self.log(f"Cycle_loss_{i}", cycle_loss)
+            _fwd = self.enc.forward(_og, batch.s)
+            _recons = _fwd.x
 
         vals = {
             "enc_z": enc_z,

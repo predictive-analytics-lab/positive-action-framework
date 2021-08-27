@@ -269,6 +269,23 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             "Ours-Real-World-Preds",
             wandb_logger,
         )
+        if isinstance(data, BaseDataModule):
+            multiple_metrics(
+                our_clf_preds,
+                data.test_datatuple,
+                "Ours-Real-World-Preds",
+                wandb_logger,
+            )
+            get_miri_metrics(
+                method="Miri/Ours-Real-World-Preds",
+                acceptance=DataTuple(
+                    x=data.test_datatuple.x.copy(),
+                    s=data.test_datatuple.s.copy(),
+                    y=our_clf_preds.hard.to_frame(),
+                ),
+                graduated=data.true_test_datatuple,
+                logger=wandb_logger,
+            )
         if isinstance(cfg.enc, AE):
             produce_baselines(
                 encoder=encoder, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
@@ -312,57 +329,6 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
                     graduated=data.true_test_datatuple,
                     logger=wandb_logger,
                 )
-        multiple_metrics(
-            preds,
-            data.test_datatuple,
-            "Ours-Post-Selection",
-            wandb_logger,
-        )
-
-        multiple_metrics(
-            fair_preds,
-            data.test_datatuple,
-            "Ours-Fair",
-            wandb_logger,
-        )
-
-        multiple_metrics(
-            our_clf_preds,
-            data.test_datatuple,
-            "Ours-Real-World-Preds",
-            wandb_logger,
-        )
-        if isinstance(data, BaseDataModule):
-            get_miri_metrics(
-                method="Miri/Ours-Post-Selection",
-                acceptance=DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=preds.hard.to_frame(),
-                ),
-                graduated=data.true_test_datatuple,
-                logger=wandb_logger,
-            )
-            get_miri_metrics(
-                method="Miri/Ours-Fair",
-                acceptance=DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=fair_preds.hard.to_frame(),
-                ),
-                graduated=data.true_test_datatuple,
-                logger=wandb_logger,
-            )
-            get_miri_metrics(
-                method="Miri/Ours-Real-World-Preds",
-                acceptance=DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=our_clf_preds.hard.to_frame(),
-                ),
-                graduated=data.true_test_datatuple,
-                logger=wandb_logger,
-            )
 
     if not cfg.exp.log_offline and wandb_logger is not None:
         wandb_logger.experiment.finish()
