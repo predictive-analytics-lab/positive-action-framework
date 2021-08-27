@@ -48,7 +48,7 @@ class NearestNeighbourModel(pl.LightningModule):
 
     def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> STEP_OUTPUT | None:
         cf_feats, cf_outcome = self.forward(batch.x, batch.s)
-        preds = self.clf.forward(batch.x)
+        preds = (self.clf.forward(batch.x) >= 0).long()
 
         return {
             "cf_preds": cf_outcome,
@@ -79,10 +79,10 @@ class NearestNeighbourModel(pl.LightningModule):
         self.pd_results = pd.DataFrame(
             torch.cat(
                 [
-                    (stacked[:, 0] >= 0).unsqueeze(-1).long(),
-                    (stacked[:, 1] >= 0).unsqueeze(-1).long(),
+                    stacked[:, 0].unsqueeze(-1).long(),
+                    stacked[:, 1].unsqueeze(-1).long(),
                     self.all_sens.unsqueeze(-1).long(),
-                    (self.all_preds >= 0).long(),
+                    self.all_preds,
                 ],
                 dim=1,
             )
