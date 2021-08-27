@@ -67,13 +67,19 @@ class AiesModel(AiesProperties):
         _recons = recons.copy()
         for i in range(1):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
-            cf_fwd = self.enc.forward(_cfx, 1 - batch.s)
+            if isinstance(self.enc, AE):
+                cf_fwd = self.enc.forward(_cfx, 1 - batch.s)
+            else:
+                cf_fwd = self.enc.forward(_cfx, _cfx)
             _og = self.enc.invert(index_by_s(cf_fwd.x, batch.s), batch.x)
             cycle_loss = mse_loss_fn(_og, batch.x)
             if i == 0:
                 _cyc_loss = cycle_loss
             # self.log(f"Cycle_loss_{i}", cycle_loss)
-            _fwd = self.enc.forward(_og, batch.s)
+            if isinstance(self.enc, AE):
+                _fwd = self.enc.forward(_og, 1 - batch.s)
+            else:
+                _fwd = self.enc.forward(_og, _og)
             _recons = _fwd.x
 
         vals = {
@@ -125,6 +131,7 @@ class AiesModel(AiesProperties):
                 ],
                 dim=1,
             )
+            .to(torch.long)
             .cpu()
             .numpy(),
             columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],

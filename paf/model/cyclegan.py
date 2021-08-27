@@ -680,3 +680,7 @@ class DisFwd(NamedTuple):
 class CycleFwd(NamedTuple):
     fake_b: Tensor
     fake_a: Tensor
+
+    @property
+    def x(self) -> list[Tensor]:
+        return [self.fake_b, self.fake_a]

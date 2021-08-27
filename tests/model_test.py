@@ -62,7 +62,7 @@ def test_cyclegan() -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=[f"data=adm"] + SCHEMAS + [f"enc=cyc"],
+            overrides=[f"data=lill"] + SCHEMAS + [f"enc=cyc"],
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
         run_aies(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
