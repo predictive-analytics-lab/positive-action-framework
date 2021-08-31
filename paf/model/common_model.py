@@ -17,6 +17,10 @@ class CommonModel(LightningModule):
         super().__init__()
         self.model_name = name
 
+    @property
+    def name(self) -> str:
+        return self.model_name
+
     def get_latent(self, dataloader: DataLoader) -> np.ndarray:
         """Get Latents to be used post train/test."""
         latent: list[Tensor] | None = None

@@ -9,7 +9,7 @@ import typer
 def main(raw_csv: Path) -> None:
     """Run on results to get table."""
     data = pd.read_csv(raw_csv)
-    data = data.drop(["Name"], axis=1)
+    data = data.drop(["Name"] + [col for col in data.columns if "val" in col], axis=1)
 
     data = pd.DataFrame(
         [
@@ -51,6 +51,9 @@ def main(raw_csv: Path) -> None:
             'TNR-sens_1',
             'prob_pos-sens_0',
             'prob_pos-sens_1',
+            "MMD",
+            "MMD S0 vs Cf",
+            "MMD S1 vs Cf",
         ]
         + [
             f"pre_selection_rule_group_{i}"
