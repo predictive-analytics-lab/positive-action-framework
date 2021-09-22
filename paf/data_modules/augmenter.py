@@ -16,7 +16,7 @@ from paf.model.encoder_model import AE
 class AugDataset(Dataset):
     """Aigmented Dataset."""
 
-    def __init__(self, recons: Tensor, sens: Tensor, labels: Tensor):
+    def __init__(self, *, recons: Tensor, sens: Tensor, labels: Tensor):
         super().__init__()
         self.recons = recons
         self.sens = sens
@@ -71,23 +71,23 @@ class AugmentedDataModule(BaseDataModule):
     """Augmented Dataset."""
 
     def __init__(self, data: BaseDataModule, model: AE):
-        super().__init__()
+        super().__init__(cf_available=False, seed=0)
         self.recons, self.sens, self.labels = model.run_through(data.train_dataloader())
 
     @staticmethod
     def collate_tuples(batch: list[Tensor]) -> list[Tensor]:
         """Callate functin returning outpusts concatenated."""
-        it = iter(batch)
-        elem_size = len(next(it))
-        if any(len(elem) != elem_size for elem in it):
+        iter_ = iter(batch)
+        elem_size = len(next(iter_))
+        if any(len(elem) != elem_size for elem in iter_):
             raise RuntimeError('each element in list of batch should be of equal size')
         transposed = zip(*batch)
         collated = [default_collate(list(samples)) for samples in transposed]
         return [torch.cat([a, b]) for a, b in zip(collated[0], collated[1])]
 
-    def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+    def _train_dataloader(self, *, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
-            AugDataset(self.recons, self.sens, self.labels),
+            AugDataset(recons=self.recons, sens=self.sens, labels=self.labels),
             batch_size=256,
             num_workers=0,
             shuffle=shuffle,
@@ -95,5 +95,8 @@ class AugmentedDataModule(BaseDataModule):
             collate_fn=self.collate_tuples,
         )
 
-    def _test_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+    def _val_dataloader(self, *, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+        """This is only here to appease super. It's never used."""
+
+    def _test_dataloader(self, *, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         """This is only here to appease super. It's never used."""

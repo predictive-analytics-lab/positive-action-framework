@@ -31,7 +31,7 @@ configen:
     - name: pytorch_lightning.trainer
       classes:
         - Trainer
-    - name: bolts.fair.data
+    - name: conduit.fair.data
       classes:
         - AdultDataModule
         - AdmissionsDataModule

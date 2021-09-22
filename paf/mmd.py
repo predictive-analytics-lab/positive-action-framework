@@ -86,7 +86,6 @@ def _mix_rbf_kernel(
     y: Tensor,
     scales: Sequence[float] | None = None,
     wts: Sequence[float] | None = None,
-    add_dot: float = 0.0,
 ) -> KernelOut:
     """RBF Kernel."""
     scales = (2.0, 5.0, 10.0, 20.0, 40.0, 80.0) if scales is None else scales
@@ -162,7 +161,7 @@ def mmd2(
     if kernel.value == "linear":
         kernel_out = _dot_kernel(x=x, y=y)
     elif kernel.value == "rbf":
-        kernel_out = _mix_rbf_kernel(x=x, y=y, scales=scales, wts=wts, add_dot=add_dot)
+        kernel_out = _mix_rbf_kernel(x=x, y=y, scales=scales, wts=wts)
     elif kernel.value == "rq":
         kernel_out = _mix_rq_kernel(x=x, y=y, scales=scales, wts=wts, add_dot=add_dot)
     else:

@@ -67,8 +67,8 @@ class DPFlip(FlipBase):
         _s = preds.hard[dt.s[dt.s.columns[0]] == s_group]
         idx_s_y = _y.index & _s.index
         rng = np.random.RandomState(888)
-        idxs = [i for i in rng.permutation(idx_s_y)]
-        preds.hard.update({idx: post_y_val for idx in idxs[:num_to_flip]})
+        idxs = list(rng.permutation(idx_s_y))
+        preds.hard.update({idx: post_y_val for idx in idxs[:num_to_flip]})  # type: ignore[arg-type]
         return preds
 
     def _fit(self, test: TestTuple, preds: Prediction) -> tuple[int, int]:
@@ -87,9 +87,9 @@ class DPFlip(FlipBase):
 
         if b > 1:
             x = a / b
-            z = 0
+            z = 0.0
         else:
-            x = 0
+            x = 0.0
             z = a
         return int(round(x)), int(round(z))
 
@@ -128,8 +128,8 @@ class EqOppFlip(FlipBase):
             raise AssertionError("Not enough valid candidates to flip")
 
         rng = np.random.RandomState(888)
-        idxs = [i for i in rng.permutation(idx_s_y)]
-        preds.hard.update({idx: post_y_val for idx in idxs[:num_to_flip]})
+        idxs = list(rng.permutation(idx_s_y))
+        preds.hard.update({idx: post_y_val for idx in idxs[:num_to_flip]})  # type: ignore[arg-type]
         return preds
 
     def _fit(self, test: TestTuple, preds: Prediction) -> tuple[int, int]:

@@ -1,6 +1,6 @@
 """Encoder model."""
 from __future__ import annotations
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from kit import implements
 import numpy as np
@@ -70,8 +70,8 @@ class Adversary(BaseModel):
         )
 
     @implements(nn.Module)
-    def forward(self, z: Tensor) -> Tensor:
-        z_rev = grad_reverse(z)
+    def forward(self, x: Tensor) -> Tensor:
+        z_rev = grad_reverse(x)
         return super().forward(z_rev)
 
 
@@ -95,6 +95,7 @@ class Clf(CommonModel):
     enc: nn.Module
     decoders: nn.ModuleList
     built: bool
+    adv: Adversary
 
     def __init__(
         self,
@@ -118,7 +119,7 @@ class Clf(CommonModel):
         self.adv_weight = adv_weight
         self.reg_weight = reg_weight
         self.pred_weight = pred_weight
-        self.lr = lr
+        self.learning_rate = lr
         self.s_as_input = s_as_input
         self.latent_dims = latent_dims
         self.mmd_kernel = mmd_kernel
@@ -140,7 +141,7 @@ class Clf(CommonModel):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
-        scaler: MinMaxScaler,
+        scaler: MinMaxScaler | None,
     ) -> None:
         self.cf_model = cf_available
         self.outcome_cols = outcome_cols
@@ -179,7 +180,7 @@ class Clf(CommonModel):
         return ClfFwd(z=z, s=s_pred, y=preds)
 
     @implements(LightningModule)
-    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch, *_: Any) -> Tensor:
         assert self.built
         clf_out = self.forward(batch.x, batch.s)
         _iw = batch.iw if self.use_iw else None
@@ -208,13 +209,14 @@ class Clf(CommonModel):
 
         return loss
 
-    @torch.no_grad()
-    def threshold(self, z: Tensor) -> Tensor:
+    @staticmethod
+    def threshold(z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
-        return z.sigmoid().round()
+        with torch.no_grad():
+            return z.sigmoid().round()
 
     @implements(LightningModule)
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> ClfInferenceOut:
+    def test_step(self, batch: Batch | CfBatch, *_: Any) -> ClfInferenceOut:
         assert self.built
         clf_out = self.forward(batch.x, batch.s)
 
@@ -232,13 +234,13 @@ class Clf(CommonModel):
         )
 
     @implements(LightningModule)
-    def test_epoch_end(self, output_results: list[ClfInferenceOut]) -> None:
-        all_y = torch.cat([_r.y for _r in output_results], 0)
-        all_z = torch.cat([_r.z for _r in output_results], 0)
-        all_s = torch.cat([_r.s for _r in output_results], 0)
-        all_preds = torch.cat([_r.preds for _r in output_results], 0)
-        preds_0 = torch.cat([_r.preds_0 for _r in output_results], 0)
-        preds_1 = torch.cat([_r.preds_1 for _r in output_results], 0)
+    def test_epoch_end(self, outputs: list[ClfInferenceOut]) -> None:
+        all_y = torch.cat([_r.y for _r in outputs], 0)
+        all_z = torch.cat([_r.z for _r in outputs], 0)
+        all_s = torch.cat([_r.s for _r in outputs], 0)
+        all_preds = torch.cat([_r.preds for _r in outputs], 0)
+        preds_0 = torch.cat([_r.preds_0 for _r in outputs], 0)
+        preds_1 = torch.cat([_r.preds_1 for _r in outputs], 0)
 
         make_plot(
             x=all_y.unsqueeze(-1),
@@ -259,10 +261,8 @@ class Clf(CommonModel):
         )
 
         if self.cf_model:
-            all_cf_y = torch.cat([_r.cf_y for _r in output_results if _r.cf_y is not None], 0)
-            cf_preds = torch.cat(
-                [_r.cf_preds for _r in output_results if _r.cf_preds is not None], 0
-            )
+            all_cf_y = torch.cat([_r.cf_y for _r in outputs if _r.cf_y is not None], 0)
+            cf_preds = torch.cat([_r.cf_preds for _r in outputs if _r.cf_preds is not None], 0)
             make_plot(
                 x=all_cf_y.unsqueeze(-1),
                 s=all_s,
@@ -274,7 +274,7 @@ class Clf(CommonModel):
 
     @implements(LightningModule)
     def configure_optimizers(self) -> Adam:
-        return Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        return Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:

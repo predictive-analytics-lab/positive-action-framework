@@ -6,10 +6,10 @@ from torch import Tensor, arange, autograd, nn, stack
 import torch.nn.functional as F
 
 
-def init_weights(m: nn.Module) -> None:
+def init_weights(module: nn.Module) -> None:
     """Make Linear layer weights initialised with Xavier Norm."""
-    # if type(m) == nn.Linear:
-    # nn.init.xavier_uniform_(m.weight)
+    if isinstance(module, nn.Linear):
+        nn.init.xavier_uniform_(module.weight)
 
 
 def index_by_s(recons: list[Tensor], s: Tensor) -> Tensor:
@@ -20,8 +20,8 @@ def index_by_s(recons: list[Tensor], s: Tensor) -> Tensor:
 
 def augment_recons(x: Tensor, cf_x: Tensor, s: Tensor) -> list[Tensor]:
     """Given real data and counterfactuial data, return in recon format based on S index."""
-    dd = [(x[i], cf_x[i]) if _s == 0 else (cf_x[i], x[i]) for i, _s in enumerate(s)]
-    return list((torch.stack([d[0] for d in dd]), torch.stack([d[1] for d in dd])))
+    aug_list = [(x[i], cf_x[i]) if _s == 0 else (cf_x[i], x[i]) for i, _s in enumerate(s)]
+    return list((torch.stack([d[0] for d in aug_list]), torch.stack([d[1] for d in aug_list])))
 
 
 def to_discrete(*, inputs: Tensor) -> Tensor:

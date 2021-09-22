@@ -1,6 +1,6 @@
 """AIES Model."""
 from __future__ import annotations
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from kit import implements
 import pandas as pd
@@ -11,16 +11,26 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.model import CycleGan
-from paf.model.aies_properties import AiesProperties
 from paf.model.classifier_model import Clf
 from paf.model.encoder_model import AE
 from paf.model.model_utils import augment_recons, index_by_s
 
 
-class AiesModel(AiesProperties):
+class AiesModel(LightningModule):
     """Model."""
 
-    def __init__(self, encoder: AE | CycleGan, classifier: Clf):
+    recon_0: Tensor
+    recon_1: Tensor
+    pd_results: pd.DataFrame
+    all_enc_z: Tensor
+    all_enc_s_pred: Tensor
+    all_s: Tensor
+    all_x: Tensor
+    all_y: Tensor
+    all_recon: Tensor
+    all_preds: Tensor
+
+    def __init__(self, *, encoder: AE | CycleGan, classifier: Clf):
         super().__init__()
         self.enc = encoder
         self.clf = classifier
@@ -30,7 +40,7 @@ class AiesModel(AiesProperties):
         return f"PAF_{self.enc.name}"
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
+    def forward(self, *, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
         if isinstance(self.enc, AE):
             enc_fwd = self.enc.forward(x, s)
             recons = enc_fwd.x
@@ -48,7 +58,7 @@ class AiesModel(AiesProperties):
         """This is empty as we do not train the model end to end."""
 
     @implements(LightningModule)
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> TestStepOut:
+    def test_step(self, batch: Batch | CfBatch, *_: Any) -> TestStepOut:
         if isinstance(self.enc, AE):
             enc_fwd = self.enc.forward(batch.x, batch.s)
             enc_z = enc_fwd.z
@@ -72,7 +82,7 @@ class AiesModel(AiesProperties):
             if isinstance(self.enc, AE):
                 cf_fwd = self.enc.forward(_cfx, 1 - batch.s)
             else:
-                cf_fwd = self.enc.forward(_cfx, _cfx)
+                cf_fwd = self.enc.forward(_cfx, _cfx)  # type: ignore[assignment]
             _og = self.enc.invert(index_by_s(cf_fwd.x, batch.s), batch.x)
             cycle_loss = mse_loss_fn(_og, batch.x)
             if i == 0:
@@ -81,7 +91,7 @@ class AiesModel(AiesProperties):
             if isinstance(self.enc, AE):
                 _fwd = self.enc.forward(_og, 1 - batch.s)
             else:
-                _fwd = self.enc.forward(_og, _og)
+                _fwd = self.enc.forward(_og, _og)  # type: ignore[assignment]
             _recons = _fwd.x
 
         vals = {
@@ -105,21 +115,21 @@ class AiesModel(AiesProperties):
         return TestStepOut(**vals)
 
     @implements(LightningModule)
-    def test_epoch_end(self, output_results: list[TestStepOut]) -> None:
-        self.all_enc_z = torch.cat([_r.enc_z for _r in output_results], 0)
-        self.all_enc_s_pred = torch.cat([_r.enc_s_pred for _r in output_results], 0)
-        self.all_s = torch.cat([_r.s for _r in output_results], 0)
-        self.all_x = torch.cat([_r.x for _r in output_results], 0)
-        self.all_y = torch.cat([_r.y for _r in output_results], 0)
-        self.all_recon = torch.cat([_r.recon for _r in output_results], 0)
-        self.recon_0 = torch.cat([_r.recons_0 for _r in output_results], 0)
-        self.recon_1 = torch.cat([_r.recons_1 for _r in output_results], 0)
-        self.all_preds = torch.cat([_r.preds for _r in output_results], 0)
+    def test_epoch_end(self, outputs: list[TestStepOut]) -> None:
+        self.all_enc_z = torch.cat([_r.enc_z for _r in outputs], 0)
+        self.all_enc_s_pred = torch.cat([_r.enc_s_pred for _r in outputs], 0)
+        self.all_s = torch.cat([_r.s for _r in outputs], 0)
+        self.all_x = torch.cat([_r.x for _r in outputs], 0)
+        self.all_y = torch.cat([_r.y for _r in outputs], 0)
+        self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
+        self.recon_0 = torch.cat([_r.recons_0 for _r in outputs], 0)
+        self.recon_1 = torch.cat([_r.recons_1 for _r in outputs], 0)
+        self.all_preds = torch.cat([_r.preds for _r in outputs], 0)
 
-        all_s0_s0_preds = torch.cat([_r.preds_0_0 for _r in output_results], 0)
-        all_s0_s1_preds = torch.cat([_r.preds_0_1 for _r in output_results], 0)
-        all_s1_s0_preds = torch.cat([_r.preds_1_0 for _r in output_results], 0)
-        all_s1_s1_preds = torch.cat([_r.preds_1_1 for _r in output_results], 0)
+        all_s0_s0_preds = torch.cat([_r.preds_0_0 for _r in outputs], 0)
+        all_s0_s1_preds = torch.cat([_r.preds_0_1 for _r in outputs], 0)
+        all_s1_s0_preds = torch.cat([_r.preds_1_0 for _r in outputs], 0)
+        all_s1_s1_preds = torch.cat([_r.preds_1_1 for _r in outputs], 0)
 
         self.pd_results = pd.DataFrame(
             torch.cat(
@@ -138,7 +148,7 @@ class AiesModel(AiesProperties):
             .numpy(),
             columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
         )
-        cycle_loss: Tensor = sum(_r.cycle_loss for _r in output_results) / self.all_y.shape[0]  # type: ignore[assignment]
+        cycle_loss: Tensor = sum(_r.cycle_loss for _r in outputs) / self.all_y.shape[0]  # type: ignore[assignment]
         self.log(name="cycle_loss", value=cycle_loss.item(), logger=True)
 
 

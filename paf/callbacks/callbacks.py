@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from bolts.structures import Stage
+from conduit.types import Stage
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 
@@ -10,16 +10,14 @@ from paf.plotting import make_plot
 
 
 class L1Logger(Callback):
-    def __init__(self) -> None:
-        super().__init__()
-
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.validate)
 
     def on_test_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.test)
 
-    def _shared(self, pl_module: pl.LightningModule, stage: Stage) -> None:
+    @staticmethod
+    def _shared(pl_module: pl.LightningModule, stage: Stage) -> None:
         recon_l1 = (pl_module.all_x - pl_module.all_recon).abs().mean(dim=0)
         for i, feature_l1 in enumerate(recon_l1):
             feature_name = pl_module.data_cols[i]
@@ -31,16 +29,14 @@ class L1Logger(Callback):
 
 
 class FeaturePlots(Callback):
-    def __init__(self) -> None:
-        super().__init__()
-
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.validate)
 
     def on_test_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.test)
 
-    def _shared(self, pl_module: pl.LightningModule, stage: Stage) -> None:
+    @staticmethod
+    def _shared(pl_module: pl.LightningModule, stage: Stage) -> None:
         if pl_module.loss.feature_groups["discrete"]:
             make_plot(
                 x=pl_module.all_x[
@@ -111,16 +107,14 @@ class FeaturePlots(Callback):
 
 
 class MmdLogger(Callback):
-    def __init__(self) -> None:
-        super().__init__()
-
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.validate)
 
     def on_test_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.test)
 
-    def _shared(self, pl_module: pl.LightningModule, stage: Stage) -> None:
+    @staticmethod
+    def _shared(pl_module: pl.LightningModule, stage: Stage) -> None:
         kernel = KernelType.linear
 
         recon_mmd = mmd2(pl_module.all_x, pl_module.all_recon, kernel=kernel)

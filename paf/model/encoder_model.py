@@ -2,21 +2,16 @@
 from __future__ import annotations
 from dataclasses import asdict, dataclass
 import logging
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
-from bolts.structures import Stage
+from conduit.types import Stage
 from kit import implements, parsable
 import numpy as np
 from pytorch_lightning import LightningModule
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn, no_grad, optim
-from torch.nn.functional import (
-    binary_cross_entropy_with_logits,
-    cross_entropy,
-    l1_loss,
-    mse_loss,
-)
+from torch.nn.functional import binary_cross_entropy_with_logits, cross_entropy, l1_loss
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from torchmetrics import MeanSquaredError
@@ -69,9 +64,9 @@ class BaseModel(nn.Module):
         # nn.init.xavier_normal_(self.out.weight)
 
     @implements(nn.Module)
-    def forward(self, x: Tensor) -> Tensor:
-        z = self.hid(x)
-        return self.out(z)
+    def forward(self, input_: Tensor) -> Tensor:
+        hidden = self.hid(input_)
+        return self.out(hidden)
 
 
 class Encoder(BaseModel):
@@ -98,8 +93,8 @@ class Adversary(BaseModel):
         )
 
     @implements(nn.Module)
-    def forward(self, z: Tensor) -> Tensor:
-        z_rev = grad_reverse(z)
+    def forward(self, input_: Tensor) -> Tensor:
+        z_rev = grad_reverse(input_)
         return super().forward(z_rev)
 
 
@@ -118,7 +113,6 @@ class Decoder(BaseModel):
 class Loss:
     def __init__(
         self,
-        loss_type: str = 'MSE',
         feature_groups: dict[str, list[slice]] | None = None,
         adv_weight: float = 1.0,
         cycle_weight: float = 1.0,
@@ -181,6 +175,15 @@ class AE(CommonModel):
     feature_groups: dict[str, list[slice]]
     cf_model: bool
     data_cols: list[str]
+    scaler: MinMaxScaler
+    enc: Encoder
+    adv: Adversary
+    all_x: Tensor
+    all_s: Tensor
+    all_recon: Tensor
+    all_cf_pred: Tensor
+    decoders: nn.ModuleList
+    loss: Loss
 
     @parsable
     def __init__(
@@ -198,14 +201,13 @@ class AE(CommonModel):
         mmd_kernel: KernelType,
         scheduler_rate: float,
         weight_decay: float,
-        use_iw: bool,
     ):
         super().__init__(name="Enc")
 
         self._adv_weight = adv_weight
         self._cycle_weight = cycle_weight
         self._recon_weight = target_weight
-        self.lr = lr
+        self.learning_rate = lr
         self.s_as_input = s_as_input
         self.latent_dims = latent_dims
         self.mmd_kernel = mmd_kernel
@@ -277,7 +279,7 @@ class AE(CommonModel):
         return EncFwd(z=z, s=s_pred, x=recons)
 
     @implements(LightningModule)
-    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch, *_: Any) -> Tensor:
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
 
@@ -300,9 +302,9 @@ class AE(CommonModel):
 
         if isinstance(batch, CfBatch):
             with no_grad():
-                _, _, cf_recons = self.forward(batch.cfx, batch.cfs)
+                enc_fwd = self.forward(batch.cfx, batch.cfs)
                 cf_recon_loss = l1_loss(
-                    index_by_s(cf_recons, batch.cfs), batch.cfx, reduction="mean"
+                    index_by_s(enc_fwd.x, batch.cfs), batch.cfx, reduction="mean"
                 )
                 cf_loss = cf_recon_loss - 1e-6
                 to_log["training_enc/cf_loss"] = cf_loss
@@ -342,18 +344,14 @@ class AE(CommonModel):
         return k
 
     @implements(LightningModule)
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> SharedStepOut | CfSharedStepOut:
-        return self.shared_step(batch, batch_idx, Stage.test)
+    def test_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
+        return self.shared_step(batch, Stage.test)
 
     @implements(LightningModule)
-    def validation_step(
-        self, batch: Batch | CfBatch, batch_idx: int
-    ) -> SharedStepOut | CfSharedStepOut:
-        return self.shared_step(batch, batch_idx, Stage.validate)
+    def validation_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
+        return self.shared_step(batch, Stage.validate)
 
-    def shared_step(
-        self, batch: Batch | CfBatch, batch_idx: int, stage: Stage
-    ) -> SharedStepOut | CfSharedStepOut:
+    def shared_step(self, batch: Batch | CfBatch, stage: Stage) -> SharedStepOut | CfSharedStepOut:
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
 
@@ -377,12 +375,12 @@ class AE(CommonModel):
         return to_return
 
     @implements(LightningModule)
-    def test_epoch_end(self, output_results: list[SharedStepOut | CfSharedStepOut]) -> None:
-        self.shared_epoch_end(output_results, stage=Stage.test)
+    def test_epoch_end(self, outputs: list[SharedStepOut | CfSharedStepOut]) -> None:
+        self.shared_epoch_end(outputs, stage=Stage.test)
 
     @implements(LightningModule)
-    def validation_epoch_end(self, output_results: list[SharedStepOut | CfSharedStepOut]) -> None:
-        self.shared_epoch_end(output_results, stage=Stage.validate)
+    def validation_epoch_end(self, outputs: list[SharedStepOut | CfSharedStepOut]) -> None:
+        self.shared_epoch_end(outputs, stage=Stage.validate)
 
     def shared_epoch_end(
         self, output_results: list[SharedStepOut | CfSharedStepOut], stage: Stage
@@ -423,7 +421,7 @@ class AE(CommonModel):
     def configure_optimizers(
         self,
     ) -> tuple[list[optim.Optimizer], list[optim.lr_scheduler.ExponentialLR]]:
-        opt = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        opt = AdamW(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         sched = optim.lr_scheduler.ExponentialLR(opt, gamma=0.999)
         return [opt], [sched]
 
@@ -434,11 +432,11 @@ class AE(CommonModel):
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
             enc_fwd = self.forward(x, s)
-            r = self.invert(index_by_s(enc_fwd.x, s), x)
+            recon = self.invert(index_by_s(enc_fwd.x, s), x)
             if recons is None:
-                recons = [r]
+                recons = [recon]
             else:
-                recons.append(r)
+                recons.append(recon)
         assert recons is not None
         _recons = torch.cat(recons, dim=0)
         return _recons.detach().cpu().numpy()
@@ -453,12 +451,12 @@ class AE(CommonModel):
             s = batch.s.to(self.device)
             y = batch.y.to(self.device)
             enc_fwd = self.forward(x, s)
-            r0 = self.invert(enc_fwd.x[0], x)
-            r1 = self.invert(enc_fwd.x[1], x)
+            recon_0 = self.invert(enc_fwd.x[0], x)
+            recon_1 = self.invert(enc_fwd.x[1], x)
             if recons is None:
-                recons = [torch.stack([r0, r1])]
+                recons = [torch.stack([recon_0, recon_1])]
             else:
-                recons.append(torch.stack([r0, r1]))
+                recons.append(torch.stack([recon_0, recon_1]))
             if sens is None:
                 sens = [s]
             else:

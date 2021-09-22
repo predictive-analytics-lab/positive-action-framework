@@ -3,11 +3,11 @@ from __future__ import annotations
 import logging
 from typing import Optional, Tuple
 
-from ethicml import Prediction
+from ethicml import Dataset, DataTuple, Prediction
 from kit import implements
-import numpy as np
 import pandas as pd
 from pytorch_lightning import LightningDataModule
+from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
 from paf.base_templates.base_module import BaseDataModule
@@ -21,6 +21,25 @@ log = logging.getLogger(__name__)
 
 class ThirdWayDataModule(BaseDataModule):
     """Simple 1d, configurable, data."""
+
+    dataset: Dataset
+    factual_data: DataTuple
+    cf_data: DataTuple
+    s1_0_s2_0_data: DataTuple
+    s1_0_s2_1_data: DataTuple
+    s1_1_s2_0_data: DataTuple
+    s1_1_s2_1_data: DataTuple
+    card_s: int
+    card_y: int
+    column_names: list[str]
+    outcome_columns: list[str]
+    val_datatuple: DataTuple
+    train_datatuple: DataTuple
+    true_val_datatuple: DataTuple
+    true_test_datatuple: DataTuple
+    cf_train_datatuple: DataTuple
+    cf_val_datatuple: DataTuple
+    cf_test_datatuple: DataTuple
 
     def __init__(
         self,
@@ -38,13 +57,11 @@ class ThirdWayDataModule(BaseDataModule):
         cf_available: bool = True,
         train_dims: Optional[Tuple[int, ...]] = None,
     ):
-        super().__init__()
+        super().__init__(cf_available=cf_available, seed=seed)
         self.acceptance_rate = acceptance_rate
         self.alpha = alpha
         self.beta = beta
-        self._cf_available = cf_available
         self.gamma = gamma
-        self.seed = seed
         self.num_samples = num_samples
         self.train_dims = train_dims
         self.num_workers = num_workers
@@ -52,21 +69,11 @@ class ThirdWayDataModule(BaseDataModule):
         self.num_features = num_features
         self.xi = xi
         self.num_hidden_features = num_hidden_features
-        self.scaler = None
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
-        (
-            dataset,
-            factual_data,
-            cf_data,
-            data_true_outcome,
-            s1_0_s2_0_data,
-            s1_0_s2_1_data,
-            s1_1_s2_0_data,
-            s1_1_s2_1_data,
-        ) = third_way_data(
+        data = third_way_data(
             seed=self.seed,
             num_samples=self.num_samples,
             acceptance_rate=self.acceptance_rate,
@@ -79,65 +86,36 @@ class ThirdWayDataModule(BaseDataModule):
             xi=self.xi,
             num_hidden_features=self.num_hidden_features,
         )
-        self.dataset = dataset
-        self.factual_data = factual_data
-        self.cf_data = cf_data
-        self.s1_0_s2_0_data = s1_0_s2_0_data
-        self.s1_0_s2_1_data = s1_0_s2_1_data
-        self.s1_1_s2_0_data = s1_1_s2_0_data
-        self.s1_1_s2_1_data = s1_1_s2_1_data
-        self.card_s = factual_data.s.nunique().values[0]
-        self.card_y = factual_data.y.nunique().values[0]
-        self.data_dim = factual_data.x.shape[1:]
-        self.dims = self.data_dim
-        self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
-        self.column_names = [str(col) for col in factual_data.x.columns]
-        self.outcome_columns = [str(col) for col in factual_data.y.columns]
 
-        num_train = int(self.factual_data.x.shape[0] * 0.7)
-        num_val = int(self.factual_data.x.shape[0] * 0.1)
-        rng = np.random.RandomState(self.seed)
-        idx = rng.permutation(self.factual_data.x.index)
-        train_indices = idx[:num_train]
-        val_indices = idx[num_train : num_train + num_val]
-        test_indices = idx[num_train + num_val :]
+        dts = self.scale_and_split(self.factual_data, data.dataset)
+        true_dts = self.scale_and_split(data.data_true_outcome, data.dataset)
+        cf_dts = self.scale_and_split(data.cf_data, data.dataset)
 
-        self.make_feature_groups(dataset, factual_data)
+        self.set_data_values(
+            dataset=data.dataset,
+            best_guess=data.cf_groups,
+            factual_data=data.data,
+            true_dts=true_dts,
+            cf_dts=cf_dts,
+            dts=dts,
+            scaler=MinMaxScaler(),
+        )
 
-        self.train_datatuple, self.val_datatuple, self.test_datatuple = self.scale_and_split(
-            self.factual_data, dataset, train_indices, val_indices, test_indices
-        )
-        (
-            self.true_train_datatuple,
-            self.true_val_datatuple,
-            self.true_test_datatuple,
-        ) = self.scale_and_split(
-            data_true_outcome, dataset, train_indices, val_indices, test_indices
-        )
-        (
-            self.cf_train_datatuple,
-            self.cf_val_datatuple,
-            self.cf_test_datatuple,
-        ) = self.scale_and_split(self.cf_data, dataset, train_indices, val_indices, test_indices)
-        self.s1_0_s2_0_train, self.s1_0_s2_0_val, self.s1_0_s2_0_test = self.scale_and_split(
-            self.s1_0_s2_0_data, dataset, train_indices, val_indices, test_indices
-        )
-        self.s1_0_s2_1_train, self.s1_0_s2_1_val, self.s1_0_s2_1_test = self.scale_and_split(
-            self.s1_0_s2_1_data, dataset, train_indices, val_indices, test_indices
-        )
-        self.s1_1_s2_0_train, self.s1_1_s2_0_val, self.s1_1_s2_0_test = self.scale_and_split(
-            self.s1_1_s2_0_data, dataset, train_indices, val_indices, test_indices
-        )
-        self.s1_1_s2_1_train, self.s1_1_s2_1_val, self.s1_1_s2_1_test = self.scale_and_split(
-            self.s1_1_s2_1_data, dataset, train_indices, val_indices, test_indices
-        )
+        s10s20_dts = self.scale_and_split(data.data_xs0_ys0, data.dataset)
+        s1_0_s2_0_test = s10s20_dts.test
+        s10s21_dts = self.scale_and_split(data.data_xs0_ys1, data.dataset)
+        s1_0_s2_1_test = s10s21_dts.test
+        s11s20_dts = self.scale_and_split(data.data_xs1_ys0, data.dataset)
+        s1_1_s2_0_test = s11s20_dts.test
+        s11s21_dts = self.scale_and_split(data.data_xs1_ys1, data.dataset)
+        s1_1_s2_1_test = s11s21_dts.test
 
         pd_results = pd.concat(
             [
-                self.s1_0_s2_0_test.y.rename(columns={"outcome": "s1_0_s2_0"}),
-                self.s1_0_s2_1_test.y.rename(columns={"outcome": "s1_0_s2_1"}),
-                self.s1_1_s2_0_test.y.rename(columns={"outcome": "s1_1_s2_0"}),
-                self.s1_1_s2_1_test.y.rename(columns={"outcome": "s1_1_s2_1"}),
+                s1_0_s2_0_test.y.rename(columns={"outcome": "s1_0_s2_0"}),
+                s1_0_s2_1_test.y.rename(columns={"outcome": "s1_0_s2_1"}),
+                s1_1_s2_0_test.y.rename(columns={"outcome": "s1_1_s2_0"}),
+                s1_1_s2_1_test.y.rename(columns={"outcome": "s1_1_s2_1"}),
                 self.test_datatuple.s.rename(columns={"sens": "true_s"}),
                 self.test_datatuple.y.rename(columns={"outcome": "actual"}),
             ],
@@ -147,11 +125,10 @@ class ThirdWayDataModule(BaseDataModule):
 
         pd_results["decision"] = selection_rules(pd_results)
         log.info(pd_results["decision"].value_counts())
-        asdfasdf = facct_mapper(Prediction(hard=pd_results["decision"]))
-        log.info(asdfasdf.info)
+        log.info(facct_mapper(Prediction(hard=pd_results["decision"])).info)
 
     @implements(BaseDataModule)
-    def _train_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    def _train_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.train_datatuple,
@@ -166,7 +143,7 @@ class ThirdWayDataModule(BaseDataModule):
         )
 
     @implements(BaseDataModule)
-    def _val_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    def _val_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.val_datatuple,
@@ -181,7 +158,7 @@ class ThirdWayDataModule(BaseDataModule):
         )
 
     @implements(BaseDataModule)
-    def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    def _test_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 self.test_datatuple,

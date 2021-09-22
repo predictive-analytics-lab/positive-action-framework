@@ -34,7 +34,7 @@ from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
 
 from paf.base_templates.base_module import BaseDataModule
-from paf.callbacks.callbacks import FeaturePlots, L1Logger, MmdLogger
+from paf.callbacks.callbacks import L1Logger
 from paf.config_classes.bolts.fair.data.configs import (  # type: ignore[import]
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
@@ -63,7 +63,7 @@ from paf.model import AE
 from paf.model.aies_model import AiesModel
 from paf.model.naive import NaiveModel
 from paf.model.nearestneighbour_model import NearestNeighbourModel
-from paf.plotting import label_plot, make_data_plots
+from paf.plotting import label_plot
 from paf.scoring import get_miri_metrics, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
 
@@ -131,10 +131,10 @@ cs.store(name="third", node=ThirdWayDataModuleConf, package=data_package, group=
 def launcher(hydra_config: DictConfig) -> None:
     """Instantiate with hydra and get the experiments running!"""
     cfg: Config = instantiate(hydra_config, _recursive_=True, _convert_="partial")
-    run_aies(cfg, raw_config=OmegaConf.to_container(hydra_config, resolve=True, enum_to_str=True))
+    run_paf(cfg, raw_config=OmegaConf.to_container(hydra_config, resolve=True, enum_to_str=True))
 
 
-def run_aies(cfg: Config, raw_config: Any) -> None:
+def run_paf(cfg: Config, raw_config: Any) -> None:
     """Run the X Autoencoder."""
     seed_everything(cfg.exp.seed, workers=True)
     data: BaseDataModule = cfg.data
@@ -144,15 +144,12 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
 
     log.info(f"data_dim={data.size()}, num_s={data.card_s}")
 
-    wandb_logger = (
-        None
-        if cfg.exp.log_offline
-        else WandbLogger(
-            entity="predictive-analytics-lab",
-            project=f"paf_journal_{cfg.exp_group}",
-            tags=cfg.exp.tags.split("/")[:-1],
-            config=raw_config,
-        )
+    wandb_logger = WandbLogger(
+        entity="predictive-analytics-lab",
+        project=f"paf_journal_{cfg.exp_group}",
+        tags=cfg.exp.tags.split("/")[:-1],
+        config=raw_config,
+        offline=cfg.exp.log_offline,
     )
     cfg.trainer.logger = wandb_logger
 
@@ -160,7 +157,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
     model_trainer = copy.deepcopy(cfg.trainer)
     _model_trainer = copy.deepcopy(cfg.trainer)
 
-    make_data_plots(data, cfg.trainer.logger)
+    # make_data_plots(data, cfg.trainer.logger)
 
     if cfg.exp.model is ModelType.paf:
         encoder: AE = cfg.enc
@@ -175,13 +172,14 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
         )
 
         enc_trainer = cfg.trainer
-        enc_trainer.callbacks += [L1Logger(), MmdLogger(), FeaturePlots()]
+        enc_trainer.callbacks += [
+            L1Logger(),
+            # MmdLogger(),
+            # FeaturePlots()
+        ]
         enc_trainer.tune(model=encoder, datamodule=data)
         enc_trainer.fit(model=encoder, datamodule=data)
-        if enc_trainer.fast_dev_run:
-            enc_trainer.test(model=encoder, datamodule=data, ckpt_path=None)
-        else:
-            enc_trainer.test(datamodule=data)
+        enc_trainer.test(datamodule=data)
 
         classifier = cfg.clf
         classifier.build(
@@ -191,29 +189,23 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             cf_available=data.cf_available if hasattr(data, "cf_available") else False,
             feature_groups=data.feature_groups,
             outcome_cols=data.disc_features + data.cont_features,
-            scaler=MinMaxScaler(),
+            scaler=None,
         )
         clf_trainer.tune(model=classifier, datamodule=data)
         clf_trainer.fit(model=classifier, datamodule=data)
-        if clf_trainer.fast_dev_run:
-            clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
-        else:
-            clf_trainer.test(datamodule=data)
+        clf_trainer.test(datamodule=data)
 
         model = AiesModel(encoder=encoder, classifier=classifier)
 
     elif cfg.exp.model == ModelType.nn:
-        classifier = NaiveModel(in_size=cfg.data.dim_x[0])
+        classifier = NaiveModel(in_size=cfg.data.size()[0])
         clf_trainer.tune(model=classifier, datamodule=data)
         clf_trainer.fit(model=classifier, datamodule=data)
 
         model = NearestNeighbourModel(clf_model=classifier, data=data)
 
     model_trainer.fit(model=model, datamodule=data)
-    if model_trainer.fast_dev_run:
-        model_trainer.test(model=model, ckpt_path=None, datamodule=data)
-    else:
-        model_trainer.test(datamodule=data)
+    model_trainer.test(model=model, ckpt_path=None, datamodule=data)
 
     for fair_bool in (True, False):
         if cfg.exp.model == ModelType.paf:
@@ -228,7 +220,8 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             f"{model.name}_{fair_bool=}-Post-Selection",
             wandb_logger,
         )
-        if isinstance(data, BaseDataModule):
+        if isinstance(data, BaseDataModule) and data.cf_available:
+            assert data.true_test_datatuple is not None
             multiple_metrics(
                 preds,
                 data.true_test_datatuple,
@@ -264,13 +257,14 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             f"{model.name}-Real-World-Preds",
             wandb_logger,
         )
-        if isinstance(data, BaseDataModule):
+        if isinstance(data, BaseDataModule) and data.cf_available:
             multiple_metrics(
                 our_clf_preds,
                 data.test_datatuple,
                 f"{model.name}-Real-World-Preds",
                 wandb_logger,
             )
+            assert data.true_test_datatuple is not None
             get_miri_metrics(
                 method=f"Miri/{model.name}-Real-World-Preds",
                 acceptance=DataTuple(
@@ -281,12 +275,18 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
                 graduated=data.true_test_datatuple,
                 logger=wandb_logger,
             )
-        if isinstance(cfg.enc, AE):
+        if isinstance(cfg.enc, AE) and cfg.trainer.max_epochs > 1:
             produce_baselines(
-                encoder=encoder, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
+                encoder=encoder,
+                datamodule=data,
+                logger=wandb_logger,
+                test_mode=cfg.trainer.fast_dev_run,
             )
             produce_baselines(
-                encoder=classifier, dm=data, logger=wandb_logger, test_mode=cfg.trainer.fast_dev_run
+                encoder=classifier,
+                datamodule=data,
+                logger=wandb_logger,
+                test_mode=cfg.trainer.fast_dev_run,
             )
 
     if cfg.exp.baseline:
@@ -311,6 +311,7 @@ def run_aies(cfg: Config, raw_config: Any) -> None:
             if isinstance(data, BaseDataModule):
                 log.info(f"=== {base_model.name} and \"True\" Data ===")
                 results = base_model.run(data.train_datatuple, data.test_datatuple)
+                assert data.true_test_datatuple is not None
                 multiple_metrics(
                     results, data.true_test_datatuple, f"{base_model.name}-TrueLabels", wandb_logger
                 )

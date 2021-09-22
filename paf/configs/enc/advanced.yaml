@@ -13,4 +13,3 @@ cycle_weight: 0.0
 s_as_input: true
 mmd_kernel: "rbf"
 scheduler_rate: 0.99
-use_iw: false

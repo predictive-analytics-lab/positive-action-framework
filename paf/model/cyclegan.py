@@ -2,9 +2,9 @@
 from __future__ import annotations
 import itertools
 import logging
-from typing import Iterator, NamedTuple
+from typing import Any, Iterator, NamedTuple
 
-from bolts.structures import Stage
+from conduit.types import Stage
 import numpy as np
 import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
@@ -41,26 +41,28 @@ class Initializer:
         self.init_type = init_type
         self.init_gain = init_gain
 
-    def init_module(self, m: nn.Module) -> None:
+    def init_module(self, module: nn.Module) -> None:
 
-        cls_name = m.__class__.__name__
-        if hasattr(m, 'weight') and (cls_name.find('Conv') != -1 or cls_name.find('Linear') != -1):
+        cls_name = module.__class__.__name__
+        if hasattr(module, 'weight') and (
+            cls_name.find('Conv') != -1 or cls_name.find('Linear') != -1
+        ):
 
             if self.init_type == 'kaiming':
-                nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+                nn.init.kaiming_normal_(module.weight.data, a=0, mode='fan_in')
             elif self.init_type == 'xavier':
-                nn.init.xavier_normal_(m.weight.data, gain=self.init_gain)  # type: ignore[arg-type]
+                nn.init.xavier_normal_(module.weight.data, gain=self.init_gain)  # type: ignore[arg-type]
             elif self.init_type == 'normal':
-                nn.init.normal_(m.weight.data, mean=0, std=self.init_gain)  # type: ignore[arg-type]
+                nn.init.normal_(module.weight.data, mean=0, std=self.init_gain)  # type: ignore[arg-type]
             else:
                 raise ValueError('Initialization not found!!')
 
-            if m.bias is not None:
-                nn.init.constant_(m.bias.data, val=0)  # type: ignore[arg-type]
+            if module.bias is not None:
+                nn.init.constant_(module.bias.data, val=0)  # type: ignore[arg-type]
 
-        if hasattr(m, 'weight') and cls_name.find('BatchNorm2d') != -1:
-            nn.init.normal_(m.weight.data, mean=1.0, std=self.init_gain)  # type: ignore[arg-type]
-            nn.init.constant_(m.bias.data, val=0)  # type: ignore[arg-type]
+        if hasattr(module, 'weight') and cls_name.find('BatchNorm2d') != -1:
+            nn.init.normal_(module.weight.data, mean=1.0, std=self.init_gain)  # type: ignore[arg-type]
+            nn.init.constant_(module.bias.data, val=0)  # type: ignore[arg-type]
 
     def __call__(self, net: nn.Module) -> nn.Module:
 
@@ -285,9 +287,7 @@ class ResBlock(nn.Module):
                             Defines a ResBlock
         X ------------------------identity------------------------
         |-- Convolution -- Norm -- ReLU -- Convolution -- Norm --|
-        """
 
-        """
         Parameters:
             in_channels:  Number of input channels
             apply_dp:     If apply_dp is set to True, then activations are 0'ed out with prob 0.5
@@ -322,9 +322,7 @@ class Generator(nn.Module):
         Conv-InstanceNorm-ReLU layer with k filters and stride 2, Rk denotes a residual block that contains two
         3 × 3 Conv layers with the same number of filters on both layer. uk denotes a 3 × 3 DeConv-InstanceNorm-
         ReLU layer with k filters and stride 1.
-        """
 
-        """
         Parameters:
             in_channels:  Number of input channels
             out_channels: Number of output channels
@@ -357,9 +355,7 @@ class Discriminator(nn.Module):
         """
                                     Discriminator Architecture!
         C64 - C128 - C256 - C512, where Ck denote a Convolution-InstanceNorm-LeakyReLU layer with k filters
-        """
 
-        """
         Parameters:
             in_channels:    Number of input channels
             out_channels:   Number of output channels
@@ -391,17 +387,21 @@ class CycleGan(pl.LightningModule):
 
     loss: Loss
     name = "CycleGan"
-    g_A2B: nn.Module
-    g_B2A: nn.Module
-    d_A: nn.Module
-    d_B: nn.Module
-    d_A_params: Iterator[Parameter]
-    d_B_params: Iterator[Parameter]
+    g_a2b: nn.Module
+    g_b2a: nn.Module
+    d_a: nn.Module
+    d_b: nn.Module
+    d_a_params: Iterator[Parameter]
+    d_b_params: Iterator[Parameter]
     g_params: Iterator[Parameter]
     data_cols: list[str]
     scaler: MinMaxScaler
     example_input_array: list[Tensor]
     built: bool
+    all_x: Tensor
+    all_s: Tensor
+    all_recon: Tensor
+    all_cf_pred: Tensor
 
     def __init__(
         self,
@@ -420,30 +420,27 @@ class CycleGan(pl.LightningModule):
         self.beta_2 = beta_2
         self.epoch_decay = epoch_decay
 
-        self.fake_pool_A = HistoryPool(pool_sz=50)
-        self.fake_pool_B = HistoryPool(pool_sz=50)
+        self.fake_pool_a = HistoryPool(pool_sz=50)
+        self.fake_pool_b = HistoryPool(pool_sz=50)
 
         self.init_fn = Initializer(init_type='normal', init_gain=0.02)
 
     def build(
         self,
-        num_s: int,
         data_dim: int,
-        s_dim: int,
-        cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
         scaler: MinMaxScaler,
     ) -> None:
 
         self.loss = Loss(loss_type='MSE', lambda_=1, feature_groups=feature_groups)
-        self.g_A2B = self.init_fn(Generator(in_dims=data_dim))
-        self.g_B2A = self.init_fn(Generator(in_dims=data_dim))
-        self.d_A = self.init_fn(Discriminator(in_dims=data_dim))
-        self.d_B = self.init_fn(Discriminator(in_dims=data_dim))
-        self.d_A_params = self.d_A.parameters()
-        self.d_B_params = self.d_B.parameters()
-        self.g_params = itertools.chain([*self.g_A2B.parameters(), *self.g_B2A.parameters()])
+        self.g_a2b = self.init_fn(Generator(in_dims=data_dim))
+        self.g_b2a = self.init_fn(Generator(in_dims=data_dim))
+        self.d_a = self.init_fn(Discriminator(in_dims=data_dim))
+        self.d_b = self.init_fn(Discriminator(in_dims=data_dim))
+        self.d_a_params = self.d_a.parameters()
+        self.d_b_params = self.d_b.parameters()
+        self.g_params = itertools.chain([*self.g_a2b.parameters(), *self.g_b2a.parameters()])
         self.data_cols = outcome_cols
         self.scaler = scaler
 
@@ -470,16 +467,16 @@ class CycleGan(pl.LightningModule):
                 param.requires_grad = requires_grad
 
     def forward(self, real_a: Tensor, real_b: Tensor) -> CycleFwd:
-        fake_b = self.g_A2B(real_a)
-        fake_a = self.g_B2A(real_b)
+        fake_b = self.g_a2b(real_a)
+        fake_a = self.g_b2a(real_b)
         return CycleFwd(fake_b=fake_b, fake_a=fake_a)
 
     def forward_gen(self, real_a: Tensor, real_b: Tensor, fake_a: Tensor, fake_b: Tensor) -> GenFwd:
-        cyc_a = self.g_B2A(fake_b)
-        idt_a = self.g_B2A(real_a)
+        cyc_a = self.g_b2a(fake_b)
+        idt_a = self.g_b2a(real_a)
 
-        cyc_b = self.g_A2B(fake_a)
-        idt_b = self.g_A2B(real_b)
+        cyc_b = self.g_a2b(fake_a)
+        idt_b = self.g_a2b(real_b)
         return GenFwd(cyc_a=cyc_a, idt_a=idt_a, cyc_b=cyc_b, idt_b=idt_b)
 
     @staticmethod
@@ -509,9 +506,9 @@ class CycleGan(pl.LightningModule):
             gen_fwd = self.forward_gen(real_a, real_b, cyc_out.fake_a, cyc_out.fake_b)
 
             # No need to calculate the gradients for Discriminators' parameters
-            self.set_requires_grad([self.d_A, self.d_B], requires_grad=False)
-            d_a_pred_fake_data = self.d_A(cyc_out.fake_a)
-            d_b_pred_fake_data = self.d_B(cyc_out.fake_b)
+            self.set_requires_grad([self.d_a, self.d_b], requires_grad=False)
+            d_a_pred_fake_data = self.d_a(cyc_out.fake_a)
+            d_b_pred_fake_data = self.d_b(cyc_out.fake_b)
 
             gen_loss = self.loss.get_gen_loss(
                 real_a,
@@ -531,9 +528,9 @@ class CycleGan(pl.LightningModule):
             return gen_loss.tot
 
         if optimizer_idx == 1:
-            self.set_requires_grad([self.d_A], requires_grad=True)
-            fake_a = self.fake_pool_A.push_and_pop(cyc_out.fake_a)
-            dis_out = self.forward_dis(self.d_A, real_a, fake_a.detach())
+            self.set_requires_grad([self.d_a], requires_grad=True)
+            fake_a = self.fake_pool_a.push_and_pop(cyc_out.fake_a)
+            dis_out = self.forward_dis(self.d_a, real_a, fake_a.detach())
 
             # GAN loss
             d_a_loss = self.loss.get_dis_loss(dis_out.real, dis_out.fake)
@@ -544,9 +541,9 @@ class CycleGan(pl.LightningModule):
             return d_a_loss
 
         if optimizer_idx == 2:
-            self.set_requires_grad([self.d_B], requires_grad=True)
-            fake_b = self.fake_pool_B.push_and_pop(cyc_out.fake_b)
-            dis_b_out = self.forward_dis(self.d_B, real_b, fake_b.detach())
+            self.set_requires_grad([self.d_b], requires_grad=True)
+            fake_b = self.fake_pool_b.push_and_pop(cyc_out.fake_b)
+            dis_b_out = self.forward_dis(self.d_b, real_b, fake_b.detach())
 
             # GAN loss
             d_b_loss = self.loss.get_dis_loss(dis_b_out.real, dis_b_out.fake)
@@ -555,8 +552,7 @@ class CycleGan(pl.LightningModule):
             )
 
             return d_b_loss
-        else:
-            raise NotImplementedError("There should only be 3 optimizers.")
+        raise NotImplementedError("There should only be 3 optimizers.")
 
     def shared_step(self, batch: Batch | CfBatch, stage: Stage) -> SharedStepOut:
         real_a = batch.x
@@ -565,8 +561,8 @@ class CycleGan(pl.LightningModule):
         cyc_out = self.forward(real_a, real_b)
         gen_fwd = self.forward_gen(real_a, real_b, cyc_out.fake_a, cyc_out.fake_b)
 
-        dis_out_a = self.forward_dis(self.d_A, real_a, cyc_out.fake_a)
-        dis_out_b = self.forward_dis(self.d_B, real_b, cyc_out.fake_b)
+        dis_out_a = self.forward_dis(self.d_a, real_a, cyc_out.fake_a)
+        dis_out_b = self.forward_dis(self.d_b, real_b, cyc_out.fake_b)
 
         # G_A2B loss, G_B2A loss, G loss
         g_a2b_loss, g_b2a_loss, g_tot_loss = self.loss.get_gen_loss(
@@ -607,10 +603,10 @@ class CycleGan(pl.LightningModule):
         self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
         self.all_cf_pred = torch.cat([_r.recon for _r in outputs], 0)
 
-    def validation_step(self, batch: Batch | CfBatch, batch_idx: int) -> SharedStepOut:
+    def validation_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut:
         return self.shared_step(batch, Stage.validate)
 
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> SharedStepOut:
+    def test_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut:
         return self.shared_step(batch, Stage.test)
 
     def lr_lambda(self, epoch: int) -> float:
@@ -624,8 +620,8 @@ class CycleGan(pl.LightningModule):
 
         # define the optimizers here
         g_opt = torch.optim.Adam(self.g_params, lr=self.g_lr, betas=(self.beta_1, self.beta_2))
-        d_a_opt = torch.optim.Adam(self.d_A_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
-        d_b_opt = torch.optim.Adam(self.d_B_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
+        d_a_opt = torch.optim.Adam(self.d_a_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
+        d_b_opt = torch.optim.Adam(self.d_b_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
 
         # define the lr_schedulers here
         g_sch = LambdaLR(g_opt, lr_lambda=self.lr_lambda)

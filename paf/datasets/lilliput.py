@@ -17,7 +17,7 @@ class CfData(NamedTuple):
     data: DataTuple
     cf_data: DataTuple
     data_true_outcome: DataTuple
-    cf_groups: Prediction
+    cf_groups: Prediction | None
     data_xs0_ys0: DataTuple
     data_xs0_ys1: DataTuple
     data_xs1_ys0: DataTuple
@@ -394,9 +394,9 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
     class_prefix = ["accepted", "graduation", "admittance", "Sy=0", "Sy=1"]
 
     dataset = Dataset(
-        name=f"University of Lilliput",
+        name="University of Lilliput",
         num_samples=num_samples,
-        filename_or_path=f"lilliput.csv",
+        filename_or_path="lilliput.csv",
         features=features,
         cont_features=cont_features,
         s_prefix=s_prefix,

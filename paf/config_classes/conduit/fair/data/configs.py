@@ -5,14 +5,13 @@
 # flake8: noqa
 
 from dataclasses import dataclass
-from typing import Any
-from typing import Optional
-
-from conduit.fair.data import CrimeSens
 from conduit.fair.data.datamodules.tabular.admissions import AdmissionsSens
 from conduit.fair.data.datamodules.tabular.adult import AdultSens
+from conduit.fair.data.datamodules.tabular.crime import CrimeSens
 from conduit.fair.data.datamodules.tabular.health import HealthSens
 from conduit.fair.data.datamodules.tabular.law import LawSens
+from typing import Any
+from typing import Optional
 
 
 @dataclass
@@ -76,7 +75,7 @@ class LawDataModuleConf:
 
 @dataclass
 class CrimeDataModuleConf:
-    _target_: str = "bolts.fair.data.CrimeDataModule"
+    _target_: str = "conduit.fair.data.CrimeDataModule"
     sens_feat: CrimeSens = CrimeSens.raceBinary
     disc_feats_only: bool = False
     train_batch_size: int = 100
@@ -95,7 +94,7 @@ class CrimeDataModuleConf:
 
 @dataclass
 class HealthDataModuleConf:
-    _target_: str = "bolts.fair.data.HealthDataModule"
+    _target_: str = "conduit.fair.data.HealthDataModule"
     sens_feat: HealthSens = HealthSens.sex
     disc_feats_only: bool = False
     train_batch_size: int = 100

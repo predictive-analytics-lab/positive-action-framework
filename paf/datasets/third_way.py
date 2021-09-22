@@ -4,13 +4,14 @@ import logging
 
 from ethicml import Dataset, DataTuple
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import scipy
 from sklearn import preprocessing
 
-log = logging.getLogger(__name__)
+from paf.datasets.lilliput import CfData
 
-import numpy.typing as npt
+log = logging.getLogger(__name__)
 
 
 def make_x_bar(
@@ -26,16 +27,14 @@ def make_s(alpha: float, n: int, random_state: np.random.Generator, binary_s: bo
     """Set S."""
     if binary_s:
         return random_state.binomial(1, alpha, n)
-    else:
-        return random_state.uniform(-1, 1, n)
+    return random_state.uniform(-1, 1, n)
 
 
 def make_dx(x_bar: np.ndarray, s: np.ndarray, gamma: float, binary_s: bool) -> np.ndarray:
     """Skew the data replicating life experience."""
     if binary_s:
         return np.add(x_bar[:, : x_bar.shape[1]], (gamma * ((s[:, np.newaxis] * 2) - 1)))
-    else:
-        return np.add(x_bar[:, : x_bar.shape[1]], (gamma * (s[:, np.newaxis])))
+    return np.add(x_bar[:, : x_bar.shape[1]], (gamma * (s[:, np.newaxis])))
 
 
 def make_x(dx: np.ndarray, s: np.ndarray, xi: float, n: int) -> np.ndarray:
@@ -79,7 +78,7 @@ def third_way_data(
     binary_s: int,
     beta: float,
     xi: float,
-) -> tuple[Dataset, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple, DataTuple]:
+) -> CfData:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
     x_bar = make_x_bar(num_features=num_hidden_features, n=num_samples, random_state=num_gen)
@@ -189,45 +188,48 @@ def third_way_data(
     s1_1_s2_1_data = s1_1_s2_1_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
 
     dataset = Dataset(
-        name=f"ThirdWay",
+        name="ThirdWay",
         num_samples=num_samples,
         filename_or_path="none",
         features=[f"x_{i}" for i in range(num_features)] + ["sens"],
         cont_features=[f"x_{i}" for i in range(num_features)],
         sens_attr_spec="sens",
         s_prefix="sens",
-        class_label_spec=f"outcome",
+        class_label_spec="outcome",
         class_label_prefix="outcome",
         discrete_only=False,
     )
 
-    return (
-        dataset,
-        DataTuple(x=data[x_df.columns], s=data[s_df.columns], y=data[y_df.columns]),
-        DataTuple(
+    return CfData(
+        dataset=dataset,
+        data=DataTuple(x=data[x_df.columns], s=data[s_df.columns], y=data[y_df.columns]),
+        cf_data=DataTuple(
             x=counterfactual_data[x_df.columns],
             s=counterfactual_data[s_df.columns],
             y=counterfactual_data[y_df.columns],
         ),
-        DataTuple(x=data[x_df.columns], s=data[s_df.columns], y=data[y_true.columns]),
-        DataTuple(
+        data_true_outcome=DataTuple(
+            x=data[x_df.columns], s=data[s_df.columns], y=data[y_true.columns]
+        ),
+        data_xs0_ys0=DataTuple(
             x=s1_0_s2_0_data[x_df.columns],
             s=s1_0_s2_0_data[s_df.columns],
             y=s1_0_s2_0_data[y_df.columns],
         ),
-        DataTuple(
+        data_xs0_ys1=DataTuple(
             x=s1_0_s2_1_data[x_df.columns],
             s=s1_0_s2_1_data[s_df.columns],
             y=s1_0_s2_1_data[y_df.columns],
         ),
-        DataTuple(
+        data_xs1_ys0=DataTuple(
             x=s1_1_s2_0_data[x_df.columns],
             s=s1_1_s2_0_data[s_df.columns],
             y=s1_1_s2_0_data[y_df.columns],
         ),
-        DataTuple(
+        data_xs1_ys1=DataTuple(
             x=s1_1_s2_1_data[x_df.columns],
             s=s1_1_s2_1_data[s_df.columns],
             y=s1_1_s2_1_data[y_df.columns],
         ),
+        cf_groups=None,
     )

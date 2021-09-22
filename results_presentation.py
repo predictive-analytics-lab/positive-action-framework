@@ -29,20 +29,33 @@ def main(raw_csv: Path) -> None:
     data = data.reset_index().pivot(index=["group", "model"], columns="metric")
 
     data.columns = data.columns.droplevel()
-
     data = data[
         [
             "P(Y=1|S=0)",
             "P(Y=1|S=1)",
             "P(Y=1|S=0,Ty=1)",
             "P(Y=1|S=1,Ty=1)",
+            "P(Y=1|S=0,Ty=0)",
+            "P(Y=1|S=1,Ty=0)",
+            "P(Y=0|S=0,Ty=0)",
+            "P(Y=0|S=1,Ty=0)",
             "P(Ty=1|S=0)",
             "P(Ty=1|S=1)",
+            "P(Ty=1|Y=1)",
+            "P(Ty=1|Y=0)",
+            "P(Ty=0|Y=1)",
+            "P(Ty=0|Y=0)",
+            "P(Ty=0)",
+            "P(Ty=1)",
+            "P(Y=0)",
+            "P(Y=1)",
             'P(Ty=1|S=0,Y=1)',
             'P(Ty=1|S=1,Y=1)',
             'P(Ty=1|S=0,Y=0)',
             'P(Ty=1|S=1,Y=0)',
+            'P(Ty=0|S=0,Y=0)',
             'P(Ty=0|S=0,Y=1)',
+            'P(Ty=0|S=1,Y=0)',
             'P(Ty=0|S=1,Y=1)',
             'Accuracy',
             'TPR-sens_0',
@@ -51,9 +64,11 @@ def main(raw_csv: Path) -> None:
             'TNR-sens_1',
             'prob_pos-sens_0',
             'prob_pos-sens_1',
-            "MMD",
-            "MMD S0 vs Cf",
-            "MMD S1 vs Cf",
+            "FID",
+            "prob_pos-Abs-Diff-sens_0-sens_1",
+            # "MMD",
+            # "MMD S0 vs Cf",
+            # "MMD S1 vs Cf",
         ]
         + [
             f"pre_selection_rule_group_{i}"

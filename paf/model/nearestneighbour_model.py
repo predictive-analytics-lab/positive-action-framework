@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import NamedTuple
 
-from bolts.structures import Stage
+from conduit.types import Stage
 import pandas as pd
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.types import STEP_OUTPUT
@@ -17,6 +17,13 @@ from paf.mmd import mmd2
 
 class NearestNeighbourModel(pl.LightningModule):
     name = "NearestNeighbour"
+    all_preds: Tensor
+    all_cf_preds: Tensor
+    all_cf_x: Tensor
+    all_x: Tensor
+    all_s: Tensor
+    all_y: Tensor
+    pd_results: pd.DataFrame
 
     def __init__(self, clf_model: nn.Module, data: pl.LightningDataModule):
         super().__init__()
@@ -30,7 +37,7 @@ class NearestNeighbourModel(pl.LightningModule):
         ).float()
         self.train_labels = nn.Parameter(self.train_labels.detach(), requires_grad=False).float()
 
-    def forward(self, test_features: Tensor, sens_label: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(self, *, test_features: Tensor, sens_label: Tensor) -> tuple[Tensor, Tensor]:
         test_features = F.normalize(test_features, dim=1, p=2)
 
         features = []
@@ -51,14 +58,13 @@ class NearestNeighbourModel(pl.LightningModule):
         ...
 
     def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> NnStepOut | None:
-        cf_feats, cf_outcome = self.forward(batch.x, batch.s)
+        cf_feats, cf_outcome = self.forward(test_features=batch.x, sens_label=batch.s)
         preds = (self.clf.forward(batch.x) >= 0).long()
 
         return NnStepOut(
             cf_preds=cf_outcome,
             cf_x=cf_outcome,
             preds=preds,
-            sens=batch.s,
             x=batch.x,
             s=batch.s,
             y=batch.y,
@@ -97,11 +103,10 @@ class NearestNeighbourModel(pl.LightningModule):
             logger=True,
         )
 
-    def test_epoch_end(self, outputs: NnStepOut) -> None:
+    def test_epoch_end(self, outputs: list[NnStepOut]) -> None:
         self.all_preds = torch.cat([_r.preds for _r in outputs], 0)
         self.all_cf_preds = torch.cat([_r.cf_x for _r in outputs], 0)
         self.all_cf_x = torch.cat([_r.preds for _r in outputs], 0)
-        self.all_sens = torch.cat([_r.sens for _r in outputs], 0)
 
         self.all_s = torch.cat([_r.s for _r in outputs], 0)
         self.all_x = torch.cat([_r.x for _r in outputs], 0)
@@ -120,7 +125,7 @@ class NearestNeighbourModel(pl.LightningModule):
                 [
                     stacked[:, 0].unsqueeze(-1).long(),
                     stacked[:, 1].unsqueeze(-1).long(),
-                    self.all_sens.unsqueeze(-1).long(),
+                    self.all_s.unsqueeze(-1).long(),
                     self.all_preds,
                 ],
                 dim=1,
@@ -140,7 +145,6 @@ class NnStepOut(NamedTuple):
     cf_preds: Tensor
     cf_x: Tensor
     preds: Tensor
-    sens: Tensor
     x: Tensor
     s: Tensor
     y: Tensor

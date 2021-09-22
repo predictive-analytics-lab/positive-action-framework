@@ -78,42 +78,41 @@ def produce_selection_groups(
     fair: bool = False,
 ) -> Prediction:
     """Follow Selection rules."""
-    outcomes_hist(outcomes, logger)
+    if logger is not None:
+        outcomes_hist(outcomes, logger)
     outcomes["decision"] = selection_rules(outcomes)
     for idx, val in outcomes["decision"].value_counts().iteritems():
         do_log(f"Table3/Ours_{data_name}/pre_selection_rule_group_{idx}", val, logger)
 
-    if recon_1 is not None:
-        assert recon_0 is not None
-        assert recon_1 is not None
-        assert data is not None
-        analyse_selection_groups(
-            data=data,
-            outcomes=outcomes,
-            selected=Prediction(hard=outcomes["decision"]),
-            recon_0=recon_0,
-            recon_1=recon_1,
-            data_name=f"PreSelection_{data_name}",
-            logger=logger,
-        )
+    # if recon_1 is not None:
+    #     assert recon_0 is not None
+    #     assert recon_1 is not None
+    #     assert data is not None
+    #     analyse_selection_groups(
+    #         data=data,
+    #         selected=Prediction(hard=outcomes["decision"]),
+    #         recon_0=recon_0,
+    #         recon_1=recon_1,
+    #         data_name=f"PreSelection_{data_name}",
+    #         logger=logger,
+    #     )
 
     _to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
     for idx, val in _to_return.hard.value_counts().iteritems():
         do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
 
-    if recon_1 is not None:
-        assert recon_0 is not None
-        assert recon_1 is not None
-        assert data is not None
-        analyse_selection_groups(
-            data=data,
-            outcomes=outcomes,
-            selected=_to_return,
-            recon_0=recon_0,
-            recon_1=recon_1,
-            data_name=data_name,
-            logger=logger,
-        )
+    # if recon_1 is not None:
+    #     assert recon_0 is not None
+    #     assert recon_1 is not None
+    #     assert data is not None
+    #     analyse_selection_groups(
+    #         data=data,
+    #         selected=_to_return,
+    #         recon_0=recon_0,
+    #         recon_1=recon_1,
+    #         data_name=data_name,
+    #         logger=logger,
+    #     )
 
     mapped = facct_mapper_2(_to_return)
 
@@ -122,12 +121,11 @@ def produce_selection_groups(
 
 def analyse_selection_groups(
     data: BaseDataModule,
-    outcomes: pd.DataFrame,
     selected: Prediction,
     recon_0: Tensor,
     recon_1: Tensor,
     data_name: str,
-    logger: WandbLogger | None,
+    logger: WandbLogger,
 ) -> None:
     """What's changed in these feature groups?"""
     reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_datatuple.x.columns)

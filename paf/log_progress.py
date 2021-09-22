@@ -9,10 +9,10 @@ from pytorch_lightning.loggers.base import DummyLogger
 log = logging.getLogger(__name__)
 
 
-def do_log(name: str, val: Any, logger: WandbLogger | DummyLogger | None) -> None:
+def do_log(name: str, val: Any, logger: WandbLogger | DummyLogger) -> None:
     """Log to experiment tracker and also the logger."""
     if isinstance(val, (float, int)):
         log.info(f"{name}: {val}")
         # print(f"{name}: {val}")
-    if logger is not None and not isinstance(logger, DummyLogger):
+    if isinstance(logger, WandbLogger):
         logger.experiment.log({name: val})

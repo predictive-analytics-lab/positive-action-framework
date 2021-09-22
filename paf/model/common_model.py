@@ -49,6 +49,6 @@ class CommonModel(LightningModule):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
-        scaler: MinMaxScaler,
+        scaler: MinMaxScaler | None,
     ) -> None:
         """Build the network using data not available in advance."""

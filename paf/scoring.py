@@ -21,15 +21,15 @@ def lrcv_results(
     *,
     train: npt.NDArray[np.float32],
     test: npt.NDArray[np.float32],
-    dm: BaseDataModule,
+    datamodule: BaseDataModule,
     logger: LightningLoggerBase,
     component: str,
     test_mode: bool,
 ) -> None:
     """Run an LRCV over some train set and apply to some test set."""
     for train_target, test_target, target_name in [
-        (dm.train_datatuple.s, dm.test_datatuple.s, "S"),
-        (dm.train_datatuple.y, dm.test_datatuple.y, "Y"),
+        (datamodule.train_datatuple.s, datamodule.test_datatuple.s, "S"),
+        (datamodule.train_datatuple.y, datamodule.test_datatuple.y, "Y"),
     ]:
         random_state = np.random.RandomState(888)
         folder = KFold(n_splits=5, shuffle=True, random_state=random_state)
@@ -46,52 +46,63 @@ def lrcv_results(
         s_preds = Prediction(hard=pd.Series(clf.predict(test)), info=dict(C=clf.C_[0]))
         do_log(
             f"Baselines/LRCV/Accuracy-{target_name}-from-{component}",
-            Accuracy().score(prediction=s_preds, actual=dm.test_datatuple.replace(y=test_target)),
+            Accuracy().score(
+                prediction=s_preds, actual=datamodule.test_datatuple.replace(y=test_target)
+            ),
             logger,
         )
 
 
 def produce_baselines(
-    *, encoder: CommonModel, dm: BaseDataModule, logger: LightningLoggerBase, test_mode: bool
+    *,
+    encoder: CommonModel,
+    datamodule: BaseDataModule,
+    logger: LightningLoggerBase,
+    test_mode: bool,
 ) -> None:
     """Produce baselines for predictiveness."""
-    latent_train = encoder.get_latent(dm.train_dataloader(shuffle=False, drop_last=False))
-    latent_test = encoder.get_latent(dm.test_dataloader())
+    latent_train = encoder.get_latent(datamodule.train_dataloader(shuffle=False, drop_last=False))
+    latent_test = encoder.get_latent(datamodule.test_dataloader())
     lrcv_results(
         train=latent_train,
         test=latent_test,
-        dm=dm,
+        datamodule=datamodule,
         logger=logger,
         component=f"{encoder.model_name}-Z",
         test_mode=test_mode,
     )
 
     if isinstance(encoder, AE):
-        train = dm.train_datatuple.x.to_numpy()
-        test = dm.test_datatuple.x.to_numpy()
+        train = datamodule.train_datatuple.x.to_numpy()
+        test = datamodule.test_datatuple.x.to_numpy()
         lrcv_results(
-            train=train, test=test, dm=dm, logger=logger, component="Og-Data", test_mode=test_mode
+            train=train,
+            test=test,
+            datamodule=datamodule,
+            logger=logger,
+            component="Og-Data",
+            test_mode=test_mode,
         )
         recon_name = "Recon-Data"
     else:
-        train_labels = dm.train_datatuple.y.to_numpy()
-        test_labels = dm.test_datatuple.y.to_numpy()
+        train_labels = datamodule.train_datatuple.y.to_numpy()
+        test_labels = datamodule.test_datatuple.y.to_numpy()
         lrcv_results(
             train=train_labels,
             test=test_labels,
-            dm=dm,
+            datamodule=datamodule,
             logger=logger,
             component="Og-Labels",
             test_mode=test_mode,
         )
         recon_name = "Preds"
 
-    train_recon = encoder.get_recon(dm.train_dataloader(shuffle=False, drop_last=False))
-    test_recon = encoder.get_recon(dm.test_dataloader())
+    train_recon = encoder.get_recon(datamodule.train_dataloader(shuffle=False, drop_last=False))
+    test_recon = encoder.get_recon(datamodule.test_dataloader())
     lrcv_results(
         train=train_recon,
         test=test_recon,
-        dm=dm,
+        datamodule=datamodule,
         logger=logger,
         component=recon_name,
         test_mode=test_mode,

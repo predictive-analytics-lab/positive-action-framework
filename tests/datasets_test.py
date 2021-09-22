@@ -21,7 +21,7 @@ from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import
 from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
     TrainerConf,
 )
-from paf.main import Config, run_aies
+from paf.main import Config, run_paf
 from paf.model.aies_model import AiesModel
 
 cs = ConfigStore.instance()
@@ -49,7 +49,7 @@ def test_with_initialize(dm_schema: str) -> None:
             overrides=[f"data={dm_schema}"] + SCHEMAS,
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
-        run_aies(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
+        run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
 
 
 @pytest.mark.parametrize(

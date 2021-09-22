@@ -5,7 +5,7 @@ from ethicml import DataTuple
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 import pandas as pd
-import pytorch_lightning
+import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
@@ -15,7 +15,7 @@ import wandb
 from paf.log_progress import do_log
 
 
-def label_plot(data: DataTuple, logger: WandbLogger | None, name: str = "") -> None:
+def label_plot(data: DataTuple, logger: WandbLogger, name: str = "") -> None:
     """Make a label (quadrant) plot and uplad to wandb."""
     s_col = data.s.columns[0]
     s_values = data.s[s_col].value_counts() / data.s[s_col].count()
@@ -51,7 +51,7 @@ def label_plot(data: DataTuple, logger: WandbLogger | None, name: str = "") -> N
     mpl.style.use("seaborn-pastel")
     # plt.xkcd()
 
-    fig, plot = plt.subplots()
+    _, plot = plt.subplots()
 
     quadrant1 = plot.bar(
         0,
@@ -113,7 +113,7 @@ def make_plot(
     *,
     x: Tensor,
     s: Tensor,
-    logger: WandbLogger | None,
+    logger: WandbLogger,
     name: str,
     cols: list[str],
     cat_plot: bool = False,
@@ -149,23 +149,20 @@ def make_plot(
         plt.clf()
 
 
-def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger | None) -> None:
+def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
     """Produce a distribution of the outcomes."""
     val_counts = (
         outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
     )
     sns.barplot(val_counts.index, val_counts.values)
-    if logger is not None:
-        logger.experiment.log({"Debugging2/Outcomes": wandb.Image(plt)})
-        plt.clf()
+    logger.experiment.log({"Debugging2/Outcomes": wandb.Image(plt)})
+    plt.clf()
     for idx, val in val_counts.iteritems():
         do_log(f"Debugging2/Ours/Outcomes-{idx}", val, logger)
     plt.clf()
 
 
-def make_data_plots(
-    data: pytorch_lightning.LightningDataModule, logger: WandbLogger | None
-) -> None:
+def make_data_plots(data: pl.LightningDataModule, logger: WandbLogger) -> None:
     """Make plots of the data."""
     try:
         label_plot(data.train_datatuple, logger, "train")

@@ -46,9 +46,7 @@ def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> tuple[Dat
     return dataset, datatuple
 
 
-def semi_adult_data(
-    *, sens: str, bin_nationality: bool, bin_race: bool
-) -> tuple[Dataset, DataTuple]:
+def semi_adult_data() -> tuple[Dataset, DataTuple]:
     """Get the Audlt dataset."""
     disc_feature_groups = {
         "education": [
@@ -127,7 +125,7 @@ def semi_adult_data(
     class_label_spec = TGT_NAME
     class_label_prefix = ["salary"]
 
-    name = f"SemiSynthetic Adult"
+    name = "SemiSynthetic Adult"
     assert len(discrete_features) == 47  # 43 (discrete) features + 4 class labels
 
     dataset = Dataset(

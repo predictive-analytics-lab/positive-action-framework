@@ -2,9 +2,10 @@
 from __future__ import annotations
 from typing import Optional, Tuple
 
+from ethicml import DataTuple
 from kit import implements, parsable
-import numpy as np
 from pytorch_lightning import LightningDataModule
+from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
 from paf.base_templates.base_module import BaseDataModule
@@ -14,6 +15,26 @@ from paf.datasets.lilliput import lilliput
 
 class LilliputDataModule(BaseDataModule):
     """Simple 1d, configurable, data."""
+
+    cf_train_datatuple: DataTuple
+    cf_val_datatuple: DataTuple
+    cf_test_datatuple: DataTuple
+    true_train_datatuple: DataTuple
+    true_val_datatuple: DataTuple
+    true_test_datatuple: DataTuple
+    train_datatuple: DataTuple
+    val_datatuple: DataTuple
+    test_datatuple: DataTuple
+    dim_x: tuple[int, ...]
+    card_y: int
+    cf_data: DataTuple
+    factual_data: DataTuple
+    s0_s0: DataTuple
+    s0_s1: DataTuple
+    s1_s0: DataTuple
+    s1_s1: DataTuple
+    column_names: list[str]
+    outcome_columns: list[str]
 
     @parsable
     def __init__(
@@ -27,83 +48,41 @@ class LilliputDataModule(BaseDataModule):
         cf_available: bool = True,
         train_dims: Optional[Tuple[int, ...]] = None,
     ):
-        super().__init__()
+        super().__init__(cf_available=cf_available, seed=seed)
         self.alpha = alpha
-        self._cf_available = cf_available
         self.gamma = gamma
-        self.seed = seed
         self.num_samples = num_samples
         self.train_dims = train_dims
         self.num_workers = num_workers
         self.batch_size = batch_size
-        self.scaler = None
 
     @implements(LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
-        (
-            dataset,
-            factual_data,
-            cf_data,
-            data_true_outcome,
-            best_guess,
-            s0s0,
-            s0s1,
-            s1s0,
-            s1s1,
-        ) = lilliput(
+        cf_data = lilliput(
             seed=self.seed, alpha=self.alpha, num_samples=self.num_samples, gamma=self.gamma
         )
-        self.best_guess = best_guess
-        self.s0_s0 = s0s0
-        self.s0_s1 = s0s1
-        self.s1_s0 = s1s0
-        self.s1_s1 = s1s1
-        self.dataset = dataset
-        self.factual_data = factual_data
-        self.cf_data = cf_data
-        self.card_s = factual_data.s.nunique().values[0]
-        self.card_y = factual_data.y.nunique().values[0]
-        self.data_dim = factual_data.x.shape[1:]
-        self.dim_x = self.data_dim
-        self.dims = self.data_dim
-        self.dim_s = (1,) if self.factual_data.s.ndim == 1 else self.factual_data.s.shape[1:]
-        self.column_names = [str(col) for col in factual_data.x.columns]
-        self.outcome_columns = [str(col) for col in factual_data.y.columns]
+        self.s0_s0 = cf_data.data_xs0_ys0
+        self.s0_s1 = cf_data.data_xs0_ys1
+        self.s1_s0 = cf_data.data_xs1_ys0
+        self.s1_s1 = cf_data.data_xs1_ys1
 
-        num_train = int(self.factual_data.x.shape[0] * 0.7)
-        num_val = int(self.factual_data.x.shape[0] * 0.1)
-        rng = np.random.RandomState(self.seed)
-        idx = rng.permutation(self.factual_data.x.index)
-        train_indices = idx[:num_train]
-        val_indices = idx[num_train : num_train + num_val]
-        test_indices = idx[num_train + num_val :]
+        dts = self.scale_and_split(cf_data.data, cf_data.dataset)
+        true_dts = self.scale_and_split(cf_data.data_true_outcome, cf_data.dataset)
+        cf_dts = self.scale_and_split(cf_data.cf_data, cf_data.dataset)
 
-        scale_split = self.scale_and_split(
-            self.factual_data, dataset, train_indices, val_indices, test_indices
+        self.set_data_values(
+            dataset=cf_data.dataset,
+            cf_dts=cf_dts,
+            true_dts=true_dts,
+            dts=dts,
+            factual_data=cf_data.data,
+            best_guess=cf_data.cf_groups,
+            scaler=MinMaxScaler(),
         )
-        self.train_datatuple = scale_split.train
-        self.val_datatuple = scale_split.val
-        self.test_datatuple = scale_split.test
-
-        true_scale_split = self.scale_and_split(
-            data_true_outcome, dataset, train_indices, val_indices, test_indices
-        )
-        self.true_train_datatuple = true_scale_split.train
-        self.true_val_datatuple = true_scale_split.val
-        self.true_test_datatuple = true_scale_split.test
-
-        cf_scale_split = self.scale_and_split(
-            self.cf_data, dataset, train_indices, val_indices, test_indices
-        )
-        self.cf_train_datatuple = cf_scale_split.train
-        self.cf_val_datatuple = cf_scale_split.val
-        self.cf_test_datatuple = cf_scale_split.test
-
-        self.make_feature_groups(dataset, factual_data)
 
     @implements(BaseDataModule)
-    def _train_dataloader(self, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+    def _train_dataloader(self, *, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 dataset=self.train_datatuple,
@@ -117,8 +96,8 @@ class LilliputDataModule(BaseDataModule):
             drop_last=drop_last,
         )
 
-    @implements(LightningDataModule)
-    def val_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    @implements(BaseDataModule)
+    def _val_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 dataset=self.val_datatuple,
@@ -133,7 +112,7 @@ class LilliputDataModule(BaseDataModule):
         )
 
     @implements(BaseDataModule)
-    def _test_dataloader(self, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+    def _test_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
                 dataset=self.test_datatuple,

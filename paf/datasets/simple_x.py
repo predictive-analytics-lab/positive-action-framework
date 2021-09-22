@@ -20,16 +20,14 @@ def make_s(alpha: float, n: int, random_state: np.random.Generator, binary_s: bo
     """Set S."""
     if binary_s:
         return random_state.binomial(1, alpha, n)
-    else:
-        return random_state.uniform(-1, 1, n)
+    return random_state.uniform(-1, 1, n)
 
 
 def make_x(x_bar: np.ndarray, s: np.ndarray, gamma: float, binary_s: bool) -> np.ndarray:
     """Skew the data replicating life experience."""
     if binary_s:
         return np.add(x_bar[:, : x_bar.shape[1]], (gamma * ((s[:, np.newaxis] * 2) - 1)))
-    else:
-        return np.add(x_bar[:, : x_bar.shape[1]], (gamma * (s[:, np.newaxis])))
+    return np.add(x_bar[:, : x_bar.shape[1]], (gamma * (s[:, np.newaxis])))
 
 
 def simple_x_data(
@@ -75,14 +73,14 @@ def simple_x_data(
     counterfactual_data = counterfactual_data.reindex(idx).reset_index(drop=True)  # type: ignore[call-arg]
 
     dataset = Dataset(
-        name=f"SimpleX",
+        name="SimpleX",
         num_samples=num_samples,
         filename_or_path="none",
         features=[f"x_{i}" for i in range(1)] + ["sens"],
         cont_features=[f"x_{i}" for i in range(1)],
         sens_attr_spec="sens",
         s_prefix="sens",
-        class_label_spec=f"outcome",
+        class_label_spec="outcome",
         class_label_prefix="outcome",
         discrete_only=False,
     )

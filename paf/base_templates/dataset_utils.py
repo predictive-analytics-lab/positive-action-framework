@@ -58,7 +58,7 @@ def grouped_features_indexes(disc_feats: list[str]) -> list[slice]:
 class DataTupleDatasetBase(Dataset):
     """Wrapper for EthicML datasets."""
 
-    def __init__(self, dataset: DataTuple, disc_features: list[str], cont_features: list[str]):
+    def __init__(self, *, dataset: DataTuple, disc_features: list[str], cont_features: list[str]):
         """Create DataTupleDataset."""
         disc_features = [feat for feat in disc_features if feat in dataset.x.columns]
         self.disc_features = disc_features
@@ -99,8 +99,8 @@ class DataTupleDatasetBase(Dataset):
 class DataTupleDataset(DataTupleDatasetBase):
     """Wrapper for EthicML datasets."""
 
-    def __init__(self, dataset: DataTuple, disc_features: list[str], cont_features: list[str]):
-        super().__init__(dataset, disc_features, cont_features)
+    def __init__(self, *, dataset: DataTuple, disc_features: list[str], cont_features: list[str]):
+        super().__init__(dataset=dataset, disc_features=disc_features, cont_features=cont_features)
         self.instance_weight = torch.tensor(
             compute_instance_weights(dataset)["instance weights"].values
         )
@@ -122,7 +122,7 @@ class CFDataTupleDataset(DataTupleDatasetBase):
         cont_features: list[str],
     ):
         """Create DataTupleDataset."""
-        super().__init__(dataset, disc_features, cont_features)
+        super().__init__(dataset=dataset, disc_features=disc_features, cont_features=cont_features)
         self.cf_x_disc, self.cf_x_cont, self.cf_s, self.cf_y = self.split_tuple(cf_dataset)
         self.instance_weight = torch.tensor(
             compute_instance_weights(dataset)["instance weights"].values
@@ -138,11 +138,13 @@ class CFDataTupleDataset(DataTupleDatasetBase):
         y = datatuple.y.astype("float32").to_numpy()
         return x_disc, x_cont, s, y
 
-    def _make_from_arr(self, np_array: np.ndarray, index: int) -> Tensor:
+    @staticmethod
+    def _make_from_arr(np_array: np.ndarray, index: int) -> Tensor:
         np_a = np_array[index]
         return torch.from_numpy(np_a).squeeze()
 
-    def _make_x(self, disc: np.ndarray, cont: np.ndarray, index: int) -> Tensor:
+    @staticmethod
+    def _make_x(disc: np.ndarray, cont: np.ndarray, index: int) -> Tensor:
         x_disc = disc[index]
         x_cont = cont[index]
         x = np.concatenate([x_disc, x_cont], axis=0, dtype=np.float32)

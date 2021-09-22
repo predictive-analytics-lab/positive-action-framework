@@ -25,7 +25,6 @@ class AEConf:
     mmd_kernel: KernelType = MISSING
     scheduler_rate: float = MISSING
     weight_decay: float = MISSING
-    use_iw: bool = MISSING
 
 
 @dataclass

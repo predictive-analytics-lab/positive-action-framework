@@ -6,7 +6,7 @@ from hydra.utils import instantiate
 from omegaconf import OmegaConf
 import pytest
 
-from paf.main import Config, run_aies
+from paf.main import Config, run_paf
 
 CFG_PTH: Final[str] = "../paf/configs"
 SCHEMAS: Final[list[str]] = [
@@ -53,7 +53,7 @@ def test_nn() -> None:
             overrides=[f"data=lill"] + SCHEMAS + [f"exp.model=nn"],
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
-        run_aies(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
+        run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
 
 
 def test_cyclegan() -> None:
@@ -65,4 +65,4 @@ def test_cyclegan() -> None:
             overrides=[f"data=lill"] + SCHEMAS + [f"enc=cyc"],
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
-        run_aies(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
+        run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
