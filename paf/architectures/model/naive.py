@@ -8,6 +8,8 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
+__all__ = ["NaiveModel"]
+
 
 class NaiveModel(pl.LightningModule):
     def __init__(self, in_size: int):

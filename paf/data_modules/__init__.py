@@ -1,6 +1,7 @@
 """Data Modules."""
-from .lilliput_datamodule import LilliputDataModule
-from .semi_synthetic_adult_datamodule import SemiAdultDataModule
-from .simple_adult_datamodule import SimpleAdultDataModule
-from .simple_x_datamodule import SimpleXDataModule
-from .third_way_datamodule import ThirdWayDataModule
+from .augmenter import *
+from .lilliput_datamodule import *
+from .semi_synthetic_adult_datamodule import *
+from .simple_adult_datamodule import *
+from .simple_x_datamodule import *
+from .third_way_datamodule import *

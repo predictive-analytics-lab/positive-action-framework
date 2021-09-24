@@ -11,8 +11,9 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
-from paf.config_classes.dataclasses import KernelType
-from paf.mmd import mmd2
+from paf.mmd import KernelType, mmd2
+
+__all__ = ["NearestNeighbourModel", "NnStepOut"]
 
 
 class NearestNeighbourModel(pl.LightningModule):
@@ -63,7 +64,7 @@ class NearestNeighbourModel(pl.LightningModule):
 
         return NnStepOut(
             cf_preds=cf_outcome,
-            cf_x=cf_outcome,
+            cf_x=cf_feats,
             preds=preds,
             x=batch.x,
             s=batch.s,
@@ -71,9 +72,9 @@ class NearestNeighbourModel(pl.LightningModule):
         )
 
     def on_test_epoch_end(self) -> None:
-        kernel = KernelType.linear
+        kernel = KernelType.LINEAR
 
-        recon_mmd = mmd2(self.all_x, self.all_recon, kernel=kernel)
+        recon_mmd = mmd2(self.all_x, self.all_cf_x, kernel=kernel)
         s0_dist_mmd = mmd2(
             self.all_x[self.all_s == 0],
             self.all_cf_x[self.all_s == 1],
@@ -105,18 +106,18 @@ class NearestNeighbourModel(pl.LightningModule):
 
     def test_epoch_end(self, outputs: list[NnStepOut]) -> None:
         self.all_preds = torch.cat([_r.preds for _r in outputs], 0)
-        self.all_cf_preds = torch.cat([_r.cf_x for _r in outputs], 0)
-        self.all_cf_x = torch.cat([_r.preds for _r in outputs], 0)
+        self.all_cf_preds = torch.cat([_r.cf_preds for _r in outputs], 0)
+        self.all_cf_x = torch.cat([_r.cf_x for _r in outputs], 0)
 
         self.all_s = torch.cat([_r.s for _r in outputs], 0)
         self.all_x = torch.cat([_r.x for _r in outputs], 0)
         self.all_y = torch.cat([_r.y for _r in outputs], 0)
         stacked = []
-        for _s, p, cfp in zip(self.all_sens, self.all_preds, self.all_cf_preds):
+        for _s, pred, cfpred in zip(self.all_s, self.all_preds, self.all_cf_preds):
             if _s == 0:
-                stacked.append((p, cfp))
+                stacked.append((pred, cfpred))
             else:
-                stacked.append((cfp, p))
+                stacked.append((cfpred, pred))
 
         stacked = torch.tensor(stacked)
 

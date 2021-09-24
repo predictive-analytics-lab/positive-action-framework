@@ -6,6 +6,8 @@ from ethicml import DataTuple, PostAlgorithm, Prediction, TestTuple
 from kit import implements
 import numpy as np
 
+__all__ = ["FlipBase", "DPFlip", "EqOppFlip"]
+
 
 class FlipBase(PostAlgorithm):
     """Common for flipping functions."""
@@ -33,7 +35,7 @@ class FlipBase(PostAlgorithm):
     def _flip(
         self,
         preds: Prediction,
-        dt: TestTuple,
+        test: TestTuple,
         flip_0_to_1: bool,
         num_to_flip: int,
         s_group: int,
@@ -50,7 +52,7 @@ class DPFlip(FlipBase):
     def _flip(
         self,
         preds: Prediction,
-        dt: TestTuple,
+        test: TestTuple,
         flip_0_to_1: bool,
         num_to_flip: int,
         s_group: int,
@@ -64,7 +66,7 @@ class DPFlip(FlipBase):
             num_to_flip = abs(num_to_flip)
 
         _y = preds.hard[preds.hard == pre_y_val]
-        _s = preds.hard[dt.s[dt.s.columns[0]] == s_group]
+        _s = preds.hard[test.s[test.s.columns[0]] == s_group]
         idx_s_y = _y.index & _s.index
         rng = np.random.RandomState(888)
         idxs = list(rng.permutation(idx_s_y))
@@ -82,15 +84,15 @@ class DPFlip(FlipBase):
         n10 = preds.hard[(s_1.index) & (y_0.index)].count()
         n11 = preds.hard[(s_1.index) & (y_1.index)].count()
 
-        a = (((n00 + n01) * n11) - ((n10 + n11) * n01)) / (n00 + n01)
-        b = (n10 + n11) / (n00 + n01)
+        _a = (((n00 + n01) * n11) - ((n10 + n11) * n01)) / (n00 + n01)
+        _b = (n10 + n11) / (n00 + n01)
 
-        if b > 1:
-            x = a / b
+        if _b > 1:
+            x = _a / _b
             z = 0.0
         else:
             x = 0.0
-            z = a
+            z = _a
         return int(round(x)), int(round(z))
 
 
@@ -107,7 +109,7 @@ class EqOppFlip(FlipBase):
     def _flip(
         self,
         preds: Prediction,
-        dt: TestTuple,
+        test: TestTuple,
         flip_0_to_1: bool,
         num_to_flip: int,
         s_group: int,
@@ -121,8 +123,8 @@ class EqOppFlip(FlipBase):
             num_to_flip = abs(num_to_flip)
 
         _pred = preds.hard[preds.hard == pre_y_val]
-        _s = preds.hard[dt.s[dt.s.columns[0]] == s_group]
-        _y = preds.hard[dt.y[dt.y.columns[0]] == 1]  # type: ignore[attr-defined]
+        _s = preds.hard[test.s[test.s.columns[0]] == s_group]
+        _y = preds.hard[test.y[test.y.columns[0]] == 1]  # type: ignore[attr-defined]
         idx_s_y = _pred.index & _s.index & _y.index
         if len(idx_s_y) < num_to_flip:
             raise AssertionError("Not enough valid candidates to flip")

@@ -1,16 +1,24 @@
 """MMD functions."""
 from __future__ import annotations
+from enum import Enum, auto
 import logging
 from typing import NamedTuple, Sequence
 
 import torch
 from torch import Tensor
 
-__all__ = ["mmd2"]
+__all__ = ["mmd2", "KernelType", "KernelOut"]
 
-from paf.config_classes.dataclasses import KernelType
 
 log = logging.getLogger(__name__)
+
+
+class KernelType(Enum):
+    """MMD Kernel Types."""
+
+    LINEAR = auto()
+    RBF = auto()
+    RQ = auto()
 
 
 class KernelOut(NamedTuple):
@@ -65,13 +73,13 @@ def _mix_rq_kernel(
         x.new_zeros(yy_sqnorm.shape),
     )
 
-    for alpha, wt in zip(scales, wts):
+    for alpha, weight in zip(scales, wts):
         log_xx = torch.log(1.0 + xx_sqnorm / (2.0 * alpha))
-        k_xx += wt * torch.exp(-alpha * log_xx)
+        k_xx += weight * torch.exp(-alpha * log_xx)
         log_xy = torch.log(1.0 + xy_sqnorm / (2.0 * alpha))
-        k_xy += wt * torch.exp(-alpha * log_xy)
+        k_xy += weight * torch.exp(-alpha * log_xy)
         log_yy = torch.log(1.0 + yy_sqnorm / (2.0 * alpha))
-        k_yy += wt * torch.exp(-alpha * log_yy)
+        k_yy += weight * torch.exp(-alpha * log_yy)
 
     if add_dot > 0:
         k_xy += add_dot * xy_gm
@@ -114,38 +122,42 @@ def _mix_rbf_kernel(
         x.new_zeros(yy_sqnorm.shape),
     )
 
-    for sigma, wt in zip(scales, wts):
+    for sigma, weight in zip(scales, wts):
         gamma = 1.0 / (2 * sigma ** 2)
-        k_xx = wt * torch.exp(-gamma * xx_sqnorm)
-        k_xy += wt * torch.exp(-gamma * xy_sqnorm)
-        k_yy += wt * torch.exp(-gamma * yy_sqnorm)
+        k_xx = weight * torch.exp(-gamma * xx_sqnorm)
+        k_xy += weight * torch.exp(-gamma * xy_sqnorm)
+        k_yy += weight * torch.exp(-gamma * yy_sqnorm)
 
     return KernelOut(xx=k_xx, xy=k_xy, yy=k_yy, const_diag=sum(wts))
 
 
 def _mmd2(kernel: KernelOut, biased: bool = False) -> Tensor:
-    m = kernel.xx.size(0)
-    n = kernel.yy.size(0)
+    dim_m = kernel.xx.size(0)
+    dim_n = kernel.yy.size(0)
 
     if biased:
-        return kernel.xx.sum() / (m * m) + kernel.yy.sum() / (n * n) - 2 * kernel.xy.sum() / (m * n)
+        return (
+            kernel.xx.sum() / (dim_m * dim_m)
+            + kernel.yy.sum() / (dim_n * dim_n)
+            - 2 * kernel.xy.sum() / (dim_m * dim_n)
+        )
     if kernel.const_diag != 0.0:
-        trace_x = torch.tensor(m)
-        trace_y = torch.tensor(n)
+        trace_x = torch.tensor(dim_m)
+        trace_y = torch.tensor(dim_n)
     else:
         trace_x = kernel.xx.trace()
         trace_y = kernel.yy.trace()
     return (
-        (kernel.xx.sum() - trace_x) / (m * (m - 1))
-        + (kernel.yy.sum() - trace_y) / (n * (n - 1))
-        - (2 * kernel.xy.sum() / (m * n))
+        (kernel.xx.sum() - trace_x) / (dim_m * (dim_m - 1))
+        + (kernel.yy.sum() - trace_y) / (dim_n * (dim_n - 1))
+        - (2 * kernel.xy.sum() / (dim_m * dim_n))
     )
 
 
 def mmd2(
     x: Tensor,
     y: Tensor,
-    kernel: KernelType = KernelType.rbf,
+    kernel: KernelType = KernelType.RBF,
     biased: bool = False,
     scales: Sequence[float] | None = None,
     wts: Sequence[float] | None = None,
@@ -158,11 +170,11 @@ def mmd2(
             "Returning 0 to not crash, but you should increase the batch size."
         )
         return torch.tensor(0.0)
-    if kernel.value == "linear":
+    if kernel is KernelType.LINEAR:
         kernel_out = _dot_kernel(x=x, y=y)
-    elif kernel.value == "rbf":
+    elif kernel is KernelType.RBF:
         kernel_out = _mix_rbf_kernel(x=x, y=y, scales=scales, wts=wts)
-    elif kernel.value == "rq":
+    elif kernel is KernelType.RQ:
         kernel_out = _mix_rq_kernel(x=x, y=y, scales=scales, wts=wts, add_dot=add_dot)
     else:
         raise NotImplementedError("Only RBF, Linear and RQ kernels implemented.")

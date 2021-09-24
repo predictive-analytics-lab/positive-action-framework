@@ -18,7 +18,6 @@ from ethicml import (
     Kamiran,
     Prediction,
     ProbPos,
-    ZafarFairness,
     diff_per_sensitive_attribute,
     metric_per_sensitive_attribute,
     ratio_per_sensitive_attribute,
@@ -29,50 +28,52 @@ from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
 import pandas as pd
+import pytorch_lightning as pl
 from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from sklearn.preprocessing import MinMaxScaler
 
+from paf.architectures import PafModel
+from paf.architectures.model import CycleGan, NearestNeighbourModel
+from paf.architectures.model.model_components import AE
+from paf.architectures.model.naive import NaiveModel
 from paf.base_templates.base_module import BaseDataModule
 from paf.callbacks.callbacks import L1Logger
-from paf.config_classes.bolts.fair.data.configs import (  # type: ignore[import]
+from paf.config_classes.conduit.fair.data.configs import (  # type: ignore[import]
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
     CrimeDataModuleConf,
     HealthDataModuleConf,
     LawDataModuleConf,
 )
+from paf.config_classes.paf.architectures.model.configs import (  # type: ignore[import]
+    CycleGanConf,
+)
+from paf.config_classes.paf.architectures.model.model_components.configs import (  # type: ignore[import]
+    AEConf,
+    ClfConf,
+)
 from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import]
     LilliputDataModuleConf,
     SemiAdultDataModuleConf,
-    SimpleAdultDataModuleConf,
     SimpleXDataModuleConf,
     ThirdWayDataModuleConf,
-)
-from paf.config_classes.paf.model.configs import (  # type: ignore[import]
-    AEConf,
-    ClfConf,
-    CycleGanConf,
 )
 from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
     TrainerConf,
 )
 from paf.ethicml_extension.oracle import DPOracle
 from paf.log_progress import do_log
-from paf.model import AE
-from paf.model.aies_model import AiesModel
-from paf.model.naive import NaiveModel
-from paf.model.nearestneighbour_model import NearestNeighbourModel
 from paf.plotting import label_plot
 from paf.scoring import get_miri_metrics, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
 
-log = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class ModelType(Enum):
-    paf = auto()
-    nn = auto()
+    PAF = auto()
+    NN = auto()
 
 
 @dataclass
@@ -86,7 +87,7 @@ class ExpConfig:
     log_offline: Optional[bool] = False
     tags: str = ""
     baseline: bool = False
-    model: ModelType = ModelType.paf
+    model: ModelType = ModelType.PAF
 
 
 @dataclass
@@ -104,27 +105,27 @@ class Config:
 
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
-cs = ConfigStore.instance()
-cs.store(name="config_schema", node=Config)  # General Schema
-cs.store(name="trainer_schema", node=TrainerConf, package="trainer")
-cs.store(name="clf_schema", node=ClfConf, package="clf")
+CS = ConfigStore.instance()
+CS.store(name="config_schema", node=Config)  # General Schema
+CS.store(name="trainer_schema", node=TrainerConf, package="trainer")
+CS.store(name="clf_schema", node=ClfConf, package="clf")
 
-enc_package: Final[str] = "enc"
-enc_group: Final[str] = "schema/enc"
-cs.store(name="enc_schema", node=AEConf, package=enc_package, group=enc_group)
-cs.store(name="cyclegan", node=CycleGanConf, package=enc_package, group=enc_group)
+ENC_PKG: Final[str] = "enc"
+ENC_GROUP: Final[str] = "schema/enc"
+CS.store(name="enc_schema", node=AEConf, package=ENC_PKG, group=ENC_GROUP)
+CS.store(name="cyclegan", node=CycleGanConf, package=ENC_PKG, group=ENC_GROUP)
 
-data_package: Final[str] = "data"  # package:dir_within_config_path
-data_group: Final[str] = "schema/data"  # group
-cs.store(name="adult-bolt", node=AdultDataModuleConf, package=data_package, group=data_group)
-cs.store(name="admiss-bolt", node=AdmissionsDataModuleConf, package=data_package, group=data_group)
-cs.store(name="crime-bolt", node=CrimeDataModuleConf, package=data_package, group=data_group)
-cs.store(name="health-bolt", node=HealthDataModuleConf, package=data_package, group=data_group)
-cs.store(name="law-bolt", node=LawDataModuleConf, package=data_package, group=data_group)
-cs.store(name="semi-synth", node=SemiAdultDataModuleConf, package=data_package, group=data_group)
-cs.store(name="lilliput", node=LilliputDataModuleConf, package=data_package, group=data_group)
-cs.store(name="synth", node=SimpleXDataModuleConf, package=data_package, group=data_group)
-cs.store(name="third", node=ThirdWayDataModuleConf, package=data_package, group=data_group)
+DATA_PKG: Final[str] = "data"  # package:dir_within_config_path
+DATA_GROUP: Final[str] = "schema/data"  # group
+CS.store(name="adult-bolt", node=AdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="admiss-bolt", node=AdmissionsDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="crime-bolt", node=CrimeDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="health-bolt", node=HealthDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="law-bolt", node=LawDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="semi-synth", node=SemiAdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="lilliput", node=LilliputDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="synth", node=SimpleXDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="third", node=ThirdWayDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 
 
 @hydra.main(config_path="configs", config_name="base_conf")
@@ -142,7 +143,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     data.prepare_data()
     data.setup()
 
-    log.info(f"data_dim={data.size()}, num_s={data.card_s}")
+    LOGGER.info(f"data_dim={data.size()}, num_s={data.card_s}")
 
     wandb_logger = WandbLogger(
         entity="predictive-analytics-lab",
@@ -159,8 +160,9 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
     # make_data_plots(data, cfg.trainer.logger)
 
-    if cfg.exp.model is ModelType.paf:
-        encoder: AE = cfg.enc
+    encoder = None
+    if cfg.exp.model is ModelType.PAF:
+        encoder: AE | CycleGan = cfg.enc
         encoder.build(
             num_s=data.card_s,
             data_dim=data.size()[0],
@@ -195,9 +197,9 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         clf_trainer.fit(model=classifier, datamodule=data)
         clf_trainer.test(datamodule=data)
 
-        model = AiesModel(encoder=encoder, classifier=classifier)
+        model = PafModel(encoder=encoder, classifier=classifier)
 
-    elif cfg.exp.model == ModelType.nn:
+    elif cfg.exp.model == ModelType.NN:
         classifier = NaiveModel(in_size=cfg.data.size()[0])
         clf_trainer.tune(model=classifier, datamodule=data)
         clf_trainer.fit(model=classifier, datamodule=data)
@@ -207,8 +209,27 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     model_trainer.fit(model=model, datamodule=data)
     model_trainer.test(model=model, ckpt_path=None, datamodule=data)
 
+    evaluate(cfg, model, wandb_logger, data, encoder, classifier, _model_trainer)
+
+    if cfg.exp.baseline:
+        baseline_models(data, wandb_logger)
+
+    if not cfg.exp.log_offline and wandb_logger is not None:
+        wandb_logger.experiment.finish()
+
+
+def evaluate(
+    cfg: Config,
+    model: pl.LightningModule,
+    wandb_logger: WandbLogger,
+    data: BaseDataModule,
+    encoder: pl.LightningModule,
+    classifier: pl.LightningModule,
+    _model_trainer: pl.Trainer,
+) -> None:
+
     for fair_bool in (True, False):
-        if cfg.exp.model == ModelType.paf:
+        if cfg.exp.model == ModelType.PAF:
             preds = produce_selection_groups(
                 model.pd_results, data, model.recon_0, model.recon_1, wandb_logger
             )
@@ -239,9 +260,9 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
                 logger=wandb_logger,
             )
 
-    if cfg.exp.model == ModelType.paf:
+    if cfg.exp.model == ModelType.PAF:
         # === This is only for reporting ====
-        _model = AiesModel(encoder=encoder, classifier=classifier)
+        _model = PafModel(encoder=encoder, classifier=classifier)
         _model_trainer.test(model=_model, ckpt_path=None, dataloaders=data.train_dataloader())
         produce_selection_groups(
             _model.pd_results, data, _model.recon_0, _model.recon_1, wandb_logger, "Train"
@@ -289,45 +310,43 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
                 test_mode=cfg.trainer.fast_dev_run,
             )
 
-    if cfg.exp.baseline:
-        baselines: set[InAlgorithm] = {
-            # NaiveModel(in_size=data.data_dim[0]),
-            LRCV(),
-            Oracle(),
-            DPOracle(),
-            # EqOppOracle(),
-            Kamiran(),
-            # ZafarFairness(),
-            # Kamishima(),
-            Agarwal(),
-        }
-        for base_model in baselines:
-            log.info(f"=== {base_model.name} ===")
-            try:
-                results = base_model.run(data.train_datatuple, data.test_datatuple)
-            except ValueError:
-                continue
-            multiple_metrics(results, data.test_datatuple, base_model.name, wandb_logger)
-            if isinstance(data, BaseDataModule):
-                log.info(f"=== {base_model.name} and \"True\" Data ===")
-                results = base_model.run(data.train_datatuple, data.test_datatuple)
-                assert data.true_test_datatuple is not None
-                multiple_metrics(
-                    results, data.true_test_datatuple, f"{base_model.name}-TrueLabels", wandb_logger
-                )
-                get_miri_metrics(
-                    method=f"Miri/{base_model.name}",
-                    acceptance=DataTuple(
-                        x=data.test_datatuple.x.copy(),
-                        s=data.test_datatuple.s.copy(),
-                        y=results.hard.to_frame(),
-                    ),
-                    graduated=data.true_test_datatuple,
-                    logger=wandb_logger,
-                )
 
-    if not cfg.exp.log_offline and wandb_logger is not None:
-        wandb_logger.experiment.finish()
+def baseline_models(data: BaseDataModule, wandb_logger: WandbLogger) -> None:
+    baselines: set[InAlgorithm] = {
+        # NaiveModel(in_size=data.data_dim[0]),
+        LRCV(),
+        Oracle(),
+        DPOracle(),
+        # EqOppOracle(),
+        Kamiran(),
+        # ZafarFairness(),
+        # Kamishima(),
+        Agarwal(),
+    }
+    for base_model in baselines:
+        LOGGER.info("=== %s ===", base_model.name)
+        try:
+            results = base_model.run(data.train_datatuple, data.test_datatuple)
+        except ValueError:
+            continue
+        multiple_metrics(results, data.test_datatuple, base_model.name, wandb_logger)
+        if isinstance(data, BaseDataModule):
+            LOGGER.info("=== %s and 'True' Data ===", str(base_model.name))
+            results = base_model.run(data.train_datatuple, data.test_datatuple)
+            assert data.true_test_datatuple is not None
+            multiple_metrics(
+                results, data.true_test_datatuple, f"{base_model.name}-TrueLabels", wandb_logger
+            )
+            get_miri_metrics(
+                method=f"Miri/{base_model.name}",
+                acceptance=DataTuple(
+                    x=data.test_datatuple.x.copy(),
+                    s=data.test_datatuple.s.copy(),
+                    y=results.hard.to_frame(),
+                ),
+                graduated=data.true_test_datatuple,
+                logger=wandb_logger,
+            )
 
 
 def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: WandbLogger) -> None:

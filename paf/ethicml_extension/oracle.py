@@ -6,6 +6,8 @@ from kit import implements
 
 from paf.ethicml_extension.flip import DPFlip, EqOppFlip
 
+__all__ = ["Oracle", "DPOracle", "EqOppOracle"]
+
 MUST_BE_DATATUPLE = "test must be a DataTuple."
 
 

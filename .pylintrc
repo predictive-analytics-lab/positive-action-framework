@@ -180,7 +180,10 @@ good-names=i,
            C,
            z1,
            z2,
-           mu
+           mu,
+           xx,
+           xy,
+           yy
 
 # Include a hint for the correct naming format with invalid-name
 include-naming-hint=no
@@ -269,7 +272,7 @@ single-line-if-stmt=no
 # Logging modules to check that the string format arguments are in logging
 # function parameter format
 logging-modules=logging
-logging-format-style=new
+logging-format-style=old
 
 
 [MISCELLANEOUS]

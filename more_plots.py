@@ -26,8 +26,8 @@ def plotting(csv_path: Path):
         columns={0: "CycleGAN 400 epochs", 1: "CycleGAN", 2: "PAF w/ CycleLoss", 3: "PAF"},
     )
     print(data.head())
-    ax = data.plot(kind='bar', width=1, colormap='Accent')
-    ax.legend(bbox_to_anchor=(1.0, 1.0))
+    axes = data.plot(kind='bar', width=1, colormap='Accent')
+    axes.legend(bbox_to_anchor=(1.0, 1.0))
     plt.savefig('admissions_recon', bbox_inches='tight')
 
 

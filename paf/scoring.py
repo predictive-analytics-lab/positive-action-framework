@@ -11,10 +11,9 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import KFold
 
+from paf.architectures.model.model_components import AE, CommonModel
 from paf.base_templates.base_module import BaseDataModule
 from paf.log_progress import do_log
-from paf.model.common_model import CommonModel
-from paf.model.encoder_model import AE
 
 
 def lrcv_results(

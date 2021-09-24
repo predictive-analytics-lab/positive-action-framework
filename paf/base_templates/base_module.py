@@ -16,10 +16,13 @@ from torch.utils.data import DataLoader
 from paf.base_templates.dataset_utils import grouped_features_indexes
 from paf.plotting import label_plot
 
+__all__ = ["BaseDataModule", "ScaleSplitOut"]
+
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
 class BaseDataModule(LightningDataModule):
+
     """Simple 1d, configurable, data."""
 
     columns: list[str]
@@ -51,14 +54,19 @@ class BaseDataModule(LightningDataModule):
     true_val_datatuple: DataTuple | None
     true_test_datatuple: DataTuple | None
     scaler: MinMaxScaler | None
+    s0_s0: DataTuple | None
+    s0_s1: DataTuple | None
+    s1_s0: DataTuple | None
+    s1_s1: DataTuple | None
 
-    def __init__(self, *, cf_available: bool, seed: int) -> None:
+    def __init__(self, *, cf_available: bool, seed: int, scaler: MinMaxScaler | None) -> None:
         super().__init__()
         self.cf_available = cf_available
         self.seed = seed
         self.train_indices: pd.Index[int] | None = None
         self.val_indices: pd.Index[int] | None = None
         self.test_indices: pd.Index[int] | None = None
+        self.scaler = scaler
 
     def set_data_values(
         self,
@@ -66,10 +74,13 @@ class BaseDataModule(LightningDataModule):
         dataset: Dataset,
         factual_data: DataTuple,
         dts: ScaleSplitOut,
-        scaler: MinMaxScaler | None,
         best_guess: Prediction | None = None,
         true_dts: ScaleSplitOut | None = None,
         cf_dts: ScaleSplitOut | None = None,
+        s0_s0: DataTuple | None = None,
+        s0_s1: DataTuple | None = None,
+        s1_s0: DataTuple | None = None,
+        s1_s1: DataTuple | None = None,
     ) -> None:
         self.dataset = dataset
         self.best_guess = best_guess
@@ -89,8 +100,10 @@ class BaseDataModule(LightningDataModule):
         self.cf_train_datatuple = cf_dts.train if cf_dts is not None else None
         self.cf_val_datatuple = cf_dts.val if cf_dts is not None else None
         self.cf_test_datatuple = cf_dts.test if cf_dts is not None else None
-        self.scaler = scaler
-
+        self.s0_s0 = s0_s0
+        self.s0_s1 = s0_s1
+        self.s1_s0 = s1_s0
+        self.s1_s1 = s1_s1
         self.make_feature_groups(dataset=dataset, data=factual_data)
 
     def make_feature_groups(self, *, dataset: Dataset, data: DataTuple) -> None:
@@ -192,8 +205,8 @@ class BaseDataModule(LightningDataModule):
                     logger,
                     "best_guess",
                 )
-                label_plot(self.cf_train, logger, "cf_train")
-                label_plot(self.cf_test, logger, "cf_test")
+                label_plot(self.cf_train_datatuple, logger, "cf_train")
+                label_plot(self.cf_test_datatuple, logger, "cf_test")
                 label_plot(self.s0_s0, logger, "s0_s0")
                 label_plot(self.s0_s1, logger, "s0_s1")
                 label_plot(self.s1_s0, logger, "s1_s0")

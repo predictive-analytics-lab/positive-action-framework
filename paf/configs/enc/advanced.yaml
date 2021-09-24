@@ -11,5 +11,5 @@ adv_weight: 1.0
 recon_weight: 1.0
 cycle_weight: 0.0
 s_as_input: true
-mmd_kernel: "rbf"
+mmd_kernel: "RBF"
 scheduler_rate: 0.99

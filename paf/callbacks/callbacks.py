@@ -4,9 +4,10 @@ from conduit.types import Stage
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 
-from paf.config_classes.dataclasses import KernelType
-from paf.mmd import mmd2
+from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
+
+__all__ = ["L1Logger", "MmdLogger", "FeaturePlots"]
 
 
 class L1Logger(Callback):
@@ -115,7 +116,7 @@ class MmdLogger(Callback):
 
     @staticmethod
     def _shared(pl_module: pl.LightningModule, stage: Stage) -> None:
-        kernel = KernelType.linear
+        kernel = KernelType.LINEAR
 
         recon_mmd = mmd2(pl_module.all_x, pl_module.all_recon, kernel=kernel)
         s0_dist_mmd = mmd2(

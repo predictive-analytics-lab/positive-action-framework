@@ -11,6 +11,8 @@ from scipy import stats
 
 from paf.selection import produce_selection_groups
 
+__all__ = ["CfData", "lilliput"]
+
 
 class CfData(NamedTuple):
     dataset: Dataset

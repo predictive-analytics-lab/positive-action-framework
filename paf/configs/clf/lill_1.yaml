@@ -10,7 +10,7 @@ adv_weight: 0.0
 target_weight: 1.0
 reg_weight: 1e-3
 s_as_input: true
-mmd_kernel: "linear"
+mmd_kernel: "LINEAR"
 scheduler_rate: 0.99
 weight_decay: 1e-4
 use_iw: true

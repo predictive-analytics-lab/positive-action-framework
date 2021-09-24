@@ -6,6 +6,8 @@ from pathlib import Path
 from ethicml import Dataset, DataTuple, adult, compas, credit
 from ethicml.data.util import LabelSpec, flatten_dict, simple_spec
 
+__all__ = ["adult_data", "semi_adult_data", "credit_data", "compas_data"]
+
 TGT_NAME = "salary_>50K"
 
 

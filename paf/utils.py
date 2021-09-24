@@ -12,15 +12,17 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
-def flatten(d: MutableMapping[Any, Any], parent_key: str = "", sep: str = ".") -> dict[Any, Any]:
+def flatten(
+    dict_: MutableMapping[Any, Any], parent_key: str = "", sep: str = "."
+) -> dict[Any, Any]:
     """Flatten a nested dictionary by separating the keys with `sep`."""
     items: list[Any] = []
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, collections.MutableMapping):
-            items.extend(flatten(v, new_key, sep=sep).items())
+    for key, value in dict_.items():
+        new_key = parent_key + sep + key if parent_key else key
+        if isinstance(value, collections.MutableMapping):
+            items.extend(flatten(value, new_key, sep=sep).items())
         else:
-            items.append((new_key, v))
+            items.append((new_key, value))
     return dict(items)
 
 

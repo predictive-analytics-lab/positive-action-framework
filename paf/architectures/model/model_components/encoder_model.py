@@ -17,12 +17,25 @@ from torch.utils.data import DataLoader
 from torchmetrics import MeanSquaredError
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
-from paf.config_classes.dataclasses import KernelType
-from paf.mmd import mmd2
-from paf.model.blocks import block, mid_blocks
-from paf.model.common_model import CommonModel
-from paf.model.model_utils import grad_reverse, index_by_s, to_discrete
+from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
+
+from .blocks import block, mid_blocks
+from .common_model import CommonModel
+from .model_utils import grad_reverse, index_by_s, to_discrete
+
+__all__ = [
+    "SharedStepOut",
+    "CfSharedStepOut",
+    "BaseModel",
+    "Encoder",
+    "Adversary",
+    "Decoder",
+    "Loss",
+    "AE",
+    "RunThroughOut",
+    "EncFwd",
+]
 
 logger = logging.getLogger(__name__)
 

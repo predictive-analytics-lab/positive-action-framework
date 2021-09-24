@@ -4,19 +4,20 @@ from typing import Any, NamedTuple
 
 from kit import implements
 import pandas as pd
-from pytorch_lightning import LightningModule
+import pytorch_lightning as pl
 import torch
 from torch import Tensor, nn
 from torch.optim.lr_scheduler import ExponentialLR
 
-from paf.base_templates.dataset_utils import Batch, CfBatch
-from paf.model import CycleGan
-from paf.model.classifier_model import Clf
-from paf.model.encoder_model import AE
-from paf.model.model_utils import augment_recons, index_by_s
+__all__ = ["PafModel", "TestStepOut"]
+
+from paf.base_templates import Batch, CfBatch
+
+from .model import CycleGan
+from .model.model_components import AE, Clf, augment_recons, index_by_s
 
 
-class AiesModel(LightningModule):
+class PafModel(pl.LightningModule):
     """Model."""
 
     recon_0: Tensor
@@ -41,23 +42,25 @@ class AiesModel(LightningModule):
 
     @implements(nn.Module)
     def forward(self, *, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
+        recons: list[Tensor] | None = None
         if isinstance(self.enc, AE):
             enc_fwd = self.enc.forward(x, s)
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
             cyc_fwd = self.enc.forward(x, x)
             recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
+        assert recons is not None
         return self.clf.from_recons(recons)
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def training_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        """This is empty as we do not train the model end to end."""
+        """Empty as we do not train the model end to end."""
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def configure_optimizers(self) -> tuple[list[torch.optim.Optimizer], list[ExponentialLR]]:
-        """This is empty as we do not train the model end to end."""
+        """Empty as we do not train the model end to end."""
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def test_step(self, batch: Batch | CfBatch, *_: Any) -> TestStepOut:
         if isinstance(self.enc, AE):
             enc_fwd = self.enc.forward(batch.x, batch.s)
@@ -77,6 +80,7 @@ class AiesModel(LightningModule):
 
         mse_loss_fn = nn.MSELoss(reduction="mean")
         _recons = recons.copy()
+        _cyc_loss = 0.0
         for i in range(1):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
             if isinstance(self.enc, AE):
@@ -114,7 +118,7 @@ class AiesModel(LightningModule):
             vals.update({f"preds_{i}_{j}": self.clf.threshold(clf_out.y[j]) for j in range(2)})
         return TestStepOut(**vals)
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def test_epoch_end(self, outputs: list[TestStepOut]) -> None:
         self.all_enc_z = torch.cat([_r.enc_z for _r in outputs], 0)
         self.all_enc_s_pred = torch.cat([_r.enc_s_pred for _r in outputs], 0)

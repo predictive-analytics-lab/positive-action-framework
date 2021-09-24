@@ -1,7 +1,7 @@
 """Adult Dataset DataModule."""
 from __future__ import annotations
 
-from kit import implements
+from kit import implements, parsable
 from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
@@ -10,10 +10,13 @@ from paf.base_templates.base_module import BaseDataModule
 from paf.base_templates.dataset_utils import DataTupleDataset
 from paf.datasets.ethicml_datasets import adult_data
 
+__all__ = ["SimpleAdultDataModule"]
+
 
 class SimpleAdultDataModule(BaseDataModule):
     """Simple 1d, configurable, data."""
 
+    @parsable
     def __init__(
         self,
         batch_size: int,
@@ -24,7 +27,7 @@ class SimpleAdultDataModule(BaseDataModule):
         sens: str,
         cf_available: bool = False,
     ):
-        super().__init__(cf_available=cf_available, seed=seed)
+        super().__init__(cf_available=cf_available, seed=seed, scaler=MinMaxScaler())
         self.batch_size = batch_size
         self.bin_nat = bin_nat
         self.bin_race = bin_race
@@ -41,7 +44,6 @@ class SimpleAdultDataModule(BaseDataModule):
             dataset=dataset,
             dts=self.scale_and_split(factual_data, dataset),
             factual_data=factual_data,
-            scaler=MinMaxScaler(),
         )
 
     @implements(BaseDataModule)

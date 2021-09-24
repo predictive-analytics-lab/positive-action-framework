@@ -1,8 +1,8 @@
 """Encoder model."""
 from __future__ import annotations
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, Union
 
-from kit import implements
+from kit import implements, parsable
 import numpy as np
 from pytorch_lightning import LightningModule
 from sklearn.preprocessing import MinMaxScaler
@@ -12,13 +12,15 @@ from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from paf.base_templates.dataset_utils import Batch, CfBatch
-from paf.config_classes.dataclasses import KernelType
-from paf.mmd import mmd2
-from paf.model.blocks import block, mid_blocks
-from paf.model.common_model import CommonModel
-from paf.model.model_utils import grad_reverse, index_by_s
+__all__ = ["BaseModel", "Encoder", "Adversary", "Decoder", "Clf", "ClfInferenceOut", "ClfFwd"]
+
+from paf.base_templates import Batch, CfBatch
+from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
+
+from .blocks import block, mid_blocks
+from .common_model import CommonModel
+from .model_utils import grad_reverse, index_by_s
 
 
 class BaseModel(nn.Module):
@@ -50,6 +52,7 @@ class Encoder(BaseModel):
     """AE Shared Encoder."""
 
     def __init__(self, *, in_size: int, latent_dim: int, blocks: int, hid_multiplier: int):
+        """Encoder."""
         super().__init__(
             in_size=in_size,
             hid_size=latent_dim * hid_multiplier,
@@ -62,6 +65,7 @@ class Adversary(BaseModel):
     """AE Adversary head."""
 
     def __init__(self, *, latent_dim: int, out_size: int, blocks: int, hid_multiplier: int):
+        """Adversary."""
         super().__init__(
             in_size=latent_dim,
             hid_size=latent_dim * hid_multiplier,
@@ -79,6 +83,7 @@ class Decoder(BaseModel):
     """Decoder."""
 
     def __init__(self, *, latent_dim: int, in_size: int, blocks: int, hid_multiplier: int) -> None:
+        "Decoder."
         super().__init__(
             in_size=latent_dim,
             hid_size=latent_dim * hid_multiplier,
@@ -97,6 +102,7 @@ class Clf(CommonModel):
     built: bool
     adv: Adversary
 
+    @parsable
     def __init__(
         self,
         adv_weight: float,
@@ -105,7 +111,7 @@ class Clf(CommonModel):
         lr: float,
         s_as_input: bool,
         latent_dims: int,
-        mmd_kernel: KernelType,
+        mmd_kernel: Union[str, KernelType],
         scheduler_rate: float,
         weight_decay: float,
         use_iw: bool,
@@ -114,6 +120,7 @@ class Clf(CommonModel):
         decoder_blocks: int,
         latent_multiplier: int,
     ):
+        """Classifier."""
         super().__init__(name="Clf")
 
         self.adv_weight = adv_weight

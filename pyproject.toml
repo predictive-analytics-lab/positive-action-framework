@@ -16,6 +16,8 @@ neoconfigen = {git = "https://github.com/predictive-analytics-lab/neoconfigen.gi
 conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", branch = "main"}
 hydra-submitit-launcher = {version = "^1.1.1", allow-prereleases = true}
 hydra-joblib-launcher = {version = "^1.1.2", allow-prereleases = true}
+palkit = {git = "https://github.com/predictive-analytics-lab/palkit.git", branch = "main"}
+attrs = "^21.2.0"
 
 [tool.poetry.dev-dependencies]
 black = "^21.7b0"
@@ -26,6 +28,7 @@ pytest = "^6.2.4"
 pytest-cov = "^2.12.1"
 pre-commit = "^2.14.0"
 python-type-stubs = {git = "https://github.com/predictive-analytics-lab/python-type-stubs.git", branch = "main"}
+prospector = {extras = ["with_everything"], version = "^1.5.1"}
 
 
 [build-system]
@@ -61,7 +64,7 @@ exclude = '''
 '''
 
 [tool.isort]
-known_third_party = ["conduit", "ethicml", "hydra", "kit", "matplotlib", "numpy", "omegaconf", "pandas", "pytest", "pytorch_lightning", "scipy", "seaborn", "sklearn", "torch", "torchmetrics", "typer", "wandb"]
+known_third_party = ["conduit", "ethicml", "hydra", "kit", "matplotlib", "numpy", "omegaconf", "pandas", "pytest", "pytorch_lightning", "scipy", "seaborn", "sklearn", "torch", "torchmetrics", "typer"]
 known_future_library = []
 extra_standard_library = ["dataclasses", "__future__", "typing_extensions"]
 line_length = 88

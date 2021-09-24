@@ -11,16 +11,18 @@ from sklearn import preprocessing
 
 from paf.datasets.lilliput import CfData
 
+__all__ = ["third_way_data"]
+
+
 log = logging.getLogger(__name__)
 
 
 def make_x_bar(
-    num_features: int, n: int, random_state: np.random.Generator
+    num_features: int, num_samples: int, random_state: np.random.Generator
 ) -> npt.NDArray[np.float_]:
     """Initial potential."""
-    x_tilde = random_state.uniform(0, 1, size=(n, num_features))
-
-    return np.stack([scipy.stats.norm.ppf(l, loc=0, scale=1) for l in x_tilde])
+    x_tilde = random_state.uniform(0, 1, size=(num_samples, num_features))
+    return np.stack([scipy.stats.norm.ppf(sample, loc=0, scale=1) for sample in x_tilde])
 
 
 def make_s(alpha: float, n: int, random_state: np.random.Generator, binary_s: bool) -> npt.NDArray:
@@ -81,7 +83,9 @@ def third_way_data(
 ) -> CfData:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
-    x_bar = make_x_bar(num_features=num_hidden_features, n=num_samples, random_state=num_gen)
+    x_bar = make_x_bar(
+        num_features=num_hidden_features, num_samples=num_samples, random_state=num_gen
+    )
 
     s = make_s(alpha=alpha, n=num_samples, random_state=num_gen, binary_s=binary_s == 1)
     s_df = pd.DataFrame(s, columns=["sens"])

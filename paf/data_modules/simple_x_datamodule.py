@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Optional, Tuple
 
-from kit import implements
+from kit import implements, parsable
 from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
@@ -11,10 +11,13 @@ from paf.base_templates.base_module import BaseDataModule
 from paf.base_templates.dataset_utils import CFDataTupleDataset
 from paf.datasets.simple_x import simple_x_data
 
+__all__ = ["SimpleXDataModule"]
+
 
 class SimpleXDataModule(BaseDataModule):
     """Simple 1d, configurable, data."""
 
+    @parsable
     def __init__(
         self,
         alpha: float,
@@ -26,7 +29,7 @@ class SimpleXDataModule(BaseDataModule):
         cf_available: bool = True,
         train_dims: Optional[Tuple[int, ...]] = None,
     ):
-        super().__init__(cf_available=cf_available, seed=seed)
+        super().__init__(cf_available=cf_available, seed=seed, scaler=MinMaxScaler())
         self.alpha = alpha
         self.gamma = gamma
         self.num_samples = num_samples
@@ -57,7 +60,6 @@ class SimpleXDataModule(BaseDataModule):
             dts=dts,
             true_dts=true_dts,
             cf_dts=cf_dts,
-            scaler=MinMaxScaler(),
         )
 
     @implements(BaseDataModule)

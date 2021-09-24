@@ -12,6 +12,8 @@ from paf.base_templates.base_module import BaseDataModule
 from paf.base_templates.dataset_utils import CFDataTupleDataset
 from paf.datasets.lilliput import lilliput
 
+__all__ = ["LilliputDataModule"]
+
 
 class LilliputDataModule(BaseDataModule):
     """Simple 1d, configurable, data."""
@@ -48,7 +50,11 @@ class LilliputDataModule(BaseDataModule):
         cf_available: bool = True,
         train_dims: Optional[Tuple[int, ...]] = None,
     ):
-        super().__init__(cf_available=cf_available, seed=seed)
+        super().__init__(
+            cf_available=cf_available,
+            seed=seed,
+            scaler=MinMaxScaler(),
+        )
         self.alpha = alpha
         self.gamma = gamma
         self.num_samples = num_samples
@@ -62,10 +68,6 @@ class LilliputDataModule(BaseDataModule):
         cf_data = lilliput(
             seed=self.seed, alpha=self.alpha, num_samples=self.num_samples, gamma=self.gamma
         )
-        self.s0_s0 = cf_data.data_xs0_ys0
-        self.s0_s1 = cf_data.data_xs0_ys1
-        self.s1_s0 = cf_data.data_xs1_ys0
-        self.s1_s1 = cf_data.data_xs1_ys1
 
         dts = self.scale_and_split(cf_data.data, cf_data.dataset)
         true_dts = self.scale_and_split(cf_data.data_true_outcome, cf_data.dataset)
@@ -78,7 +80,10 @@ class LilliputDataModule(BaseDataModule):
             dts=dts,
             factual_data=cf_data.data,
             best_guess=cf_data.cf_groups,
-            scaler=MinMaxScaler(),
+            s0_s0=cf_data.data_xs0_ys0,
+            s0_s1=cf_data.data_xs0_ys1,
+            s1_s0=cf_data.data_xs1_ys0,
+            s1_s1=cf_data.data_xs1_ys1,
         )
 
     @implements(BaseDataModule)

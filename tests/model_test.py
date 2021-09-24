@@ -50,8 +50,9 @@ def test_nn() -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=[f"data=lill"] + SCHEMAS + [f"exp.model=nn"],
+            overrides=['data=lill'] + SCHEMAS + ['exp.model=NN'],
         )
+
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
         run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
 
@@ -62,7 +63,8 @@ def test_cyclegan() -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=[f"data=lill"] + SCHEMAS + [f"enc=cyc"],
+            overrides=['data=lill'] + SCHEMAS + ['enc=cyc'],
         )
+
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
         run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))

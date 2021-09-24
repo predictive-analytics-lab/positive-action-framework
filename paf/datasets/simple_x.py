@@ -7,13 +7,17 @@ from ethicml import Dataset, DataTuple
 import numpy as np
 import pandas as pd
 
+__all__ = ["simple_x_data", "SimpleXData"]
 
-def make_x_bar(num_features: int, n: int, random_state: np.random.Generator) -> np.ndarray:
+
+def make_x_bar(
+    num_features: int, num_samples: int, random_state: np.random.Generator
+) -> np.ndarray:
     """Initial potential."""
-    x_tilde = random_state.normal(0, 1, size=(n, 1))
+    x_tilde = random_state.normal(0, 1, size=(num_samples, 1))
     x_tilde = np.zeros_like(x_tilde)
 
-    return np.stack([random_state.normal(l, 1, num_features) for l in x_tilde])
+    return np.stack([random_state.normal(sample, 1, num_features) for sample in x_tilde])
 
 
 def make_s(alpha: float, n: int, random_state: np.random.Generator, binary_s: bool) -> np.ndarray:
@@ -35,7 +39,7 @@ def simple_x_data(
 ) -> SimpleXData:
     """Generate very simple X data."""
     num_gen = np.random.default_rng(seed)
-    x_bar = make_x_bar(num_features=1, n=num_samples, random_state=num_gen)
+    x_bar = make_x_bar(num_features=1, num_samples=num_samples, random_state=num_gen)
 
     s = make_s(alpha=alpha, n=num_samples, random_state=num_gen, binary_s=binary_s == 1)
     s_df = pd.DataFrame(s, columns=["sens"])

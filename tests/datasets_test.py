@@ -12,6 +12,7 @@ from pytorch_lightning import seed_everything
 from sklearn.preprocessing import MinMaxScaler
 import torch
 
+from paf.architectures.paf_model import PafModel
 from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import]
     LilliputDataModuleConf,
     SimpleAdultDataModuleConf,
@@ -22,7 +23,6 @@ from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: igno
     TrainerConf,
 )
 from paf.main import Config, run_paf
-from paf.model.aies_model import AiesModel
 
 cs = ConfigStore.instance()
 cs.store(name="config_schema", node=Config)  # General Schema
@@ -226,7 +226,7 @@ def test_clfmod(dm_schema: str) -> None:
         clf_trainer.fit(model=classifier, datamodule=data)
         clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
 
-        model = AiesModel(encoder=encoder, classifier=classifier)
+        model = PafModel(encoder=encoder, classifier=classifier)
         model_trainer.fit(model=model, datamodule=data)
         model_trainer.test(model=model, ckpt_path=None, datamodule=data)
 

@@ -4,7 +4,7 @@ import logging
 from typing import Optional, Tuple
 
 from ethicml import Dataset, DataTuple, Prediction
-from kit import implements
+from kit import implements, parsable
 import pandas as pd
 from pytorch_lightning import LightningDataModule
 from sklearn.preprocessing import MinMaxScaler
@@ -15,6 +15,8 @@ from paf.base_templates.dataset_utils import CFDataTupleDataset
 from paf.datasets.third_way import third_way_data
 from paf.selection import selection_rules
 from paf.utils import facct_mapper
+
+__all__ = ["ThirdWayDataModule"]
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ class ThirdWayDataModule(BaseDataModule):
     cf_val_datatuple: DataTuple
     cf_test_datatuple: DataTuple
 
+    @parsable
     def __init__(
         self,
         acceptance_rate: float,
@@ -57,7 +60,7 @@ class ThirdWayDataModule(BaseDataModule):
         cf_available: bool = True,
         train_dims: Optional[Tuple[int, ...]] = None,
     ):
-        super().__init__(cf_available=cf_available, seed=seed)
+        super().__init__(cf_available=cf_available, seed=seed, scaler=MinMaxScaler())
         self.acceptance_rate = acceptance_rate
         self.alpha = alpha
         self.beta = beta
@@ -87,7 +90,7 @@ class ThirdWayDataModule(BaseDataModule):
             num_hidden_features=self.num_hidden_features,
         )
 
-        dts = self.scale_and_split(self.factual_data, data.dataset)
+        dts = self.scale_and_split(data.data, data.dataset)
         true_dts = self.scale_and_split(data.data_true_outcome, data.dataset)
         cf_dts = self.scale_and_split(data.cf_data, data.dataset)
 
@@ -98,7 +101,6 @@ class ThirdWayDataModule(BaseDataModule):
             true_dts=true_dts,
             cf_dts=cf_dts,
             dts=dts,
-            scaler=MinMaxScaler(),
         )
 
         s10s20_dts = self.scale_and_split(data.data_xs0_ys0, data.dataset)

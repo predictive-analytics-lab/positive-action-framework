@@ -5,6 +5,15 @@ import torch
 from torch import Tensor, arange, autograd, nn, stack
 import torch.nn.functional as F
 
+__all__ = [
+    "init_weights",
+    "index_by_s",
+    "augment_recons",
+    "to_discrete",
+    "GradReverse",
+    "grad_reverse",
+]
+
 
 def init_weights(module: nn.Module) -> None:
     """Make Linear layer weights initialised with Xavier Norm."""

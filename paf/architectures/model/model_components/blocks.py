@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from torch import nn
 
-from paf.model.model_utils import init_weights
+from .model_utils import init_weights
+
+__all__ = ["block", "mid_blocks"]
 
 
 def block(*, in_dim: int, out_dim: int) -> nn.Module:
