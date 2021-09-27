@@ -4,7 +4,7 @@ from typing import NamedTuple
 from conduit.types import Stage
 import pandas as pd
 import pytorch_lightning as pl
-from pytorch_lightning.utilities.types import STEP_OUTPUT
+import pytorch_lightning.utilities.types as plut
 import torch
 from torch import Tensor, nn
 import torch.nn.functional as F
@@ -55,7 +55,7 @@ class NearestNeighbourModel(pl.LightningModule):
 
         return torch.stack(features, dim=0), torch.stack(labels, dim=0)
 
-    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> STEP_OUTPUT:
+    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> plut.STEP_OUTPUT:
         ...
 
     def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> NnStepOut | None:

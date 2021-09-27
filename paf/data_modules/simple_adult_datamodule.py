@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from kit import implements, parsable
-from pytorch_lightning import LightningDataModule
+import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
@@ -34,7 +34,7 @@ class SimpleAdultDataModule(BaseDataModule):
         self.num_workers = num_workers
         self.sens = sens
 
-    @implements(LightningDataModule)
+    @implements(pl.LightningDataModule)
     def prepare_data(self) -> None:
         dataset, factual_data = adult_data(
             sens=self.sens, bin_nationality=self.bin_nat, bin_race=self.bin_race

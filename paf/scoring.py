@@ -7,7 +7,7 @@ from ethicml import Accuracy, DataTuple, Prediction
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from pytorch_lightning.loggers import LightningLoggerBase
+import pytorch_lightning.loggers as pll
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import KFold
 
@@ -21,7 +21,7 @@ def lrcv_results(
     train: npt.NDArray[np.float32],
     test: npt.NDArray[np.float32],
     datamodule: BaseDataModule,
-    logger: LightningLoggerBase,
+    logger: pll.LightningLoggerBase,
     component: str,
     test_mode: bool,
 ) -> None:
@@ -56,7 +56,7 @@ def produce_baselines(
     *,
     encoder: CommonModel,
     datamodule: BaseDataModule,
-    logger: LightningLoggerBase,
+    logger: pll.LightningLoggerBase,
     test_mode: bool,
 ) -> None:
     """Produce baselines for predictiveness."""

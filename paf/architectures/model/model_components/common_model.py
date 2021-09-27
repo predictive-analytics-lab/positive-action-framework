@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 
 import numpy as np
-from pytorch_lightning import LightningModule
+import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor
@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 __all__ = ["CommonModel"]
 
 
-class CommonModel(LightningModule):
+class CommonModel(pl.LightningModule):
     """Base Model for each component."""
 
     def __init__(self, name: str) -> None:

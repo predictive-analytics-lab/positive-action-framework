@@ -8,8 +8,8 @@ from ethicml import Dataset, DataTuple, Prediction
 from kit import implements
 import numpy as np
 import pandas as pd
-from pytorch_lightning import LightningDataModule
-from pytorch_lightning.loggers import WandbLogger
+import pytorch_lightning as pl
+import pytorch_lightning.loggers as pll
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
@@ -21,8 +21,7 @@ __all__ = ["BaseDataModule", "ScaleSplitOut"]
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
-class BaseDataModule(LightningDataModule):
-
+class BaseDataModule(pl.LightningDataModule):
     """Simple 1d, configurable, data."""
 
     columns: list[str]
@@ -127,15 +126,15 @@ class BaseDataModule(LightningDataModule):
     def _test_dataloader(self, *, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         ...
 
-    @implements(LightningDataModule)
+    @implements(pl.LightningDataModule)
     def train_dataloader(self, *, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
         return self._train_dataloader(shuffle=shuffle, drop_last=drop_last)
 
-    @implements(LightningDataModule)
+    @implements(pl.LightningDataModule)
     def val_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return self._val_dataloader(shuffle=shuffle, drop_last=drop_last)
 
-    @implements(LightningDataModule)
+    @implements(pl.LightningDataModule)
     def test_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return self._test_dataloader(shuffle=shuffle, drop_last=drop_last)
 
@@ -188,7 +187,7 @@ class BaseDataModule(LightningDataModule):
             )
         return ScaleSplitOut(train=train, val=val, test=test)
 
-    def make_data_plots(self, *, cf_available: bool, logger: WandbLogger) -> None:
+    def make_data_plots(self, *, cf_available: bool, logger: pll.WandbLogger) -> None:
         """Make plots of the data."""
         try:
             label_plot(self.train_datatuple, logger, "train")

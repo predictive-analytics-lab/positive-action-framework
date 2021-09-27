@@ -7,15 +7,15 @@ from matplotlib import pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from pytorch_lightning.loggers import LightningLoggerBase, WandbLogger
+import pytorch_lightning.loggers as pll
 import seaborn as sns
 from torch import Tensor
-import wandb
 
 from paf.base_templates.base_module import BaseDataModule
 from paf.log_progress import do_log
 from paf.plotting import outcomes_hist
 from paf.utils import facct_mapper, facct_mapper_2, facct_mapper_outcomes
+import wandb
 
 
 def selection_rules(outcome_df: pd.DataFrame) -> npt.NDArray[np.int_]:
@@ -35,7 +35,7 @@ def selection_rules(outcome_df: pd.DataFrame) -> npt.NDArray[np.int_]:
 
 
 def baseline_selection_rules(
-    outcomes: pd.DataFrame, logger: LightningLoggerBase | None, fair: bool
+    outcomes: pd.DataFrame, logger: pll.LightningLoggerBase | None, fair: bool
 ) -> Prediction:
     conditions = [
         (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 0),
@@ -73,7 +73,7 @@ def produce_selection_groups(
     data: BaseDataModule | None = None,
     recon_0: Tensor | None = None,
     recon_1: Tensor | None = None,
-    logger: LightningLoggerBase | None = None,
+    logger: pll.LightningLoggerBase | None = None,
     data_name: str = "Test",
     fair: bool = False,
 ) -> Prediction:
@@ -125,7 +125,7 @@ def analyse_selection_groups(
     recon_0: Tensor,
     recon_1: Tensor,
     data_name: str,
-    logger: WandbLogger,
+    logger: pll.WandbLogger,
 ) -> None:
     """What's changed in these feature groups?"""
     reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_datatuple.x.columns)

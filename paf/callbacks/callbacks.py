@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from conduit.types import Stage
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import Callback
 
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
@@ -10,7 +9,7 @@ from paf.plotting import make_plot
 __all__ = ["L1Logger", "MmdLogger", "FeaturePlots"]
 
 
-class L1Logger(Callback):
+class L1Logger(pl.callbacks.Callback):
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.validate)
 
@@ -29,7 +28,7 @@ class L1Logger(Callback):
             )
 
 
-class FeaturePlots(Callback):
+class FeaturePlots(pl.callbacks.Callback):
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.validate)
 
@@ -107,7 +106,7 @@ class FeaturePlots(Callback):
             )
 
 
-class MmdLogger(Callback):
+class MmdLogger(pl.callbacks.Callback):
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.validate)
 

@@ -7,7 +7,7 @@ from typing import Any, NamedTuple
 from conduit.types import Stage
 from kit import implements, parsable
 import numpy as np
-from pytorch_lightning import LightningModule
+import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn, no_grad, optim
@@ -291,7 +291,7 @@ class AE(CommonModel):
         recons = [dec(z) for dec in self.decoders]
         return EncFwd(z=z, s=s_pred, x=recons)
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch, *_: Any) -> Tensor:
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
@@ -356,11 +356,11 @@ class AE(CommonModel):
 
         return k
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def test_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
         return self.shared_step(batch, Stage.test)
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def validation_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
         return self.shared_step(batch, Stage.validate)
 
@@ -387,11 +387,11 @@ class AE(CommonModel):
 
         return to_return
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def test_epoch_end(self, outputs: list[SharedStepOut | CfSharedStepOut]) -> None:
         self.shared_epoch_end(outputs, stage=Stage.test)
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def validation_epoch_end(self, outputs: list[SharedStepOut | CfSharedStepOut]) -> None:
         self.shared_epoch_end(outputs, stage=Stage.validate)
 
@@ -430,7 +430,7 @@ class AE(CommonModel):
                 cols=self.data_cols,
             )
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def configure_optimizers(
         self,
     ) -> tuple[list[optim.Optimizer], list[optim.lr_scheduler.ExponentialLR]]:

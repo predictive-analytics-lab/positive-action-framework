@@ -29,8 +29,7 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
 import pandas as pd
 import pytorch_lightning as pl
-from pytorch_lightning import seed_everything
-from pytorch_lightning.loggers import WandbLogger
+import pytorch_lightning.loggers as pll
 from sklearn.preprocessing import MinMaxScaler
 
 from paf.architectures import PafModel
@@ -137,7 +136,7 @@ def launcher(hydra_config: DictConfig) -> None:
 
 def run_paf(cfg: Config, raw_config: Any) -> None:
     """Run the X Autoencoder."""
-    seed_everything(cfg.exp.seed, workers=True)
+    pl.seed_everything(cfg.exp.seed, workers=True)
     data: BaseDataModule = cfg.data
     data.scaler = MinMaxScaler()
     data.prepare_data()
@@ -145,7 +144,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
     LOGGER.info(f"data_dim={data.size()}, num_s={data.card_s}")
 
-    wandb_logger = WandbLogger(
+    wandb_logger = pll.WandbLogger(
         entity="predictive-analytics-lab",
         project=f"paf_journal_{cfg.exp_group}",
         tags=cfg.exp.tags.split("/")[:-1],
@@ -221,7 +220,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 def evaluate(
     cfg: Config,
     model: pl.LightningModule,
-    wandb_logger: WandbLogger,
+    wandb_logger: pll.WandbLogger,
     data: BaseDataModule,
     encoder: pl.LightningModule,
     classifier: pl.LightningModule,
@@ -311,7 +310,7 @@ def evaluate(
             )
 
 
-def baseline_models(data: BaseDataModule, wandb_logger: WandbLogger) -> None:
+def baseline_models(data: BaseDataModule, wandb_logger: pll.WandbLogger) -> None:
     baselines: set[InAlgorithm] = {
         # NaiveModel(in_size=data.data_dim[0]),
         LRCV(),
@@ -349,7 +348,9 @@ def baseline_models(data: BaseDataModule, wandb_logger: WandbLogger) -> None:
             )
 
 
-def multiple_metrics(preds: Prediction, target: DataTuple, name: str, logger: WandbLogger) -> None:
+def multiple_metrics(
+    preds: Prediction, target: DataTuple, name: str, logger: pll.WandbLogger
+) -> None:
     """Get multiple metrics."""
     try:
         label_plot(target.replace(y=preds.hard.to_frame()), logger, name)

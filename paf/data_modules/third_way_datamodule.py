@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 from ethicml import Dataset, DataTuple, Prediction
 from kit import implements, parsable
 import pandas as pd
-from pytorch_lightning import LightningDataModule
+import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
@@ -73,7 +73,7 @@ class ThirdWayDataModule(BaseDataModule):
         self.xi = xi
         self.num_hidden_features = num_hidden_features
 
-    @implements(LightningDataModule)
+    @implements(pl.LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
         data = third_way_data(

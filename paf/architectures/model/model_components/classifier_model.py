@@ -4,7 +4,7 @@ from typing import Any, NamedTuple, Union
 
 from kit import implements, parsable
 import numpy as np
-from pytorch_lightning import LightningModule
+import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
@@ -186,7 +186,7 @@ class Clf(CommonModel):
         preds = [dec(z) for dec in self.decoders]
         return ClfFwd(z=z, s=s_pred, y=preds)
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch, *_: Any) -> Tensor:
         assert self.built
         clf_out = self.forward(batch.x, batch.s)
@@ -222,7 +222,7 @@ class Clf(CommonModel):
         with torch.no_grad():
             return z.sigmoid().round()
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def test_step(self, batch: Batch | CfBatch, *_: Any) -> ClfInferenceOut:
         assert self.built
         clf_out = self.forward(batch.x, batch.s)
@@ -240,7 +240,7 @@ class Clf(CommonModel):
             else None,
         )
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def test_epoch_end(self, outputs: list[ClfInferenceOut]) -> None:
         all_y = torch.cat([_r.y for _r in outputs], 0)
         all_z = torch.cat([_r.z for _r in outputs], 0)
@@ -279,7 +279,7 @@ class Clf(CommonModel):
             )
             make_plot(x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=["preds"])
 
-    @implements(LightningModule)
+    @implements(pl.LightningModule)
     def configure_optimizers(self) -> Adam:
         return Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 

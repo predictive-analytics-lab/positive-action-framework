@@ -8,7 +8,7 @@ from hydra.experimental import compose, initialize
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 import pytest
-from pytorch_lightning import seed_everything
+import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
 import torch
 
@@ -74,7 +74,7 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
             overrides=[f"data={dm_schema}"] + SCHEMAS,
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
-        seed_everything(0)
+        pl.seed_everything(0)
 
         cfg.data.prepare_data()
         cfg.data.setup()
@@ -112,7 +112,7 @@ def test_datamods(dm_schema: str, cf_available: bool) -> None:
             overrides=[f"data={dm_schema}"] + SCHEMAS,
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
-        seed_everything(0)
+        pl.seed_everything(0)
         data = cfg.data
         data.prepare_data()
         cfg.data.setup()

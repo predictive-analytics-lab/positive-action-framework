@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional, Tuple
 
 from kit import implements, parsable
-from pytorch_lightning import LightningDataModule
+import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
@@ -37,7 +37,7 @@ class SimpleXDataModule(BaseDataModule):
         self.num_workers = num_workers
         self.batch_size = batch_size
 
-    @implements(LightningDataModule)
+    @implements(pl.LightningDataModule)
     def prepare_data(self) -> None:
         # called only on 1 GPU
         data = simple_x_data(

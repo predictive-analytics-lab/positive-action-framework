@@ -6,16 +6,16 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 import pandas as pd
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
+import pytorch_lightning.loggers as pll
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor
-import wandb
 
 from paf.log_progress import do_log
+import wandb
 
 
-def label_plot(data: DataTuple, logger: WandbLogger, name: str = "") -> None:
+def label_plot(data: DataTuple, logger: pll.WandbLogger, name: str = "") -> None:
     """Make a label (quadrant) plot and uplad to wandb."""
     s_col = data.s.columns[0]
     s_values = data.s[s_col].value_counts() / data.s[s_col].count()
@@ -113,7 +113,7 @@ def make_plot(
     *,
     x: Tensor,
     s: Tensor,
-    logger: WandbLogger,
+    logger: pll.WandbLogger,
     name: str,
     cols: list[str],
     cat_plot: bool = False,
@@ -149,7 +149,7 @@ def make_plot(
         plt.clf()
 
 
-def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
+def outcomes_hist(outcomes: pd.DataFrame, logger: pll.WandbLogger) -> None:
     """Produce a distribution of the outcomes."""
     val_counts = (
         outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
@@ -162,7 +162,7 @@ def outcomes_hist(outcomes: pd.DataFrame, logger: WandbLogger) -> None:
     plt.clf()
 
 
-def make_data_plots(data: pl.LightningDataModule, logger: WandbLogger) -> None:
+def make_data_plots(data: pl.LightningDataModule, logger: pll.WandbLogger) -> None:
     """Make plots of the data."""
     try:
         label_plot(data.train_datatuple, logger, "train")
