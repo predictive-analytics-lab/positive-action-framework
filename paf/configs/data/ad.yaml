@@ -7,3 +7,17 @@ num_workers: 0
 bin_nationality: true
 bin_race: true
 sens_feat: "sex"
+val_prop: 0.2
+test_prop: 0.2
+seed: ${exp.seed}
+persist_workers: false
+pin_memory: true
+stratified_sampling: false
+instance_weighting: false
+training_mode: "epoch"
+disc_feats_only: false
+scaler:
+  _target_: "sklearn.preprocessing.MinMaxScaler"
+  feature_range: (0, 1)
+  copy: true
+  clip: false

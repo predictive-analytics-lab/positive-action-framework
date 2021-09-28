@@ -5,3 +5,17 @@ train_batch_size: 512
 eval_batch_size: 2056
 num_workers: 0
 sens_feat: "sex"
+val_prop: 0.2
+test_prop: 0.2
+seed: 47
+persist_workers: False
+pin_memory: True
+stratified_sampling: False
+instance_weighting: False
+training_mode: "epoch"
+disc_feats_only: False
+scaler:
+  _target_: "sklearn.preprocessing.MinMaxScaler"
+  feature_range: (0, 1)
+  copy: true
+  clip: false

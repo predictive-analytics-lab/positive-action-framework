@@ -7,6 +7,12 @@ import logging
 from typing import Any, Final, Optional
 import warnings
 
+from conduit.hydra.conduit.fair.data.datamodules.conf import (
+    AdmissionsDataModuleConf,
+    AdultDataModuleConf,
+    HealthDataModuleConf,
+    LawDataModuleConf,
+)
 import ethicml as em
 from ethicml import (
     TNR,
@@ -26,7 +32,6 @@ from omegaconf import DictConfig, MISSING, OmegaConf
 import pandas as pd
 import pytorch_lightning as pl
 import pytorch_lightning.loggers as pll
-from sklearn.preprocessing import MinMaxScaler
 
 from paf.architectures import PafModel
 from paf.architectures.model import CycleGan, NearestNeighbourModel
@@ -34,13 +39,14 @@ from paf.architectures.model.model_components import AE
 from paf.architectures.model.naive import NaiveModel
 from paf.base_templates.base_module import BaseDataModule
 from paf.callbacks.callbacks import L1Logger
-from paf.config_classes.conduit.fair.data.configs import (  # type: ignore[import]
-    AdmissionsDataModuleConf,
-    AdultDataModuleConf,
-    CrimeDataModuleConf,
-    HealthDataModuleConf,
-    LawDataModuleConf,
-)
+
+# from paf.config_classes.conduit.fair.data.configs import (  # type: ignore[import]
+#     AdmissionsDataModuleConf,
+#     AdultDataModuleConf,
+#     CrimeDataModuleConf,
+#     HealthDataModuleConf,
+#     LawDataModuleConf,
+# )
 from paf.config_classes.ethicml.configs import (  # type: ignore[import]
     AgarwalConf,
     DPOracleConf,
@@ -66,6 +72,7 @@ from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import
 from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
     TrainerConf,
 )
+from paf.config_classes.sklearn.preprocessing.configs import MinMaxScalerConf
 from paf.log_progress import do_log
 from paf.plotting import label_plot
 from paf.scoring import get_full_breakdown, produce_baselines
@@ -110,6 +117,7 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 CS = ConfigStore.instance()
 CS.store(name="config_schema", node=Config)  # General Schema
 CS.store(name="trainer_schema", node=TrainerConf, package="trainer")
+CS.store(name="scaler_schema", node=MinMaxScalerConf, package="scaler")
 
 CLF_PKG: Final[str] = "clf"
 CLF_GROUP: Final[str] = "schema/clf"
@@ -131,7 +139,7 @@ DATA_PKG: Final[str] = "data"  # package:dir_within_config_path
 DATA_GROUP: Final[str] = "schema/data"  # group
 CS.store(name="adult-bolt", node=AdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="admiss-bolt", node=AdmissionsDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
-CS.store(name="crime-bolt", node=CrimeDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+# CS.store(name="crime-bolt", node=CrimeDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="health-bolt", node=HealthDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="law-bolt", node=LawDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="semi-synth", node=SemiAdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
@@ -151,7 +159,6 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     """Run the X Autoencoder."""
     pl.seed_everything(cfg.exp.seed, workers=True)
     data: BaseDataModule = cfg.data
-    data.scaler = MinMaxScaler()
     data.prepare_data()
     data.setup()
 

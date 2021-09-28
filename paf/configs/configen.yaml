@@ -42,10 +42,6 @@ configen:
     - name: pytorch_lightning.trainer
       classes:
         - Trainer
-    - name: conduit.fair.data
+    - name: sklearn.preprocessing
       classes:
-        - AdultDataModule
-        - AdmissionsDataModule
-        - LawDataModule
-        - CrimeDataModule
-        - HealthDataModule
+        - MinMaxScaler
