@@ -333,10 +333,7 @@ def baseline_models(
     model: em.InAlgorithm, *, data: BaseDataModule, logger: pll.WandbLogger
 ) -> None:
     LOGGER.info("=== %s ===", model.name)
-    try:
-        results = model.run(data.train_datatuple, data.test_datatuple)
-    except ValueError:
-        return
+    results = model.run(data.train_datatuple, data.test_datatuple)
     multiple_metrics(results, data.test_datatuple, model.name, logger)
     if isinstance(data, BaseDataModule):
         LOGGER.info("=== %s and 'True' Data ===", str(model.name))
@@ -364,20 +361,15 @@ def multiple_metrics(
     except (IndexError, KeyError):
         pass
 
-    for metric in [Accuracy(), ProbPos(), TPR(), TNR()]:
-        general_str = f"Results/{name}/{metric.name}"
-        do_log(general_str, metric.score(preds, target), logger)
-        per_group = metric_per_sensitive_attribute(preds, target, metric, use_sens_name=False)
-        for key, result in per_group.items():
-            do_log(f"{general_str}-{key}", result, logger)
-        for key, result in diff_per_sensitive_attribute(per_group).items():
-            do_log(f"{general_str}-Abs-Diff-{key}", result, logger)
-        for key, result in ratio_per_sensitive_attribute(per_group).items():
-            do_log(
-                "{g_str}-Ratio-{k}".format(g_str=general_str, k=key.replace('/', '\\')),
-                result,
-                logger,
-            )
+    results = em.run_metrics(
+        predictions=preds,
+        actual=target,
+        metrics=[em.Accuracy(), em.ProbPos()],
+        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
+        use_sens_name=False,
+    )
+    for key, value in results.items():
+        do_log(f"Results/{name}/{key.replace('/', '%')}", value, logger)
 
 
 if __name__ == '__main__':
