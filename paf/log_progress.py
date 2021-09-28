@@ -22,3 +22,4 @@ def summary_log(name: str, val: Any, logger: pll.WandbLogger | pll.base.DummyLog
         log.info(f"{name}: {val}")
     if isinstance(logger, pll.WandbLogger):
         logger.experiment.summary[name] = val
+        logger.experiment.summary.update()
