@@ -1,0 +1,4 @@
+defaults:
+  - /schema/clf: lrcv
+n_splits: 3
+seed: 888

@@ -14,6 +14,7 @@ SCHEMAS: Final[list[str]] = [
     "clf=basic",
     "exp=unit_test",
     "trainer=unit_test",
+    "data=lill",
 ]
 
 
@@ -24,7 +25,7 @@ def test_enc(dm_schema: str) -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=[f"data={dm_schema}"] + SCHEMAS,
+            overrides=SCHEMAS + [f"data={dm_schema}"],
         )
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
 
@@ -50,7 +51,7 @@ def test_nn() -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=['data=lill'] + SCHEMAS + ['exp.model=NN'],
+            overrides=SCHEMAS + ['exp.model=NN'],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
@@ -63,7 +64,21 @@ def test_cyclegan() -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=['data=lill'] + SCHEMAS + ['enc=cyc'],
+            overrides=SCHEMAS + ['enc=cyc'],
+        )
+
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
+
+
+@pytest.mark.parametrize(
+    "model", ["agarwal", "dp_oracle", "kamiran", "kamishima", "lrcv", "oracle", "zafar"]
+)
+def test_baselines(model) -> None:
+    with initialize(config_path=CFG_PTH):
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=SCHEMAS + [f'clf={model}'],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")

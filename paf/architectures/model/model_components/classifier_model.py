@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Any, NamedTuple, Union
 
-from kit import implements, parsable
+from kit import implements, parsable, str_to_enum
 import numpy as np
 import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
@@ -21,6 +21,23 @@ from paf.plotting import make_plot
 from .blocks import block, mid_blocks
 from .common_model import CommonModel
 from .model_utils import grad_reverse, index_by_s
+
+
+class ClfFwd(NamedTuple):
+    z: Tensor
+    s: Tensor
+    y: list[Tensor]
+
+
+class ClfInferenceOut(NamedTuple):
+    y: Tensor
+    z: Tensor
+    s: Tensor
+    preds: Tensor
+    preds_0: Tensor
+    preds_1: Tensor
+    cf_y: Tensor | None
+    cf_preds: Tensor | None
 
 
 class BaseModel(nn.Module):
@@ -129,7 +146,7 @@ class Clf(CommonModel):
         self.learning_rate = lr
         self.s_as_input = s_as_input
         self.latent_dims = latent_dims
-        self.mmd_kernel = mmd_kernel
+        self.mmd_kernel = str_to_enum(mmd_kernel, enum=KernelType)
         self.scheduler_rate = scheduler_rate
         self.weight_decay = weight_decay
         self.use_iw = use_iw
@@ -309,20 +326,3 @@ class Clf(CommonModel):
             for _s in range(2):
                 preds_dict[f"{i}_{_s}"] = (z, s_pred, preds[_s])
         return preds_dict
-
-
-class ClfInferenceOut(NamedTuple):
-    y: Tensor
-    z: Tensor
-    s: Tensor
-    preds: Tensor
-    preds_0: Tensor
-    preds_1: Tensor
-    cf_y: Tensor | None
-    cf_preds: Tensor | None
-
-
-class ClfFwd(NamedTuple):
-    z: Tensor
-    s: Tensor
-    y: list[Tensor]

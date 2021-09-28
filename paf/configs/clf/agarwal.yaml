@@ -1,0 +1,8 @@
+defaults:
+  - /schema/clf: agarwal
+fairness: "DP"
+classifier: "LR"
+eps: 0.1
+iters: 50
+C: null
+kernel: null

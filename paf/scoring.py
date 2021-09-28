@@ -108,7 +108,7 @@ def produce_baselines(
     )
 
 
-def get_miri_metrics(
+def get_full_breakdown(
     method: str,
     acceptance: DataTuple,
     graduated: DataTuple,
@@ -117,7 +117,7 @@ def get_miri_metrics(
     s_denotation: str = "S",
     ty_denotation: str = "Ty",
 ) -> None:
-    """Get miri requested metrics."""
+    """Get full array of statistics."""
     data = copy(acceptance)
     data_y_true = copy(graduated)
 

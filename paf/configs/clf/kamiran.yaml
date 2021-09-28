@@ -1,0 +1,5 @@
+defaults:
+  - /schema/clf: kamiran
+classifier:  "LR"
+C:  null
+kernel: null

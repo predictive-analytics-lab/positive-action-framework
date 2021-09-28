@@ -7,22 +7,18 @@ import logging
 from typing import Any, Final, Optional
 import warnings
 
+import ethicml as em
 from ethicml import (
-    LRCV,
     TNR,
     TPR,
     Accuracy,
-    Agarwal,
     DataTuple,
-    InAlgorithm,
-    Kamiran,
     Prediction,
     ProbPos,
     diff_per_sensitive_attribute,
     metric_per_sensitive_attribute,
     ratio_per_sensitive_attribute,
 )
-from ethicml.algorithms.inprocess.oracle import Oracle
 import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
@@ -45,8 +41,17 @@ from paf.config_classes.conduit.fair.data.configs import (  # type: ignore[impor
     HealthDataModuleConf,
     LawDataModuleConf,
 )
-from paf.config_classes.paf.architectures.model.configs import (  # type: ignore[import]
-    CycleGanConf,
+from paf.config_classes.ethicml.configs import (  # type: ignore[import]
+    AgarwalConf,
+    DPOracleConf,
+    KamiranConf,
+    KamishimaConf,
+    LRCVConf,
+    OracleConf,
+    ZafarFairnessConf,
+)
+from paf.config_classes.paf.architectures.model.configs import (
+    CycleGanConf,  # type: ignore[import]
 )
 from paf.config_classes.paf.architectures.model.model_components.configs import (  # type: ignore[import]
     AEConf,
@@ -61,10 +66,9 @@ from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import
 from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
     TrainerConf,
 )
-from paf.ethicml_extension.oracle import DPOracle
 from paf.log_progress import do_log
 from paf.plotting import label_plot
-from paf.scoring import get_miri_metrics, produce_baselines
+from paf.scoring import get_full_breakdown, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
 
 LOGGER = logging.getLogger(__name__)
@@ -107,7 +111,17 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 CS = ConfigStore.instance()
 CS.store(name="config_schema", node=Config)  # General Schema
 CS.store(name="trainer_schema", node=TrainerConf, package="trainer")
-CS.store(name="clf_schema", node=ClfConf, package="clf")
+
+CLF_PKG: Final[str] = "clf"
+CLF_GROUP: Final[str] = "schema/clf"
+CS.store(name="clf_schema", node=ClfConf, package=CLF_PKG, group=CLF_GROUP)
+CS.store(name="agarwal", node=AgarwalConf, package=CLF_PKG, group=CLF_GROUP)
+CS.store(name="dp_oracle", node=DPOracleConf, package=CLF_PKG, group=CLF_GROUP)
+CS.store(name="kamiran", node=KamiranConf, package=CLF_PKG, group=CLF_GROUP)
+CS.store(name="kamishima", node=KamishimaConf, package=CLF_PKG, group=CLF_GROUP)
+CS.store(name="lrcv", node=LRCVConf, package=CLF_PKG, group=CLF_GROUP)
+CS.store(name="oracle", node=OracleConf, package=CLF_PKG, group=CLF_GROUP)
+CS.store(name="zafar", node=ZafarFairnessConf, package=CLF_PKG, group=CLF_GROUP)
 
 ENC_PKG: Final[str] = "enc"
 ENC_GROUP: Final[str] = "schema/enc"
@@ -158,6 +172,10 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     _model_trainer = copy.deepcopy(cfg.trainer)
 
     # make_data_plots(data, cfg.trainer.logger)
+
+    if isinstance(cfg.clf, em.Algorithm):
+        baseline_models(cfg.clf, data=data, logger=wandb_logger)
+        return
 
     encoder = None
     if cfg.exp.model is ModelType.PAF:
@@ -248,7 +266,7 @@ def evaluate(
                 f"{model.name}_{fair_bool=}-TrueLabels",
                 wandb_logger,
             )
-            get_miri_metrics(
+            get_full_breakdown(
                 method=f"Miri/{model.name}_{fair_bool=}",
                 acceptance=DataTuple(
                     x=data.test_datatuple.x.copy(),
@@ -285,7 +303,7 @@ def evaluate(
                 wandb_logger,
             )
             assert data.true_test_datatuple is not None
-            get_miri_metrics(
+            get_full_breakdown(
                 method=f"Miri/{model.name}-Real-World-Preds",
                 acceptance=DataTuple(
                     x=data.test_datatuple.x.copy(),
@@ -310,42 +328,30 @@ def evaluate(
             )
 
 
-def baseline_models(data: BaseDataModule, wandb_logger: pll.WandbLogger) -> None:
-    baselines: set[InAlgorithm] = {
-        # NaiveModel(in_size=data.data_dim[0]),
-        LRCV(),
-        Oracle(),
-        DPOracle(),
-        # EqOppOracle(),
-        Kamiran(),
-        # ZafarFairness(),
-        # Kamishima(),
-        Agarwal(),
-    }
-    for base_model in baselines:
-        LOGGER.info("=== %s ===", base_model.name)
-        try:
-            results = base_model.run(data.train_datatuple, data.test_datatuple)
-        except ValueError:
-            continue
-        multiple_metrics(results, data.test_datatuple, base_model.name, wandb_logger)
-        if isinstance(data, BaseDataModule):
-            LOGGER.info("=== %s and 'True' Data ===", str(base_model.name))
-            results = base_model.run(data.train_datatuple, data.test_datatuple)
-            assert data.true_test_datatuple is not None
-            multiple_metrics(
-                results, data.true_test_datatuple, f"{base_model.name}-TrueLabels", wandb_logger
-            )
-            get_miri_metrics(
-                method=f"Miri/{base_model.name}",
-                acceptance=DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=results.hard.to_frame(),
-                ),
-                graduated=data.true_test_datatuple,
-                logger=wandb_logger,
-            )
+def baseline_models(
+    model: em.InAlgorithm, *, data: BaseDataModule, logger: pll.WandbLogger
+) -> None:
+    LOGGER.info("=== %s ===", model.name)
+    try:
+        results = model.run(data.train_datatuple, data.test_datatuple)
+    except ValueError:
+        return
+    multiple_metrics(results, data.test_datatuple, model.name, logger)
+    if isinstance(data, BaseDataModule):
+        LOGGER.info("=== %s and 'True' Data ===", str(model.name))
+        results = model.run(data.train_datatuple, data.test_datatuple)
+        assert data.true_test_datatuple is not None
+        multiple_metrics(results, data.true_test_datatuple, f"{model.name}-TrueLabels", logger)
+        get_full_breakdown(
+            method=f"Full/{model.name}",
+            acceptance=DataTuple(
+                x=data.test_datatuple.x.copy(),
+                s=data.test_datatuple.s.copy(),
+                y=results.hard.to_frame(),
+            ),
+            graduated=data.true_test_datatuple,
+            logger=logger,
+        )
 
 
 def multiple_metrics(

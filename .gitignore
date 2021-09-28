@@ -219,3 +219,8 @@ paf/outputs/*
 /uncategorized/*
 /wandb/*
 /.vim/
+/zafar/*
+/kamishima/*
+tests/kamishima/*
+tests/zafar/*
+tests/lightning_logs/*

@@ -16,27 +16,36 @@ configen:
 
   # list of modules to generate configs for
   modules:
-#    - name: paf.data_modules
-#      classes:
-#        - LilliputDataModule
-#        - ThirdWayDataModule
-#        - SimpleXDataModule
-#        - SimpleAdultDataModule
-#        - SemiAdultDataModule
-#    - name: paf.architectures.model.model_components
-#      classes:
-#        - AE
-#        - Clf
-#    - name: paf.architectures.model
-#      classes:
-#        - CycleGan
+    - name: ethicml
+      classes:
+        - LRCV
+        - Kamiran
+        - Oracle
+        - DPOracle
+        - ZafarFairness
+        - Kamishima
+        - Agarwal
+    - name: paf.data_modules
+      classes:
+        - LilliputDataModule
+        - ThirdWayDataModule
+        - SimpleXDataModule
+        - SimpleAdultDataModule
+        - SemiAdultDataModule
+    - name: paf.architectures.model.model_components
+      classes:
+        - AE
+        - Clf
+    - name: paf.architectures.model
+      classes:
+        - CycleGan
     - name: pytorch_lightning.trainer
       classes:
         - Trainer
-#    - name: conduit.fair.data
-#      classes:
-#        - AdultDataModule
-#        - AdmissionsDataModule
-#        - LawDataModule
-#        - CrimeDataModule
-#        - HealthDataModule
+    - name: conduit.fair.data
+      classes:
+        - AdultDataModule
+        - AdmissionsDataModule
+        - LawDataModule
+        - CrimeDataModule
+        - HealthDataModule
