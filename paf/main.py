@@ -72,7 +72,6 @@ from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import
 from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
     TrainerConf,
 )
-from paf.config_classes.sklearn.preprocessing.configs import MinMaxScalerConf
 from paf.log_progress import do_log
 from paf.plotting import label_plot
 from paf.scoring import get_full_breakdown, produce_baselines
