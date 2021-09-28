@@ -14,4 +14,4 @@ def do_log(name: str, val: Any, logger: pll.WandbLogger | pll.base.DummyLogger) 
         log.info(f"{name}: {val}")
         # print(f"{name}: {val}")
     if isinstance(logger, pll.WandbLogger):
-        logger.experiment.log({name: val})
+        logger.experiment.summary[f"{name}"] = val
