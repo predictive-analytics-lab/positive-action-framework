@@ -86,18 +86,14 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
         assert cfg.data.card_s == 2
         assert cfg.data.card_y == 2
 
-        for batch in cfg.data.train_dataloader():
-            if cf_available:
-                with pytest.raises(AssertionError):
-                    torch.testing.assert_allclose(batch.x, batch.cfx)
-                with pytest.raises(AssertionError):
-                    torch.testing.assert_allclose(batch.s, batch.cfs)
-                with pytest.raises(AssertionError):
-                    torch.testing.assert_allclose(batch.y, batch.cfy)
-            else:
-                torch.testing.assert_allclose(batch.x, batch.x)
-                torch.testing.assert_allclose(batch.s, batch.s)
-                torch.testing.assert_allclose(batch.y, batch.y)
+        batch = next(iter(cfg.data.train_dataloader()))
+        if cf_available:
+            with pytest.raises(AssertionError):
+                torch.testing.assert_allclose(batch.x, batch.cfx)
+            with pytest.raises(AssertionError):
+                torch.testing.assert_allclose(batch.s, batch.cfs)
+            with pytest.raises(AssertionError):
+                torch.testing.assert_allclose(batch.y, batch.cfy)
 
 
 @pytest.mark.parametrize(
@@ -120,9 +116,9 @@ def test_datamods(dm_schema: str, cf_available: bool) -> None:
         training_dl = data.train_dataloader(shuffle=False, drop_last=False)
         training_dl2 = data.test_dataloader()
 
-        for (tr_batch, te_batch) in zip(training_dl, training_dl2):
-            with pytest.raises(AssertionError):
-                torch.testing.assert_allclose(tr_batch.x, te_batch.x)
+        tr_batch, te_batch = next(zip(iter(training_dl), iter(training_dl2)))
+        with pytest.raises(AssertionError):
+            torch.testing.assert_allclose(tr_batch.x, te_batch.x)
 
 
 @pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adm", "ad"])
