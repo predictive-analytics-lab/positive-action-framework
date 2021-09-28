@@ -116,7 +116,6 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 CS = ConfigStore.instance()
 CS.store(name="config_schema", node=Config)  # General Schema
 CS.store(name="trainer_schema", node=TrainerConf, package="trainer")
-CS.store(name="scaler_schema", node=MinMaxScalerConf, package="scaler")
 
 CLF_PKG: Final[str] = "clf"
 CLF_GROUP: Final[str] = "schema/clf"
