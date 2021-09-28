@@ -12,6 +12,13 @@ def do_log(name: str, val: Any, logger: pll.WandbLogger | pll.base.DummyLogger) 
     """Log to experiment tracker and also the logger."""
     if isinstance(val, (float, int)):
         log.info(f"{name}: {val}")
-        # print(f"{name}: {val}")
     if isinstance(logger, pll.WandbLogger):
-        logger.experiment.summary[f"{name}"] = val
+        logger.experiment.log({name: val})
+
+
+def summary_log(name: str, val: Any, logger: pll.WandbLogger | pll.base.DummyLogger) -> None:
+    """Log to experiment tracker and also the logger."""
+    if isinstance(val, (float, int)):
+        log.info(f"{name}: {val}")
+    if isinstance(logger, pll.WandbLogger):
+        logger.experiment.summary[name] = val
