@@ -89,7 +89,6 @@ class ExpConfig:
     seed: int = 42
     log_offline: Optional[bool] = False
     tags: str = ""
-    baseline: bool = False
     model: ModelType = ModelType.PAF
 
 
@@ -227,9 +226,6 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     model_trainer.test(model=model, ckpt_path=None, datamodule=data)
 
     evaluate(cfg, model, wandb_logger, data, encoder, classifier, _model_trainer)
-
-    if cfg.exp.baseline:
-        baseline_models(data, wandb_logger)
 
     if not cfg.exp.log_offline and wandb_logger is not None:
         wandb_logger.experiment.finish()
