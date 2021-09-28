@@ -16,6 +16,3 @@ training_mode: "epoch"
 disc_feats_only: False
 scaler:
   _target_: "sklearn.preprocessing.MinMaxScaler"
-  feature_range: (0, 1)
-  copy: true
-  clip: false
