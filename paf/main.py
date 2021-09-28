@@ -72,7 +72,7 @@ from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import
 from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
     TrainerConf,
 )
-from paf.log_progress import summary_log
+from paf.log_progress import do_log
 from paf.plotting import label_plot
 from paf.scoring import get_full_breakdown, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
@@ -377,7 +377,7 @@ def multiple_metrics(
         use_sens_name=False,
     )
     for key, value in results.items():
-        summary_log(f"Results/{key.replace('/', '%')}", value, logger)
+        do_log(f"Results/{key.replace('/', '%')}", value, logger)
 
 
 if __name__ == '__main__':
