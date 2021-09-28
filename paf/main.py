@@ -153,6 +153,13 @@ def launcher(hydra_config: DictConfig) -> None:
     run_paf(cfg, raw_config=OmegaConf.to_container(hydra_config, resolve=True, enum_to_str=True))
 
 
+def name_lookup(cfg: Config):
+    if isinstance(cfg.clf, em.InAlgorithm):
+        return cfg.clf.name
+    else:
+        return cfg.exp.model.name + cfg.enc.name
+
+
 def run_paf(cfg: Config, raw_config: Any) -> None:
     """Run the X Autoencoder."""
     pl.seed_everything(cfg.exp.seed, workers=True)
@@ -162,6 +169,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
     LOGGER.info(f"data_dim={data.size()}, num_s={data.card_s}")
 
+    raw_config["name"] = name_lookup(cfg)
     wandb_logger = pll.WandbLogger(
         entity="predictive-analytics-lab",
         project=f"paf_journal_{cfg.exp_group}",
@@ -369,7 +377,7 @@ def multiple_metrics(
         use_sens_name=False,
     )
     for key, value in results.items():
-        summary_log(f"Results/{name}/{key.replace('/', '%')}", value, logger)
+        summary_log(f"Results/{key.replace('/', '%')}", value, logger)
 
 
 if __name__ == '__main__':
