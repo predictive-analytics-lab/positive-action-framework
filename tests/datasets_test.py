@@ -60,7 +60,7 @@ def test_with_initialize(dm_schema: str) -> None:
         ("synth", True),
         ("ad", False),
         ("adm", False),
-        ("crime", False),
+        # ("crime", False),
         ("law", False),
         ("health", False),
     ],

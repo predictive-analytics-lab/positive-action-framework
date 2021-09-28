@@ -367,7 +367,7 @@ def multiple_metrics(
     for metric in [Accuracy(), ProbPos(), TPR(), TNR()]:
         general_str = f"Results/{name}/{metric.name}"
         do_log(general_str, metric.score(preds, target), logger)
-        per_group = metric_per_sensitive_attribute(preds, target, metric)
+        per_group = metric_per_sensitive_attribute(preds, target, metric, use_sens_name=False)
         for key, result in per_group.items():
             do_log(f"{general_str}-{key}", result, logger)
         for key, result in diff_per_sensitive_attribute(per_group).items():
