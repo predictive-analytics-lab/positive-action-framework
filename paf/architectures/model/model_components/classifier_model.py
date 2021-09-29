@@ -12,15 +12,14 @@ from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-__all__ = ["BaseModel", "Encoder", "Adversary", "Decoder", "Clf", "ClfInferenceOut", "ClfFwd"]
+__all__ = ["BaseModel", "Adversary", "Clf", "ClfInferenceOut", "ClfFwd"]
 
 from paf.base_templates import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
 
-from .blocks import block, mid_blocks
-from .common_model import CommonModel
-from .model_utils import grad_reverse, index_by_s
+from .common_model import Adversary, BaseModel, CommonModel, Decoder, Encoder
+from .model_utils import index_by_s
 
 
 class ClfFwd(NamedTuple):
@@ -38,75 +37,6 @@ class ClfInferenceOut(NamedTuple):
     preds_1: Tensor
     cf_y: Tensor | None
     cf_preds: Tensor | None
-
-
-class BaseModel(nn.Module):
-    """Base AE Model."""
-
-    hid: nn.Module
-    out: nn.Module
-
-    def __init__(self, *, in_size: int, hid_size: int, out_size: int, blocks: int):
-        super().__init__()
-        if blocks == 0:
-            self.hid = nn.Identity()
-            self.out = nn.Linear(in_size, out_size)
-        else:
-            _blocks = [block(in_dim=in_size, out_dim=hid_size)] + mid_blocks(
-                latent_dim=hid_size, blocks=blocks
-            )
-            self.hid = nn.Sequential(*_blocks)
-            self.out = nn.Linear(hid_size, out_size)
-        # nn.init.xavier_normal_(self.out.weight)
-
-    @implements(nn.Module)
-    def forward(self, x: Tensor) -> Tensor:
-        z = self.hid(x)
-        return self.out(z)
-
-
-class Encoder(BaseModel):
-    """AE Shared Encoder."""
-
-    def __init__(self, *, in_size: int, latent_dim: int, blocks: int, hid_multiplier: int):
-        """Encoder."""
-        super().__init__(
-            in_size=in_size,
-            hid_size=latent_dim * hid_multiplier,
-            out_size=latent_dim,
-            blocks=blocks,
-        )
-
-
-class Adversary(BaseModel):
-    """AE Adversary head."""
-
-    def __init__(self, *, latent_dim: int, out_size: int, blocks: int, hid_multiplier: int):
-        """Adversary."""
-        super().__init__(
-            in_size=latent_dim,
-            hid_size=latent_dim * hid_multiplier,
-            out_size=out_size,
-            blocks=blocks,
-        )
-
-    @implements(nn.Module)
-    def forward(self, x: Tensor) -> Tensor:
-        z_rev = grad_reverse(x)
-        return super().forward(z_rev)
-
-
-class Decoder(BaseModel):
-    """Decoder."""
-
-    def __init__(self, *, latent_dim: int, in_size: int, blocks: int, hid_multiplier: int) -> None:
-        "Decoder."
-        super().__init__(
-            in_size=latent_dim,
-            hid_size=latent_dim * hid_multiplier,
-            out_size=in_size,
-            blocks=blocks,
-        )
 
 
 class Clf(CommonModel):

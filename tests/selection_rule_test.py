@@ -717,7 +717,7 @@ def test_sr() -> None:
 
     pd.testing.assert_series_equal(next_up, pd.Series(outcome.squeeze(-1).cpu().numpy()))
 
-    preds = produce_selection_groups(pd_results, None)
+    preds = produce_selection_groups(outcomes=pd_results, data=None, data_name="test")
 
     pd.testing.assert_series_equal(
         pd.Series(preds.hard.values), pd.Series(outcome.squeeze(-1).cpu().numpy())
@@ -727,7 +727,7 @@ def test_sr() -> None:
 
     pd.testing.assert_series_equal(next_up, pd.Series(fair_out.squeeze(-1).cpu().numpy()))
 
-    preds = produce_selection_groups(pd_results, None, fair=True)
+    preds = produce_selection_groups(outcomes=pd_results, data=None, fair=True, data_name="test")
 
     pd.testing.assert_series_equal(
         pd.Series(preds.hard.values), pd.Series(fair_out.squeeze(-1).cpu().numpy())

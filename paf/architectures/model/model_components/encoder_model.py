@@ -20,17 +20,13 @@ from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
 
-from .blocks import block, mid_blocks
-from .common_model import CommonModel
-from .model_utils import grad_reverse, index_by_s, to_discrete
+from .common_model import Adversary, BaseModel, CommonModel, Decoder, Encoder
+from .model_utils import index_by_s, to_discrete
 
 __all__ = [
     "SharedStepOut",
     "CfSharedStepOut",
     "BaseModel",
-    "Encoder",
-    "Adversary",
-    "Decoder",
     "Loss",
     "AE",
     "RunThroughOut",
@@ -55,72 +51,6 @@ class SharedStepOut:
 class CfSharedStepOut(SharedStepOut):
     cf_x: Tensor
     cf_recon: Tensor
-
-
-class BaseModel(nn.Module):
-    """Base AE Model."""
-
-    hid: nn.Module
-    out: nn.Module
-
-    def __init__(self, *, in_size: int, hid_size: int, out_size: int, blocks: int):
-        super().__init__()
-        if blocks == 0:
-            self.hid = nn.Identity()
-            self.out = nn.Linear(in_size, out_size)
-        else:
-            _blocks = [block(in_dim=in_size, out_dim=hid_size)] + mid_blocks(
-                latent_dim=hid_size, blocks=blocks
-            )
-            self.hid = nn.Sequential(*_blocks)
-            self.out = nn.Linear(hid_size, out_size)
-        # nn.init.xavier_normal_(self.out.weight)
-
-    @implements(nn.Module)
-    def forward(self, input_: Tensor) -> Tensor:
-        hidden = self.hid(input_)
-        return self.out(hidden)
-
-
-class Encoder(BaseModel):
-    """AE Shared Encoder."""
-
-    def __init__(self, *, in_size: int, latent_dim: int, blocks: int, hid_multiplier: int):
-        super().__init__(
-            in_size=in_size,
-            hid_size=latent_dim * hid_multiplier,
-            out_size=latent_dim,
-            blocks=blocks,
-        )
-
-
-class Adversary(BaseModel):
-    """AE Adversary head."""
-
-    def __init__(self, *, latent_dim: int, out_size: int, blocks: int, hid_multiplier: int):
-        super().__init__(
-            in_size=latent_dim,
-            hid_size=latent_dim * hid_multiplier,
-            out_size=out_size,
-            blocks=blocks,
-        )
-
-    @implements(nn.Module)
-    def forward(self, input_: Tensor) -> Tensor:
-        z_rev = grad_reverse(input_)
-        return super().forward(z_rev)
-
-
-class Decoder(BaseModel):
-    """Decoder."""
-
-    def __init__(self, *, latent_dim: int, in_size: int, blocks: int, hid_multiplier: int) -> None:
-        super().__init__(
-            in_size=latent_dim,
-            hid_size=latent_dim * hid_multiplier,
-            out_size=in_size,
-            blocks=blocks,
-        )
 
 
 class Loss:

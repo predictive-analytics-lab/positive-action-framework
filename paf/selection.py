@@ -41,7 +41,7 @@ def selection_rules(outcome_df: pd.DataFrame) -> npt.NDArray[np.int_]:
 
 
 def baseline_selection_rules(
-    outcomes: pd.DataFrame, data_name: str, logger: pll.LightningLoggerBase | None, fair: bool
+    outcomes: pd.DataFrame, *, data_name: str, logger: pll.LightningLoggerBase | None, fair: bool
 ) -> Prediction:
     conditions = [
         (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 0),
@@ -61,18 +61,20 @@ def baseline_selection_rules(
     outcomes[GROUP_2] = pd.Series({i: lookup[d] for i, d in enumerate(outcomes[GROUP_1])})
 
     outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
-    logger.experiment.log(
-        {
-            f"Groups/{data_name}/{group}/{key}": value
-            for group in [GROUP_1, GROUP_2, GROUP_3]
-            for key, value in outcomes[group].value_counts().items()
-        }
-    )
+    if logger is not None:
+        logger.experiment.log(
+            {
+                f"Groups/{data_name}/{group}/{key}": value
+                for group in [GROUP_1, GROUP_2, GROUP_3]
+                for key, value in outcomes[group].value_counts().items()
+            }
+        )
     return Prediction(hard=pd.Series(outcomes[GROUP_3]))
 
 
 def produce_selection_groups(
     outcomes: pd.DataFrame,
+    *,
     data_name: str,
     data: BaseDataModule | None = None,
     recon_0: Tensor | None = None,

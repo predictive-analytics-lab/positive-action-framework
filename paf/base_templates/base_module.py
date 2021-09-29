@@ -198,6 +198,8 @@ class BaseDataModule(pl.LightningDataModule):
         except (IndexError, KeyError):
             pass
         if cf_available and self.best_guess is not None:
+            assert self.cf_train_datatuple is not None
+            assert self.cf_test_datatuple is not None
             try:
                 label_plot(
                     self.factual_data.replace(y=self.best_guess.hard.to_frame()),
