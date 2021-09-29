@@ -342,12 +342,12 @@ def baseline_models(
 ) -> None:
     LOGGER.info("=== %s ===", model.name)
     results = model.run(data.train_datatuple, data.test_datatuple)
-    multiple_metrics(results, data.test_datatuple, model.name, logger)
+    multiple_metrics(results, data.test_datatuple, "Results", logger)
     if isinstance(data, BaseDataModule):
         LOGGER.info("=== %s and 'True' Data ===", str(model.name))
         results = model.run(data.train_datatuple, data.test_datatuple)
         assert data.true_test_datatuple is not None
-        multiple_metrics(results, data.true_test_datatuple, f"{model.name}-TrueLabels", logger)
+        multiple_metrics(results, data.true_test_datatuple, f"Results-TrueLabels", logger)
         get_full_breakdown(
             method=f"Full/{model.name}",
             acceptance=DataTuple(
@@ -377,7 +377,7 @@ def multiple_metrics(
         use_sens_name=False,
     )
     for key, value in results.items():
-        do_log(f"Results/{key.replace('/', '%')}", value, logger)
+        do_log(f"{name}/{key.replace('/', '%')}", value, logger)
 
 
 if __name__ == '__main__':

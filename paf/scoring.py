@@ -1,7 +1,6 @@
 """Scoring functions."""
 from __future__ import annotations
 from copy import copy
-import logging
 
 from ethicml import Accuracy, DataTuple, Prediction
 import numpy as np
@@ -112,10 +111,10 @@ def get_full_breakdown(
     method: str,
     acceptance: DataTuple,
     graduated: DataTuple,
-    logger: logging.Logger | None,
+    logger: pll.WandbLogger,
     y_denotation: str = "Y",
     s_denotation: str = "S",
-    ty_denotation: str = "Ty",
+    ty_denotation: str = "G",
 ) -> None:
     """Get full array of statistics."""
     data = copy(acceptance)
@@ -124,7 +123,7 @@ def get_full_breakdown(
     num_points = data.y.shape[0]
     sum_y_is_ty = sum((data.y.values - data_y_true.y.values) == 0)[0]  # type: ignore[index]
 
-    do_log(f"{method}/P({y_denotation}={ty_denotation})", sum_y_is_ty / num_points, logger)
+    do_log(f"Stats/P({y_denotation}={ty_denotation})", sum_y_is_ty / num_points, logger)
 
     sum_y_is_ty_given_s0 = sum(  # type: ignore[index]
         (
@@ -145,12 +144,12 @@ def get_full_breakdown(
     num_s1 = data.y[data.s[data.s.columns[0]] == 1].shape[0]
 
     do_log(
-        f"{method}/P({y_denotation}={ty_denotation}|{s_denotation}=0)",
+        f"Stats/P({y_denotation}={ty_denotation}|{s_denotation}=0)",
         sum_y_is_ty_given_s0 / num_s0,
         logger,
     )
     do_log(
-        f"{method}/P({y_denotation}={ty_denotation}|{s_denotation}=1)",
+        f"Stats/P({y_denotation}={ty_denotation}|{s_denotation}=1)",
         sum_y_is_ty_given_s1 / num_s1,
         logger,
     )
@@ -158,18 +157,18 @@ def get_full_breakdown(
     for val in [0, 1]:
         # P(y^=val)
         result = data.y[data.y.columns[0]] == val
-        do_log(f"{method}/P({y_denotation}={val})", result.sum() / result.count(), logger)
+        do_log(f"Stats/P({y_denotation}={val})", result.sum() / result.count(), logger)
 
         # P(Ty=val)
         result = data_y_true.y[data_y_true.y.columns[0]] == val
-        do_log(f"{method}/P({ty_denotation}={val})", result.sum() / result.count(), logger)
+        do_log(f"Stats/P({ty_denotation}={val})", result.sum() / result.count(), logger)
 
     for outer_val in [0, 1]:
         for inner_val in [0, 1]:
             # P(y^=outer | S=inner)
             result = data.y[data.s[data.s.columns[0]] == inner_val][data.y.columns[0]] == outer_val
             do_log(
-                f"{method}/P({y_denotation}={outer_val}|{s_denotation}={inner_val})",
+                f"Stats/P({y_denotation}={outer_val}|{s_denotation}={inner_val})",
                 result.sum() / result.count(),
                 logger,
             )
@@ -180,7 +179,7 @@ def get_full_breakdown(
                 == outer_val
             )
             do_log(
-                f"{method}/P({y_denotation}={outer_val}|{ty_denotation}={inner_val})",
+                f"Stats/P({y_denotation}={outer_val}|{ty_denotation}={inner_val})",
                 result.sum() / result.count(),
                 logger,
             )
@@ -191,7 +190,7 @@ def get_full_breakdown(
                 == inner_val
             )
             do_log(
-                f"{method}/P({ty_denotation}={inner_val}|{y_denotation}={outer_val})",
+                f"Stats/P({ty_denotation}={inner_val}|{y_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
@@ -201,14 +200,14 @@ def get_full_breakdown(
                 == inner_val
             )
             do_log(
-                f"{method}/P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
+                f"Stats/P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
 
             result = data.y[data.s[data.s.columns[0]] == outer_val][data.y.columns[0]] == inner_val
             do_log(
-                f"{method}/P({y_denotation}={inner_val}|{s_denotation}={outer_val})",
+                f"Stats/P({y_denotation}={inner_val}|{s_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
@@ -218,7 +217,7 @@ def get_full_breakdown(
                 == inner_val
             )
             do_log(
-                f"{method}/P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
+                f"Stats/P({ty_denotation}={inner_val}|{s_denotation}={outer_val})",
                 result.sum() / result.count(),
                 logger,
             )
@@ -233,7 +232,7 @@ def get_full_breakdown(
                     == ty_val
                 )
                 do_log(
-                    f"{method}/P({ty_denotation}={ty_val}|{s_denotation}={s_val},{y_denotation}={y_val})",
+                    f"Stats/P({ty_denotation}={ty_val}|{s_denotation}={s_val},{y_denotation}={y_val})",
                     result.sum() / result.count(),
                     logger,
                 )
@@ -246,7 +245,7 @@ def get_full_breakdown(
                     == y_val
                 )
                 do_log(
-                    f"{method}/P({y_denotation}={y_val}|{s_denotation}={s_val},{ty_denotation}={ty_val})",
+                    f"Stats/P({y_denotation}={y_val}|{s_denotation}={s_val},{ty_denotation}={ty_val})",
                     result.sum() / result.count(),
                     logger,
                 )
