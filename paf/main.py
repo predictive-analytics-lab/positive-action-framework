@@ -37,8 +37,8 @@ from paf.config_classes.ethicml.configs import (  # type: ignore[import]
     OracleConf,
     ZafarFairnessConf,
 )
-from paf.config_classes.paf.architectures.model.configs import (
-    CycleGanConf,  # type: ignore[import]
+from paf.config_classes.paf.architectures.model.configs import (  # type: ignore[import]
+    CycleGanConf,
 )
 from paf.config_classes.paf.architectures.model.model_components.configs import (  # type: ignore[import]
     AEConf,
