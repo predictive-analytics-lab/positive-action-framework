@@ -7,24 +7,13 @@ import logging
 from typing import Any, Final, Optional
 import warnings
 
-from conduit.hydra.conduit.fair.data.datamodules.conf import (
+from conduit.hydra.conduit.fair.data.datamodules.conf import (  # type: ignore[import]
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
     HealthDataModuleConf,
     LawDataModuleConf,
 )
 import ethicml as em
-from ethicml import (
-    TNR,
-    TPR,
-    Accuracy,
-    DataTuple,
-    Prediction,
-    ProbPos,
-    diff_per_sensitive_attribute,
-    metric_per_sensitive_attribute,
-    ratio_per_sensitive_attribute,
-)
 import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
@@ -39,14 +28,6 @@ from paf.architectures.model.model_components import AE
 from paf.architectures.model.naive import NaiveModel
 from paf.base_templates.base_module import BaseDataModule
 from paf.callbacks.callbacks import L1Logger
-
-# from paf.config_classes.conduit.fair.data.configs import (  # type: ignore[import]
-#     AdmissionsDataModuleConf,
-#     AdultDataModuleConf,
-#     CrimeDataModuleConf,
-#     HealthDataModuleConf,
-#     LawDataModuleConf,
-# )
 from paf.config_classes.ethicml.configs import (  # type: ignore[import]
     AgarwalConf,
     DPOracleConf,
@@ -194,6 +175,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     encoder: AE | CycleGan | None = None
     if cfg.exp.model is ModelType.PAF:
         encoder = cfg.enc
+        assert encoder is not None
         encoder.build(
             num_s=data.card_s,
             data_dim=data.size()[0],
@@ -295,7 +277,7 @@ def evaluate(
             )
             get_full_breakdown(
                 target_info=f"Stats/{fair_bool=}",
-                acceptance=DataTuple(
+                acceptance=em.DataTuple(
                     x=data.test_datatuple.x.copy(),
                     s=data.test_datatuple.s.copy(),
                     y=preds.hard.to_frame(),
@@ -318,7 +300,7 @@ def evaluate(
         )
         # === === ===
 
-        our_clf_preds = Prediction(
+        our_clf_preds = em.Prediction(
             hard=pd.Series(model.all_preds.squeeze(-1).detach().cpu().numpy())
         )
         multiple_metrics(
@@ -337,7 +319,7 @@ def evaluate(
             assert data.true_test_datatuple is not None
             get_full_breakdown(
                 target_info="Stats/Real-World-Preds",
-                acceptance=DataTuple(
+                acceptance=em.DataTuple(
                     x=data.test_datatuple.x.copy(),
                     s=data.test_datatuple.s.copy(),
                     y=our_clf_preds.hard.to_frame(),
@@ -375,7 +357,7 @@ def baseline_models(
         )
         get_full_breakdown(
             target_info="Stats",
-            acceptance=DataTuple(
+            acceptance=em.DataTuple(
                 x=data.test_datatuple.x.copy(),
                 s=data.test_datatuple.s.copy(),
                 y=results.hard.to_frame(),
@@ -386,7 +368,7 @@ def baseline_models(
 
 
 def multiple_metrics(
-    preds: Prediction, *, target: DataTuple, name: str, logger: pll.WandbLogger
+    preds: em.Prediction, *, target: em.DataTuple, name: str, logger: pll.WandbLogger
 ) -> None:
     """Get multiple metrics."""
     try:
