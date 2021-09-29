@@ -4,7 +4,6 @@ import collections
 from typing import Any, MutableMapping
 import warnings
 
-from ethicml import Prediction
 import pandas as pd
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -26,7 +25,7 @@ def flatten(
     return dict(items)
 
 
-def facct_mapper(facct_out: Prediction) -> Prediction:
+def facct_mapper(facct_out: pd.Series) -> pd.Series:
     """Map from groups to outcomes."""
     lookup = {
         0: 5,
@@ -63,24 +62,18 @@ def facct_mapper(facct_out: Prediction) -> Prediction:
         31: 2,
     }
 
-    preds = pd.Series({i: lookup[d] for i, d in enumerate(facct_out.hard)})
-
-    return Prediction(hard=preds, info=facct_out.info)
+    return pd.Series({i: lookup[d] for i, d in enumerate(facct_out)})
 
 
-def facct_mapper_2(facct_out: Prediction) -> Prediction:
+def facct_mapper_2(facct_out: pd.Series) -> pd.Series:
     """Map from groups to outcomes."""
     lookup = {-1: 0, 1: 1, 2: 1, 3: 2, 4: 1, 5: 0, 6: 0, 7: 0, 8: 1}
 
-    preds = pd.Series({i: lookup[d] for i, d in enumerate(facct_out.hard)})
-
-    return Prediction(hard=preds, info=facct_out.info)
+    return pd.Series({i: lookup[d] for i, d in enumerate(facct_out)})
 
 
-def facct_mapper_outcomes(mapped: Prediction, fair: bool) -> Prediction:
+def facct_mapper_outcomes(mapped: pd.Series, fair: bool) -> pd.Series:
     """Make the final outcome."""
     lookup = {0: 0, 1: 1, 2: 1 if fair else 0}
 
-    preds = pd.Series({i: lookup[d] for i, d in enumerate(mapped.hard)})
-
-    return Prediction(hard=preds, info=mapped.info)
+    return pd.Series({i: lookup[d] for i, d in enumerate(mapped)})

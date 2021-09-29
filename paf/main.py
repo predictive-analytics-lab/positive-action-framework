@@ -278,7 +278,7 @@ def evaluate(
                 wandb_logger,
             )
             get_full_breakdown(
-                method=f"Miri/{model.name}_{fair_bool=}",
+                target_info=f"Stats/{fair_bool=}",
                 acceptance=DataTuple(
                     x=data.test_datatuple.x.copy(),
                     s=data.test_datatuple.s.copy(),
@@ -315,7 +315,7 @@ def evaluate(
             )
             assert data.true_test_datatuple is not None
             get_full_breakdown(
-                method=f"Miri/{model.name}-Real-World-Preds",
+                target_info="Stats/Real-World-Preds",
                 acceptance=DataTuple(
                     x=data.test_datatuple.x.copy(),
                     s=data.test_datatuple.s.copy(),
@@ -349,9 +349,9 @@ def baseline_models(
         LOGGER.info("=== %s and 'True' Data ===", str(model.name))
         results = model.run(data.train_datatuple, data.test_datatuple)
         assert data.true_test_datatuple is not None
-        multiple_metrics(results, data.true_test_datatuple, f"Results-TrueLabels", logger)
+        multiple_metrics(results, data.true_test_datatuple, "Results-TrueLabels", logger)
         get_full_breakdown(
-            method=f"Full/{model.name}",
+            target_info="Stats",
             acceptance=DataTuple(
                 x=data.test_datatuple.x.copy(),
                 s=data.test_datatuple.s.copy(),

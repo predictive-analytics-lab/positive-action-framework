@@ -10,12 +10,18 @@ import pandas as pd
 import pytorch_lightning.loggers as pll
 import seaborn as sns
 from torch import Tensor
+from typing_extensions import Final
 
 from paf.base_templates.base_module import BaseDataModule
 from paf.log_progress import do_log
 from paf.plotting import outcomes_hist
 from paf.utils import facct_mapper, facct_mapper_2, facct_mapper_outcomes
 import wandb
+
+GROUP_0: Final[str] = "initial_group"
+GROUP_1: Final[str] = "first_grouping"
+GROUP_2: Final[str] = "second_grouping"
+GROUP_3: Final[str] = "decision"
 
 
 def selection_rules(outcome_df: pd.DataFrame) -> npt.NDArray[np.int_]:
@@ -49,23 +55,19 @@ def baseline_selection_rules(
     ]
 
     values = [0, 1, 2, 3, 4, 5, 6, 7]
-
-    outcomes["decision"] = np.select(conditions, values, -1)
-
-    _to_return = Prediction(hard=outcomes["decision"])
-    for idx, val in _to_return.hard.value_counts().iteritems():
-        do_log(f"Table3/Ours_Test/selection_rule_group_{idx}", val, logger)
+    outcomes[GROUP_1] = np.select(conditions, values, -1)
 
     lookup = {0: 0, 1: 0, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 7: 0}
+    outcomes[GROUP_2] = pd.Series({i: lookup[d] for i, d in enumerate(outcomes[GROUP_1])})
 
-    preds = pd.Series({i: lookup[d] for i, d in enumerate(_to_return.hard)})
-
-    _to_return = Prediction(hard=preds, info=_to_return.info)
-
-    for idx, val in _to_return.hard.value_counts().iteritems():
-        do_log(f"Table3/Ours_Test/group_{idx}", val, logger)
-
-    return facct_mapper_outcomes(_to_return, fair=fair)
+    outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
+    logger.experiment.log(
+        {
+            f"Table3/{group}": wandb.Table(dataframe=outcomes[group].value_counts())
+            for group in [GROUP_0, GROUP_1, GROUP_2, GROUP_3]
+        }
+    )
+    return Prediction(hard=pd.Series(outcomes[GROUP_3]))
 
 
 def produce_selection_groups(
@@ -73,16 +75,14 @@ def produce_selection_groups(
     data: BaseDataModule | None = None,
     recon_0: Tensor | None = None,
     recon_1: Tensor | None = None,
-    logger: pll.LightningLoggerBase | None = None,
+    logger: pll.WandbLogger | None = None,
     data_name: str = "Test",
     fair: bool = False,
 ) -> Prediction:
     """Follow Selection rules."""
     if logger is not None:
         outcomes_hist(outcomes, logger)
-    outcomes["decision"] = selection_rules(outcomes)
-    for idx, val in outcomes["decision"].value_counts().iteritems():
-        do_log(f"Table3/Ours_{data_name}/pre_selection_rule_group_{idx}", val, logger)
+    outcomes[GROUP_0] = selection_rules(outcomes)
 
     # if recon_1 is not None:
     #     assert recon_0 is not None
@@ -97,9 +97,7 @@ def produce_selection_groups(
     #         logger=logger,
     #     )
 
-    _to_return = facct_mapper(Prediction(hard=outcomes["decision"]))
-    for idx, val in _to_return.hard.value_counts().iteritems():
-        do_log(f"Table3/Ours_{data_name}/selection_rule_group_{idx}", val, logger)
+    outcomes[GROUP_1] = facct_mapper(pd.Series(outcomes[GROUP_0]))
 
     # if recon_1 is not None:
     #     assert recon_0 is not None
@@ -114,9 +112,17 @@ def produce_selection_groups(
     #         logger=logger,
     #     )
 
-    mapped = facct_mapper_2(_to_return)
+    outcomes[GROUP_2] = facct_mapper_2(pd.Series(outcomes[GROUP_1]))
 
-    return facct_mapper_outcomes(mapped, fair)
+    outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
+    if logger is not None:
+        logger.experiment.log(
+            {
+                f"Table3/{group}": wandb.Table(dataframe=outcomes[group].value_counts())
+                for group in [GROUP_0, GROUP_1, GROUP_2, GROUP_3]
+            }
+        )
+    return Prediction(hard=pd.Series(outcomes[GROUP_3]))
 
 
 def analyse_selection_groups(

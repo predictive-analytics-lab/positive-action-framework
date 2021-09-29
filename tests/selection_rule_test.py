@@ -1,6 +1,5 @@
 """Test the selection rules."""
 
-from ethicml import Prediction
 import numpy as np
 import pandas as pd
 import torch
@@ -710,22 +709,26 @@ def test_sr() -> None:
 
     np.testing.assert_array_equal(decision, group.squeeze(-1).cpu().numpy())
 
-    to_return = facct_mapper(Prediction(hard=pd.Series(decision)))
+    to_return = facct_mapper(pd.Series(decision))
 
-    pd.testing.assert_series_equal(to_return.hard, pd.Series(next_map.squeeze(-1).cpu().numpy()))
+    pd.testing.assert_series_equal(to_return, pd.Series(next_map.squeeze(-1).cpu().numpy()))
 
     next_up = facct_mapper_outcomes(facct_mapper_2(to_return), fair=False)
 
-    pd.testing.assert_series_equal(next_up.hard, pd.Series(outcome.squeeze(-1).cpu().numpy()))
+    pd.testing.assert_series_equal(next_up, pd.Series(outcome.squeeze(-1).cpu().numpy()))
 
     preds = produce_selection_groups(pd_results, None)
 
-    pd.testing.assert_series_equal(preds.hard, pd.Series(outcome.squeeze(-1).cpu().numpy()))
+    pd.testing.assert_series_equal(
+        pd.Series(preds.hard.values), pd.Series(outcome.squeeze(-1).cpu().numpy())
+    )
 
     next_up = facct_mapper_outcomes(facct_mapper_2(to_return), fair=True)
 
-    pd.testing.assert_series_equal(next_up.hard, pd.Series(fair_out.squeeze(-1).cpu().numpy()))
+    pd.testing.assert_series_equal(next_up, pd.Series(fair_out.squeeze(-1).cpu().numpy()))
 
     preds = produce_selection_groups(pd_results, None, fair=True)
 
-    pd.testing.assert_series_equal(preds.hard, pd.Series(fair_out.squeeze(-1).cpu().numpy()))
+    pd.testing.assert_series_equal(
+        pd.Series(preds.hard.values), pd.Series(fair_out.squeeze(-1).cpu().numpy())
+    )

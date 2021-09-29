@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Optional, Tuple
 
-from ethicml import Dataset, DataTuple, Prediction
+from ethicml import Dataset, DataTuple
 from kit import implements, parsable
 import pandas as pd
 import pytorch_lightning as pl
@@ -127,7 +127,7 @@ class ThirdWayDataModule(BaseDataModule):
 
         pd_results["decision"] = selection_rules(pd_results)
         log.info(pd_results["decision"].value_counts())
-        log.info(facct_mapper(Prediction(hard=pd_results["decision"])).info)
+        log.info(facct_mapper(pd.Series(pd_results["decision"])))
 
     @implements(BaseDataModule)
     def _train_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
