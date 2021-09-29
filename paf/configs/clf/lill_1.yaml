@@ -7,7 +7,7 @@ latent_dims: 1
 latent_multiplier: 10
 lr: 1e-3
 adv_weight: 0.0
-target_weight: 1.0
+pred_weight: 1.0
 reg_weight: 1e-3
 s_as_input: true
 mmd_kernel: "LINEAR"
