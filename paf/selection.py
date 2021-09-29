@@ -63,7 +63,7 @@ def baseline_selection_rules(
     outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
     logger.experiment.log(
         {
-            f"Table3/{group}": wandb.Table(dataframe=outcomes[group].value_counts())
+            f"Table3/{group}": wandb.Table(dataframe=pd.DataFrame(outcomes[group].value_counts()))
             for group in [GROUP_0, GROUP_1, GROUP_2, GROUP_3]
         }
     )
@@ -118,7 +118,9 @@ def produce_selection_groups(
     if logger is not None:
         logger.experiment.log(
             {
-                f"Table3/{group}": wandb.Table(dataframe=outcomes[group].value_counts())
+                f"Table3/{group}": wandb.Table(
+                    dataframe=pd.DataFrame(outcomes[group].value_counts())
+                )
                 for group in [GROUP_0, GROUP_1, GROUP_2, GROUP_3]
             }
         )
