@@ -190,8 +190,8 @@ def test_clfmod(dm_schema: str) -> None:
         cfg.data.scaler = MinMaxScaler()
 
         enc_trainer = copy.deepcopy(cfg.trainer)
-        clf_trainer = copy.deepcopy(cfg.trainer)
-        model_trainer = copy.deepcopy(cfg.trainer)
+        clf_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
+        model_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
 
         data = cfg.data
         data.prepare_data()
@@ -224,6 +224,8 @@ def test_clfmod(dm_schema: str) -> None:
 
         model = PafModel(encoder=encoder, classifier=classifier)
         model_trainer.fit(model=model, datamodule=data)
-        model_trainer.test(model=model, ckpt_path=None, datamodule=data)
+        results = model.collate_results(
+            model_trainer.predict(model=model, ckpt_path=None, dataloaders=data.test_dataloader())
+        )
 
-        print(model.pd_results)
+        print(results.pd_results)

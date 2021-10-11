@@ -136,12 +136,12 @@ def make_plot(
 
     for idx, col in enumerate(cols):
         if cat_plot:
-            x_df[col] = x_df[col].map(lambda x: ''.join(x.split("_")[1:]))
+            x_df[col] = x_df[col].map(lambda x: "".join(x.split("_")[1:]))
             x_df = x_df.sort_values(by=[col])
-            sns.countplot(data=x_df, x=col, color='b', hue="s", palette={1: 'b', 0: 'g'})
+            sns.countplot(data=x_df, x=col, color="b", hue="s", palette={1: "b", 0: "g"})
         else:
-            sns.distplot(x_df[x_df["s"] > 0][idx], color='b')
-            sns.distplot(x_df[x_df["s"] <= 0][idx], color='g')
+            sns.distplot(x_df[x_df["s"] > 0][idx], color="b")
+            sns.distplot(x_df[x_df["s"] <= 0][idx], color="g")
 
         plt.xticks(rotation=90)
         plt.tight_layout()
@@ -149,17 +149,17 @@ def make_plot(
         plt.clf()
 
 
-def outcomes_hist(outcomes: pd.DataFrame, logger: pll.WandbLogger) -> None:
-    """Produce a distribution of the outcomes."""
-    val_counts = (
-        outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
-    )
-    sns.barplot(val_counts.index, val_counts.values)
-    logger.experiment.log({"Debugging2/Outcomes": wandb.Image(plt)})
-    plt.clf()
-    for idx, val in val_counts.iteritems():
-        do_log(f"Debugging2/Ours/Outcomes-{idx}", val, logger)
-    plt.clf()
+# def outcomes_hist(outcomes: pd.DataFrame, logger: pll.WandbLogger) -> None:
+#     """Produce a distribution of the outcomes."""
+#     val_counts = (
+#         outcomes[["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1"]].sum(axis=1).value_counts()
+#     )
+#     sns.barplot(val_counts.index, val_counts.values)
+#     logger.experiment.log({"Debugging2/Outcomes": wandb.Image(plt)})
+#     plt.clf()
+#     for idx, val in val_counts.iteritems():
+#         do_log(f"Debugging2/Ours/Outcomes-{idx}", val, logger)
+#     plt.clf()
 
 
 def make_data_plots(data: pl.LightningDataModule, logger: pll.WandbLogger) -> None:

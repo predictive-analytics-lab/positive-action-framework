@@ -1,6 +1,7 @@
 """AIES Model."""
 from __future__ import annotations
-from typing import Any, NamedTuple
+from dataclasses import dataclass
+from typing import Any
 
 from kit import implements
 import pandas as pd
@@ -13,23 +14,32 @@ __all__ = ["PafModel", "TestStepOut"]
 
 from paf.base_templates import Batch, CfBatch
 
+from . import PafResults
 from .model import CycleGan
 from .model.model_components import AE, Clf, augment_recons, index_by_s
 
 
+@dataclass
+class TestStepOut:
+    enc_z: Tensor
+    enc_s_pred: Tensor
+    x: Tensor
+    s: Tensor
+    y: Tensor
+    recon: Tensor
+    cf_recon: Tensor
+    recons_0: Tensor
+    recons_1: Tensor
+    preds: Tensor
+    cycle_loss: Tensor
+    preds_0_0: Tensor
+    preds_0_1: Tensor
+    preds_1_0: Tensor
+    preds_1_1: Tensor
+
+
 class PafModel(pl.LightningModule):
     """Model."""
-
-    recon_0: Tensor
-    recon_1: Tensor
-    pd_results: pd.DataFrame
-    all_enc_z: Tensor
-    all_enc_s_pred: Tensor
-    all_s: Tensor
-    all_x: Tensor
-    all_y: Tensor
-    all_recon: Tensor
-    all_preds: Tensor
 
     def __init__(self, *, encoder: AE | CycleGan, classifier: Clf):
         super().__init__()
@@ -61,7 +71,7 @@ class PafModel(pl.LightningModule):
         """Empty as we do not train the model end to end."""
 
     @implements(pl.LightningModule)
-    def test_step(self, batch: Batch | CfBatch, *_: Any) -> TestStepOut:
+    def predict_step(self, batch: Batch | CfBatch, *_: Any) -> TestStepOut:
         if isinstance(self.enc, AE):
             enc_fwd = self.enc.forward(batch.x, batch.s)
             enc_z = enc_fwd.z
@@ -105,6 +115,7 @@ class PafModel(pl.LightningModule):
             "s": batch.s,
             "y": batch.y,
             "recon": index_by_s(augmented_recons, batch.s),
+            "cf_recon": index_by_s(augmented_recons, 1 - batch.s),
             "recons_0": self.enc.invert(recons[0], batch.x),
             "recons_1": self.enc.invert(recons[1], batch.x),
             "preds": self.clf.threshold(
@@ -118,56 +129,46 @@ class PafModel(pl.LightningModule):
             vals.update({f"preds_{i}_{j}": self.clf.threshold(clf_out.y[j]) for j in range(2)})
         return TestStepOut(**vals)
 
-    @implements(pl.LightningModule)
-    def test_epoch_end(self, outputs: list[TestStepOut]) -> None:
-        self.all_enc_z = torch.cat([_r.enc_z for _r in outputs], 0)
-        self.all_enc_s_pred = torch.cat([_r.enc_s_pred for _r in outputs], 0)
-        self.all_s = torch.cat([_r.s for _r in outputs], 0)
-        self.all_x = torch.cat([_r.x for _r in outputs], 0)
-        self.all_y = torch.cat([_r.y for _r in outputs], 0)
-        self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
-        self.recon_0 = torch.cat([_r.recons_0 for _r in outputs], 0)
-        self.recon_1 = torch.cat([_r.recons_1 for _r in outputs], 0)
-        self.all_preds = torch.cat([_r.preds for _r in outputs], 0)
+    @staticmethod
+    def collate_results(outputs: list[TestStepOut]) -> PafResults:
+        preds_0_0 = torch.cat([_r.preds_0_0 for _r in outputs], 0)
+        preds_0_1 = torch.cat([_r.preds_0_1 for _r in outputs], 0)
+        preds_1_0 = torch.cat([_r.preds_1_0 for _r in outputs], 0)
+        preds_1_1 = torch.cat([_r.preds_1_1 for _r in outputs], 0)
+        s = torch.cat([_r.s for _r in outputs], 0)
+        preds = torch.cat([_r.preds for _r in outputs], 0)
 
-        all_s0_s0_preds = torch.cat([_r.preds_0_0 for _r in outputs], 0)
-        all_s0_s1_preds = torch.cat([_r.preds_0_1 for _r in outputs], 0)
-        all_s1_s0_preds = torch.cat([_r.preds_1_0 for _r in outputs], 0)
-        all_s1_s1_preds = torch.cat([_r.preds_1_1 for _r in outputs], 0)
-
-        self.pd_results = pd.DataFrame(
-            torch.cat(
-                [
-                    all_s0_s0_preds,
-                    all_s0_s1_preds,
-                    all_s1_s0_preds,
-                    all_s1_s1_preds,
-                    self.all_s.unsqueeze(-1),
-                    self.all_preds,
-                ],
-                dim=1,
-            )
-            .to(torch.long)
-            .cpu()
-            .numpy(),
-            columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
+        return PafResults(
+            enc_z=torch.cat([_r.enc_z for _r in outputs], 0),
+            enc_s_pred=torch.cat([_r.enc_s_pred for _r in outputs], 0),
+            s=s,
+            x=torch.cat([_r.x for _r in outputs], 0),
+            y=torch.cat([_r.y for _r in outputs], 0),
+            recon=torch.cat([_r.recon for _r in outputs], 0),
+            cf_x=torch.cat([_r.cf_recon for _r in outputs], 0),
+            recons_0=torch.cat([_r.recons_0 for _r in outputs], 0),
+            recons_1=torch.cat([_r.recons_1 for _r in outputs], 0),
+            preds=preds,
+            preds_0_0=preds_0_0,
+            preds_0_1=preds_0_1,
+            preds_1_0=preds_1_0,
+            preds_1_1=preds_1_1,
+            pd_results=pd.DataFrame(
+                torch.cat(
+                    [
+                        preds_0_0,
+                        preds_0_1,
+                        preds_1_0,
+                        preds_1_1,
+                        s.unsqueeze(-1),
+                        preds,
+                    ],
+                    dim=1,
+                )
+                .to(torch.long)
+                .cpu()
+                .numpy(),
+                columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
+            ),
+            cycle_loss=sum(_r.cycle_loss for _r in outputs) / s.shape[0],
         )
-        cycle_loss: Tensor = sum(_r.cycle_loss for _r in outputs) / self.all_y.shape[0]  # type: ignore[assignment]
-        self.log(name="cycle_loss", value=cycle_loss.item(), logger=True)
-
-
-class TestStepOut(NamedTuple):
-    enc_z: Tensor
-    enc_s_pred: Tensor
-    x: Tensor
-    s: Tensor
-    y: Tensor
-    recon: Tensor
-    recons_0: Tensor
-    recons_1: Tensor
-    preds: Tensor
-    cycle_loss: Tensor
-    preds_0_0: Tensor
-    preds_0_1: Tensor
-    preds_1_0: Tensor
-    preds_1_1: Tensor

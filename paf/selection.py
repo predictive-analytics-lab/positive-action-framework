@@ -14,7 +14,6 @@ from typing_extensions import Final
 
 from paf.base_templates.base_module import BaseDataModule
 from paf.log_progress import do_log
-from paf.plotting import outcomes_hist
 from paf.utils import facct_mapper, facct_mapper_2, facct_mapper_outcomes
 import wandb
 
@@ -27,11 +26,11 @@ GROUP_3: Final[str] = "decision"
 def selection_rules(outcome_df: pd.DataFrame) -> npt.NDArray[np.int_]:
     """Apply selection rules."""
     conditions = [
-        (outcome_df['s1_0_s2_0'] == a)
-        & (outcome_df['s1_0_s2_1'] == b)
-        & (outcome_df['s1_1_s2_0'] == c)
-        & (outcome_df['s1_1_s2_1'] == d)
-        & (outcome_df['true_s'] == e)
+        (outcome_df["s1_0_s2_0"] == a)
+        & (outcome_df["s1_0_s2_1"] == b)
+        & (outcome_df["s1_1_s2_0"] == c)
+        & (outcome_df["s1_1_s2_1"] == d)
+        & (outcome_df["true_s"] == e)
         for a, b, c, d, e in itertools.product([0, 1], repeat=5)
     ]
 
@@ -44,14 +43,14 @@ def baseline_selection_rules(
     outcomes: pd.DataFrame, *, data_name: str, logger: pll.LightningLoggerBase | None, fair: bool
 ) -> Prediction:
     conditions = [
-        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 0),
-        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 1),
-        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 1) & (outcomes['true_s'] == 0),
-        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 1) & (outcomes['true_s'] == 1),
-        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 1) & (outcomes['true_s'] == 0),
-        (outcomes['s1_0_s2_0'] == 0) & (outcomes['s1_1_s2_1'] == 1) & (outcomes['true_s'] == 1),
-        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 0),
-        (outcomes['s1_0_s2_0'] == 1) & (outcomes['s1_1_s2_1'] == 0) & (outcomes['true_s'] == 1),
+        (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 0),
+        (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 1),
+        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 0),
+        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 1),
+        (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 0),
+        (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 1),
+        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 0),
+        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 1),
     ]
 
     values = [0, 1, 2, 3, 4, 5, 6, 7]
@@ -83,8 +82,8 @@ def produce_selection_groups(
     fair: bool = False,
 ) -> Prediction:
     """Follow Selection rules."""
-    if logger is not None:
-        outcomes_hist(outcomes, logger)
+    # if logger is not None:
+    #     outcomes_hist(outcomes, logger)
     outcomes[GROUP_0] = selection_rules(outcomes)
 
     # if recon_1 is not None:
@@ -171,8 +170,8 @@ def analyse_selection_groups(
 
         for feature in data.cont_features:
 
-            sns.distplot(reconstructed_1.iloc[selected_data.index][feature], color='b')
-            sns.distplot(reconstructed_0.iloc[selected_data.index][feature], color='g')
+            sns.distplot(reconstructed_1.iloc[selected_data.index][feature], color="b")
+            sns.distplot(reconstructed_0.iloc[selected_data.index][feature], color="g")
             # (
             #     reconstructed_1.iloc[selected_data.index].mean(axis=0)
             #     - reconstructed_0.iloc[selected_data.index].mean(axis=0)

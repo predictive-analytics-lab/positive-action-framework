@@ -13,7 +13,7 @@ plotly = "^5.1.0"
 ethicml = {extras = ["all"], version = "^0.3.3"}
 pytorch-lightning = "^1.4.2"
 neoconfigen = "^2.1.0"
-conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", branch = "main", rev="d559aa8e323f7c342d6a9e27801d5aab64f9dc28"}
+conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", branch = "main", rev="2cfa5ca3365dc92a07d722168229d5b23ac287ea"}
 hydra-submitit-launcher = {version = "^1.1.1", allow-prereleases = true}
 hydra-joblib-launcher = {version = "^1.1.2", allow-prereleases = true}
 attrs = "^21.2.0"
@@ -40,7 +40,7 @@ run = "paf.main:launcher"
 [tool.black]
 line-length = 100
 target-version = ['py38']
-skip-string-normalization = true
+skip-string-normalization = false
 include = '\.pyi?$'
 exclude = '''
 

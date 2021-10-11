@@ -22,7 +22,7 @@ import pandas as pd
 import pytorch_lightning as pl
 import pytorch_lightning.loggers as pll
 
-from paf.architectures import PafModel
+from paf.architectures import PafModel, PafResults, Results
 from paf.architectures.model import CycleGan, NearestNeighbourModel
 from paf.architectures.model.model_components import AE
 from paf.architectures.model.naive import NaiveModel
@@ -54,6 +54,7 @@ from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: igno
     TrainerConf,
 )
 from paf.log_progress import do_log
+from paf.mmd import KernelType, mmd2
 from paf.plotting import label_plot
 from paf.scoring import get_full_breakdown, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
@@ -92,7 +93,7 @@ class Config:
     exp_group: Optional[str] = None
 
 
-warnings.simplefilter(action='ignore', category=RuntimeWarning)
+warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
 CS = ConfigStore.instance()
 CS.store(name="config_schema", node=Config)  # General Schema
@@ -162,9 +163,9 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     )
     cfg.trainer.logger = wandb_logger
 
-    clf_trainer = copy.deepcopy(cfg.trainer)
-    model_trainer = copy.deepcopy(cfg.trainer)
-    _model_trainer = copy.deepcopy(cfg.trainer)
+    clf_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
+    model_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
+    _model_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
 
     # make_data_plots(data, cfg.trainer.logger)
 
@@ -220,15 +221,18 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         model = NearestNeighbourModel(clf_model=classifier, data=data)
 
     model_trainer.fit(model=model, datamodule=data)
-    model_trainer.test(model=model, ckpt_path=None, datamodule=data)
+    results = model.collate_results(
+        model_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
+    )
 
     evaluate(
         cfg=cfg,
-        model=model,
+        results=results,
         wandb_logger=wandb_logger,
         data=data,
         encoder=encoder,
         classifier=classifier,
+        model_name=model.name,
         _model_trainer=_model_trainer,
     )
 
@@ -239,32 +243,69 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 def evaluate(
     cfg: Config,
     *,
-    model: pl.LightningModule,
+    results: Results,
     wandb_logger: pll.WandbLogger,
     data: BaseDataModule,
     encoder: pl.LightningModule,
     classifier: pl.LightningModule,
+    model_name: str,
     _model_trainer: pl.Trainer,
 ) -> None:
+
+    if isinstance(results, PafResults):
+        do_log("cycle_loss", results.cycle_loss, wandb_logger)
+
+    recon_mmd = mmd2(results.x, results.cf_x, kernel=KernelType.LINEAR)
+    s0_dist_mmd = mmd2(
+        results.x[results.s == 0],
+        results.cf_x[results.s == 1],
+        kernel=KernelType.LINEAR,
+    )
+    s1_dist_mmd = mmd2(
+        results.x[results.s == 1],
+        results.cf_x[results.s == 0],
+        kernel=KernelType.LINEAR,
+    )
+
+    do_log(
+        name="Logging/MMD",
+        val=round(recon_mmd.item(), 5),
+        logger=wandb_logger,
+    )
+
+    do_log(
+        name="Logging/MMD S0 vs Cf",
+        val=round(s0_dist_mmd.item(), 5),
+        logger=wandb_logger,
+    )
+
+    do_log(
+        name="Logging/MMD S1 vs Cf",
+        val=round(s1_dist_mmd.item(), 5),
+        logger=wandb_logger,
+    )
 
     for fair_bool in (True, False):
         if cfg.exp.model == ModelType.PAF:
             preds = produce_selection_groups(
-                outcomes=model.pd_results,
+                outcomes=results.pd_results,
                 data=data,
-                recon_0=model.recon_0,
-                recon_1=model.recon_1,
+                recon_0=results.recons_0,
+                recon_1=results.recons_1,
                 logger=wandb_logger,
                 data_name="Outcomes",
             )
         else:
             preds = baseline_selection_rules(
-                outcomes=model.pd_results, logger=wandb_logger, fair=fair_bool, data_name="Outcomes"
+                outcomes=results.pd_results,
+                logger=wandb_logger,
+                fair=fair_bool,
+                data_name="Outcomes",
             )
         multiple_metrics(
             preds=preds,
             target=data.test_datatuple,
-            name=f"{model.name}_{fair_bool=}-Post-Selection",
+            name=f"{model_name}_{fair_bool=}-Post-Selection",
             logger=wandb_logger,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
@@ -272,7 +313,7 @@ def evaluate(
             multiple_metrics(
                 preds=preds,
                 target=data.true_test_datatuple,
-                name=f"{model.name}_{fair_bool=}-TrueLabels",
+                name=f"{model_name}_{fair_bool=}-TrueLabels",
                 logger=wandb_logger,
             )
             get_full_breakdown(
@@ -289,31 +330,35 @@ def evaluate(
     if cfg.exp.model == ModelType.PAF:
         # === This is only for reporting ====
         _model = PafModel(encoder=encoder, classifier=classifier)
-        _model_trainer.test(model=_model, ckpt_path=None, dataloaders=data.train_dataloader())
+        _results = _model.collate_results(
+            _model_trainer.predict(
+                model=_model, ckpt_path=None, dataloaders=data.train_dataloader()
+            )
+        )
         produce_selection_groups(
-            outcomes=_model.pd_results,
+            outcomes=_results.pd_results,
             data=data,
-            recon_0=_model.recon_0,
-            recon_1=_model.recon_1,
+            recon_0=_results.recons_0,
+            recon_1=_results.recons_1,
             logger=wandb_logger,
             data_name="Train",
         )
         # === === ===
 
         our_clf_preds = em.Prediction(
-            hard=pd.Series(model.all_preds.squeeze(-1).detach().cpu().numpy())
+            hard=pd.Series(results.preds.squeeze(-1).detach().cpu().numpy())
         )
         multiple_metrics(
             preds=our_clf_preds,
             target=data.test_datatuple,
-            name=f"{model.name}-Real-World-Preds",
+            name=f"{model_name}-Real-World-Preds",
             logger=wandb_logger,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
             multiple_metrics(
                 preds=our_clf_preds,
                 target=data.test_datatuple,
-                name=f"{model.name}-Real-World-Preds",
+                name=f"{model_name}-Real-World-Preds",
                 logger=wandb_logger,
             )
             assert data.true_test_datatuple is not None
@@ -387,5 +432,5 @@ def multiple_metrics(
         do_log(f"{name}/{key.replace('/', '%')}", value, logger)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     launcher()

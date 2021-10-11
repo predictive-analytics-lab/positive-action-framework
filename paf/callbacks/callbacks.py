@@ -28,6 +28,11 @@ class L1Logger(pl.callbacks.Callback):
             )
 
 
+class PredictionPlots(pl.callbacks.Callback):
+    def on_test_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        pass
+
+
 class FeaturePlots(pl.callbacks.Callback):
     def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         return self._shared(pl_module, Stage.validate)

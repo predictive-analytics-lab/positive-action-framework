@@ -1,7 +1,6 @@
 from __future__ import annotations
-from typing import NamedTuple
+from dataclasses import dataclass
 
-from conduit.types import Stage
 import pandas as pd
 import pytorch_lightning as pl
 import pytorch_lightning.utilities.types as plut
@@ -10,10 +9,20 @@ from torch import Tensor, nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
+from paf.architectures import NnResults
 from paf.base_templates.dataset_utils import Batch, CfBatch
-from paf.mmd import KernelType, mmd2
 
 __all__ = ["NearestNeighbourModel", "NnStepOut"]
+
+
+@dataclass
+class NnStepOut:
+    cf_preds: Tensor
+    cf_x: Tensor
+    preds: Tensor
+    x: Tensor
+    s: Tensor
+    y: Tensor
 
 
 class NearestNeighbourModel(pl.LightningModule):
@@ -58,7 +67,7 @@ class NearestNeighbourModel(pl.LightningModule):
     def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> plut.STEP_OUTPUT:
         ...
 
-    def test_step(self, batch: Batch | CfBatch, batch_idx: int) -> NnStepOut | None:
+    def predict_step(self, batch: Batch | CfBatch, batch_idx: int, **kwargs) -> NnStepOut | None:
         cf_feats, cf_outcome = self.forward(test_features=batch.x, sens_label=batch.s)
         preds = (self.clf.forward(batch.x) >= 0).long()
 
@@ -71,49 +80,17 @@ class NearestNeighbourModel(pl.LightningModule):
             y=batch.y,
         )
 
-    def on_test_epoch_end(self) -> None:
-        kernel = KernelType.LINEAR
+    @staticmethod
+    def collate_results(outputs: list[NnStepOut]) -> NnResults:
+        all_preds = torch.cat([_r.preds for _r in outputs], 0)
+        all_cf_preds = torch.cat([_r.cf_preds for _r in outputs], 0)
+        all_cf_x = torch.cat([_r.cf_x for _r in outputs], 0)
 
-        recon_mmd = mmd2(self.all_x, self.all_cf_x, kernel=kernel)
-        s0_dist_mmd = mmd2(
-            self.all_x[self.all_s == 0],
-            self.all_cf_x[self.all_s == 1],
-            kernel=kernel,
-        )
-        s1_dist_mmd = mmd2(
-            self.all_x[self.all_s == 1],
-            self.all_cf_x[self.all_s == 0],
-            kernel=kernel,
-        )
-
-        self.log(
-            name=f"Logging/{Stage.test}/MMD",
-            value=round(recon_mmd.item(), 5),
-            logger=True,
-        )
-
-        self.log(
-            name=f"Logging/{Stage.test}/MMD S0 vs Cf",
-            value=round(s0_dist_mmd.item(), 5),
-            logger=True,
-        )
-
-        self.log(
-            name=f"Logging/{Stage.test}/MMD S1 vs Cf",
-            value=round(s1_dist_mmd.item(), 5),
-            logger=True,
-        )
-
-    def test_epoch_end(self, outputs: list[NnStepOut]) -> None:
-        self.all_preds = torch.cat([_r.preds for _r in outputs], 0)
-        self.all_cf_preds = torch.cat([_r.cf_preds for _r in outputs], 0)
-        self.all_cf_x = torch.cat([_r.cf_x for _r in outputs], 0)
-
-        self.all_s = torch.cat([_r.s for _r in outputs], 0)
-        self.all_x = torch.cat([_r.x for _r in outputs], 0)
-        self.all_y = torch.cat([_r.y for _r in outputs], 0)
+        all_s = torch.cat([_r.s for _r in outputs], 0)
+        all_x = torch.cat([_r.x for _r in outputs], 0)
+        all_y = torch.cat([_r.y for _r in outputs], 0)
         stacked = []
-        for _s, pred, cfpred in zip(self.all_s, self.all_preds, self.all_cf_preds):
+        for _s, pred, cfpred in zip(all_s, all_preds, all_cf_preds):
             if _s == 0:
                 stacked.append((pred, cfpred))
             else:
@@ -121,31 +98,30 @@ class NearestNeighbourModel(pl.LightningModule):
 
         stacked = torch.tensor(stacked)
 
-        self.pd_results = pd.DataFrame(
-            torch.cat(
-                [
-                    stacked[:, 0].unsqueeze(-1).long(),
-                    stacked[:, 1].unsqueeze(-1).long(),
-                    self.all_s.unsqueeze(-1).long(),
-                    self.all_preds,
-                ],
-                dim=1,
-            )
-            .cpu()
-            .numpy(),
-            columns=["s1_0_s2_0", "s1_1_s2_1", "true_s", "actual"],
+        return NnResults(
+            cf_preds=all_cf_preds,
+            cf_x=all_cf_x,
+            preds=all_preds,
+            x=all_x,
+            s=all_s,
+            y=all_y,
+            pd_results=pd.DataFrame(
+                torch.cat(
+                    [
+                        stacked[:, 0].unsqueeze(-1).long(),
+                        stacked[:, 1].unsqueeze(-1).long(),
+                        all_s.unsqueeze(-1).long(),
+                        all_preds,
+                    ],
+                    dim=1,
+                )
+                .cpu()
+                .numpy(),
+                columns=["s1_0_s2_0", "s1_1_s2_1", "true_s", "actual"],
+            ),
         )
 
     def configure_optimizers(
         self,
     ) -> tuple[list[torch.optim.Optimizer], list[CosineAnnealingWarmRestarts]]:
         ...
-
-
-class NnStepOut(NamedTuple):
-    cf_preds: Tensor
-    cf_x: Tensor
-    preds: Tensor
-    x: Tensor
-    s: Tensor
-    y: Tensor

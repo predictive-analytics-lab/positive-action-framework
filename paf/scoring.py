@@ -52,8 +52,8 @@ def lrcv_results(
 
 
 def produce_baselines(
-    *,
     encoder: CommonModel,
+    *,
     datamodule: BaseDataModule,
     logger: pll.LightningLoggerBase,
     test_mode: bool,

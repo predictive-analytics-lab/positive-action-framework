@@ -18,6 +18,18 @@ SCHEMAS: Final[list[str]] = [
 ]
 
 
+def test_paf() -> None:
+    with initialize(config_path=CFG_PTH):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=SCHEMAS,
+        )
+
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
+
+
 @pytest.mark.parametrize("dm_schema", ["ad"])
 def test_enc(dm_schema: str) -> None:
     """Test the encoder network runs."""
@@ -51,7 +63,7 @@ def test_nn() -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=SCHEMAS + ['exp.model=NN'],
+            overrides=SCHEMAS + ["exp.model=NN"],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
@@ -64,7 +76,7 @@ def test_cyclegan() -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=SCHEMAS + ['enc=cyc'],
+            overrides=SCHEMAS + ["enc=cyc"],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
@@ -78,7 +90,7 @@ def test_baselines(model) -> None:
     with initialize(config_path=CFG_PTH):
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=SCHEMAS + [f'clf={model}'],
+            overrides=SCHEMAS + [f"clf={model}"],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
