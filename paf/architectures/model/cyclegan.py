@@ -214,13 +214,14 @@ class Loss:
         g_b2a_loss = g_b2a_gan_loss + g_b2a_idt_loss + tot_cyc_loss
         g_tot_loss = g_a2b_loss + g_b2a_loss - tot_cyc_loss
 
-        return GenLoss(a2b=g_a2b_loss, b2a=g_b2a_loss, tot=g_tot_loss)
+        return GenLoss(a2b=g_a2b_loss, b2a=g_b2a_loss, tot=g_tot_loss, cycle_loss=tot_cyc_loss)
 
 
 class GenLoss(NamedTuple):
     a2b: Tensor
     b2a: Tensor
     tot: Tensor
+    cycle_loss: Tensor
 
 
 class ResBlock(nn.Module):
@@ -408,12 +409,10 @@ class CycleGan(CommonModel):
                 d_b_pred_fake_data,
             )
 
-            dict_ = {
-                "g_tot_train_loss": gen_loss.tot,
-                "g_A2B_train_loss": gen_loss.a2b,
-                "g_B2A_train_loss": gen_loss.b2a,
-            }
-            self.log_dict(dict_, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log("g_tot_train_loss", gen_loss.tot)
+            self.log("g_A2B_train_loss", gen_loss.a2b)
+            self.log("g_B2A_train_loss", gen_loss.b2a)
+            self.log("cycle_loss", gen_loss.cycle_loss)
 
             return gen_loss.tot
 
@@ -455,21 +454,19 @@ class CycleGan(CommonModel):
         dis_out_b = self.forward_dis(self.d_b, real_b, cyc_out.fake_b)
 
         # G_A2B loss, G_B2A loss, G loss
-        g_a2b_loss, g_b2a_loss, g_tot_loss = self.loss.get_gen_loss(
-            real_a, real_b, gen_fwd, dis_out_a.fake, dis_out_b.fake
-        )
+        gen_losses = self.loss.get_gen_loss(real_a, real_b, gen_fwd, dis_out_a.fake, dis_out_b.fake)
 
         # D_A loss, D_B loss
         d_a_loss = self.loss.get_dis_loss(dis_out_a.real, dis_out_a.fake)
         d_b_loss = self.loss.get_dis_loss(dis_out_b.real, dis_out_b.fake)
 
         dict_ = {
-            f"g_tot_{stage.value}_loss": g_tot_loss,
-            f"g_A2B_{stage.value}_loss": g_a2b_loss,
-            f"g_B2A_{stage.value}_loss": g_b2a_loss,
+            f"g_tot_{stage.value}_loss": gen_losses.tot,
+            f"g_A2B_{stage.value}_loss": gen_losses.a2b,
+            f"g_B2A_{stage.value}_loss": gen_losses.b2a,
             f"d_A_{stage.value}_loss": d_a_loss,
             f"d_B_{stage.value}_loss": d_b_loss,
-            "loss": g_tot_loss,
+            "loss": gen_losses.tot,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 

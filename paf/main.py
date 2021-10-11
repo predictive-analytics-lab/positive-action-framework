@@ -251,7 +251,7 @@ def evaluate(
 ) -> None:
 
     if isinstance(results, PafResults):
-        do_log("cycle_loss", results.cycle_loss, wandb_logger)
+        do_log("eval/cycle_loss", results.cycle_loss, wandb_logger)
 
     recon_mmd = mmd2(results.x, results.cf_x, kernel=KernelType.LINEAR)
     s0_dist_mmd = mmd2(
