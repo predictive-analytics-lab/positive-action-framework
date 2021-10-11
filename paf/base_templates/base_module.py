@@ -5,33 +5,33 @@ from typing import NamedTuple
 import warnings
 
 from ethicml import Dataset, DataTuple, Prediction
-from kit import implements
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import pytorch_lightning.loggers as pll
+from ranzen import implements
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import grouped_features_indexes
 from paf.plotting import label_plot
 
-__all__ = ["BaseDataModule", "ScaleSplitOut"]
+__all__ = ["BaseDataModule", "DataGroup", "CfOutcomes"]
 
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
+
+
+class CfOutcomes(NamedTuple):
+    s0_s0: DataTuple
+    s0_s1: DataTuple
+    s1_s0: DataTuple
+    s1_s1: DataTuple
 
 
 class BaseDataModule(pl.LightningDataModule):
     """Simple 1d, configurable, data."""
 
-    columns: list[str]
     card_s: int
-    out_cols: list[str]
-    s_dim: tuple[int, ...]
-    y_dim: tuple[int, ...]
-    test_tuple: DataTuple
-    train_tuple: DataTuple
-    x_dim: tuple[int, ...]
     feature_groups: dict[str, list[slice]]
     dataset: Dataset
     disc_features: list[str]
@@ -43,20 +43,11 @@ class BaseDataModule(pl.LightningDataModule):
     dim_s: tuple[int, ...]
     column_names: list[str]
     outcome_columns: list[str]
-    train_datatuple: DataTuple
-    val_datatuple: DataTuple
-    test_datatuple: DataTuple
-    cf_train_datatuple: DataTuple | None
-    cf_val_datatuple: DataTuple | None
-    cf_test_datatuple: DataTuple | None
-    true_train_datatuple: DataTuple | None
-    true_val_datatuple: DataTuple | None
-    true_test_datatuple: DataTuple | None
+    data_group: DataGroup
+    cf_data_group: DataGroup | None
+    true_data_group: DataGroup | None
     scaler: MinMaxScaler | None
-    s0_s0: DataTuple | None
-    s0_s1: DataTuple | None
-    s1_s0: DataTuple | None
-    s1_s1: DataTuple | None
+    cf_outcomes: CfOutcomes | None
 
     def __init__(self, *, cf_available: bool, seed: int, scaler: MinMaxScaler | None) -> None:
         super().__init__()
@@ -72,14 +63,11 @@ class BaseDataModule(pl.LightningDataModule):
         *,
         dataset: Dataset,
         factual_data: DataTuple,
-        dts: ScaleSplitOut,
+        dts: DataGroup,
         best_guess: Prediction | None = None,
-        true_dts: ScaleSplitOut | None = None,
-        cf_dts: ScaleSplitOut | None = None,
-        s0_s0: DataTuple | None = None,
-        s0_s1: DataTuple | None = None,
-        s1_s0: DataTuple | None = None,
-        s1_s1: DataTuple | None = None,
+        true_dts: DataGroup | None = None,
+        cf_dts: DataGroup | None = None,
+        cf_outcomes: CfOutcomes | None = None,
     ) -> None:
         self.dataset = dataset
         self.best_guess = best_guess
@@ -90,19 +78,10 @@ class BaseDataModule(pl.LightningDataModule):
         self.dim_s = (1,) if factual_data.s.ndim == 1 else factual_data.s.shape[1:]
         self.column_names = [str(col) for col in factual_data.x.columns]
         self.outcome_columns = [str(col) for col in factual_data.y.columns]
-        self.train_datatuple = dts.train
-        self.val_datatuple = dts.val
-        self.test_datatuple = dts.test
-        self.true_train_datatuple = true_dts.train if true_dts is not None else None
-        self.true_val_datatuple = true_dts.val if true_dts is not None else None
-        self.true_test_datatuple = true_dts.test if true_dts is not None else None
-        self.cf_train_datatuple = cf_dts.train if cf_dts is not None else None
-        self.cf_val_datatuple = cf_dts.val if cf_dts is not None else None
-        self.cf_test_datatuple = cf_dts.test if cf_dts is not None else None
-        self.s0_s0 = s0_s0
-        self.s0_s1 = s0_s1
-        self.s1_s0 = s1_s0
-        self.s1_s1 = s1_s1
+        self.data_group = dts
+        self.true_data_group = true_dts if true_dts is not None else None
+        self.cf_data_group = cf_dts if cf_dts is not None else None
+        self.cf_outcomes = cf_outcomes
         self.make_feature_groups(dataset=dataset, data=factual_data)
 
     def make_feature_groups(self, *, dataset: Dataset, data: DataTuple) -> None:
@@ -142,7 +121,7 @@ class BaseDataModule(pl.LightningDataModule):
         self,
         datatuple: DataTuple,
         dataset: Dataset,
-    ) -> ScaleSplitOut:
+    ) -> DataGroup:
         """Scale a datatuple and split to train/test."""
 
         num_train = int(datatuple.x.shape[0] * 0.7)
@@ -185,38 +164,38 @@ class BaseDataModule(pl.LightningDataModule):
             test.x[dataset.continuous_features] = self.scaler.transform(
                 test.x[dataset.continuous_features]
             )
-        return ScaleSplitOut(train=train, val=val, test=test)
+        return DataGroup(train=train, val=val, test=test)
 
     def make_data_plots(self, *, cf_available: bool, logger: pll.WandbLogger) -> None:
         """Make plots of the data."""
         try:
-            label_plot(self.train_datatuple, logger, "train")
+            label_plot(self.data_group.train, logger, "train")
         except (IndexError, KeyError):
             pass
         try:
-            label_plot(self.test_datatuple, logger, "test")
+            label_plot(self.data_group.test, logger, "test")
         except (IndexError, KeyError):
             pass
         if cf_available and self.best_guess is not None:
-            assert self.cf_train_datatuple is not None
-            assert self.cf_test_datatuple is not None
+            assert self.cf_data_group is not None
+            assert self.cf_outcomes is not None
             try:
                 label_plot(
                     self.factual_data.replace(y=self.best_guess.hard.to_frame()),
                     logger,
                     "best_guess",
                 )
-                label_plot(self.cf_train_datatuple, logger, "cf_train")
-                label_plot(self.cf_test_datatuple, logger, "cf_test")
-                label_plot(self.s0_s0, logger, "s0_s0")
-                label_plot(self.s0_s1, logger, "s0_s1")
-                label_plot(self.s1_s0, logger, "s1_s0")
-                label_plot(self.s1_s1, logger, "s1_s1")
+                label_plot(self.cf_data_group.train, logger, "cf_train")
+                label_plot(self.cf_data_group.test, logger, "cf_test")
+                label_plot(self.cf_outcomes.s0_s0, logger, "s0_s0")
+                label_plot(self.cf_outcomes.s0_s1, logger, "s0_s1")
+                label_plot(self.cf_outcomes.s1_s0, logger, "s1_s0")
+                label_plot(self.cf_outcomes.s1_s1, logger, "s1_s1")
             except (IndexError, KeyError):
                 pass
 
 
-class ScaleSplitOut(NamedTuple):
+class DataGroup(NamedTuple):
     train: DataTuple
     val: DataTuple
     test: DataTuple

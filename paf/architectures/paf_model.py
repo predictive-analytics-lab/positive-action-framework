@@ -1,11 +1,11 @@
 """AIES Model."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict
 
-from kit import implements
 import pandas as pd
 import pytorch_lightning as pl
+from ranzen import implements
 import torch
 from torch import Tensor, nn
 from torch.optim.lr_scheduler import ExponentialLR
@@ -90,7 +90,7 @@ class PafModel(pl.LightningModule):
 
         mse_loss_fn = nn.MSELoss(reduction="mean")
         _recons = recons.copy()
-        _cyc_loss = 0.0
+        _cyc_loss = torch.tensor(0.0)
         for i in range(1):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
             if isinstance(self.enc, AE):
@@ -108,7 +108,7 @@ class PafModel(pl.LightningModule):
                 _fwd = self.enc.forward(_og, _og)  # type: ignore[assignment]
             _recons = _fwd.x
 
-        vals = {
+        vals: Dict[str, Tensor] = {
             "enc_z": enc_z,
             "enc_s_pred": enc_s_pred,
             "x": batch.x,
@@ -170,5 +170,5 @@ class PafModel(pl.LightningModule):
                 .numpy(),
                 columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
             ),
-            cycle_loss=sum(_r.cycle_loss for _r in outputs) / s.shape[0],
+            cycle_loss=torch.tensor(sum(_r.cycle_loss for _r in outputs) / s.shape[0]),
         )

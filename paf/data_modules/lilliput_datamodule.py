@@ -2,13 +2,12 @@
 from __future__ import annotations
 from typing import Optional, Tuple
 
-from ethicml import DataTuple
-from kit import implements, parsable
 import pytorch_lightning as pl
+from ranzen import implements, parsable
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
-from paf.base_templates.base_module import BaseDataModule
+from paf.base_templates.base_module import BaseDataModule, CfOutcomes
 from paf.base_templates.dataset_utils import CFDataTupleDataset
 from paf.datasets.lilliput import lilliput
 
@@ -17,26 +16,6 @@ __all__ = ["LilliputDataModule"]
 
 class LilliputDataModule(BaseDataModule):
     """Simple 1d, configurable, data."""
-
-    cf_train_datatuple: DataTuple
-    cf_val_datatuple: DataTuple
-    cf_test_datatuple: DataTuple
-    true_train_datatuple: DataTuple
-    true_val_datatuple: DataTuple
-    true_test_datatuple: DataTuple
-    train_datatuple: DataTuple
-    val_datatuple: DataTuple
-    test_datatuple: DataTuple
-    dim_x: tuple[int, ...]
-    card_y: int
-    cf_data: DataTuple
-    factual_data: DataTuple
-    s0_s0: DataTuple
-    s0_s1: DataTuple
-    s1_s0: DataTuple
-    s1_s1: DataTuple
-    column_names: list[str]
-    outcome_columns: list[str]
 
     @parsable
     def __init__(
@@ -73,6 +52,13 @@ class LilliputDataModule(BaseDataModule):
         true_dts = self.scale_and_split(cf_data.data_true_outcome, cf_data.dataset)
         cf_dts = self.scale_and_split(cf_data.cf_data, cf_data.dataset)
 
+        cf_outcomes = CfOutcomes(
+            s0_s0=cf_data.data_xs0_ys0,
+            s0_s1=cf_data.data_xs0_ys1,
+            s1_s0=cf_data.data_xs1_ys0,
+            s1_s1=cf_data.data_xs1_ys1,
+        )
+
         self.set_data_values(
             dataset=cf_data.dataset,
             cf_dts=cf_dts,
@@ -80,18 +66,16 @@ class LilliputDataModule(BaseDataModule):
             dts=dts,
             factual_data=cf_data.data,
             best_guess=cf_data.cf_groups,
-            s0_s0=cf_data.data_xs0_ys0,
-            s0_s1=cf_data.data_xs0_ys1,
-            s1_s0=cf_data.data_xs1_ys0,
-            s1_s1=cf_data.data_xs1_ys1,
+            cf_outcomes=cf_outcomes,
         )
 
     @implements(BaseDataModule)
     def _train_dataloader(self, *, shuffle: bool = True, drop_last: bool = True) -> DataLoader:
+        assert self.cf_data_group is not None
         return DataLoader(
             CFDataTupleDataset(
-                dataset=self.train_datatuple,
-                cf_dataset=self.cf_train_datatuple,
+                dataset=self.data_group.train,
+                cf_dataset=self.cf_data_group.train,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -103,10 +87,11 @@ class LilliputDataModule(BaseDataModule):
 
     @implements(BaseDataModule)
     def _val_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+        assert self.cf_data_group is not None
         return DataLoader(
             CFDataTupleDataset(
-                dataset=self.val_datatuple,
-                cf_dataset=self.cf_val_datatuple,
+                dataset=self.data_group.val,
+                cf_dataset=self.cf_data_group.val,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -118,10 +103,11 @@ class LilliputDataModule(BaseDataModule):
 
     @implements(BaseDataModule)
     def _test_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
+        assert self.cf_data_group is not None
         return DataLoader(
             CFDataTupleDataset(
-                dataset=self.test_datatuple,
-                cf_dataset=self.cf_test_datatuple,
+                dataset=self.data_group.test,
+                cf_dataset=self.cf_data_group.test,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),

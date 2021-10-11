@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ethicml import LRCV, DataTuple, InAlgorithm, Prediction, TestTuple
-from kit import implements
+from ranzen import implements
 
 from paf.ethicml_extension.flip import DPFlip, EqOppFlip
 

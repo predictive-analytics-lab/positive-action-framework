@@ -2,9 +2,9 @@
 from __future__ import annotations
 from typing import Any, NamedTuple, Union
 
-from kit import implements, parsable, str_to_enum
 import numpy as np
 import pytorch_lightning as pl
+from ranzen import implements, parsable, str_to_enum
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
@@ -97,6 +97,7 @@ class Clf(CommonModel):
         outcome_cols: list[str],
         scaler: MinMaxScaler | None,
     ) -> None:
+        _ = (feature_groups, scaler)
         self.cf_model = cf_available
         self.outcome_cols = outcome_cols
         self.enc = Encoder(

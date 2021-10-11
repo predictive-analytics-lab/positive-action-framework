@@ -6,9 +6,8 @@ import logging
 from typing import Any, Iterator, NamedTuple
 
 from conduit.types import Stage
-from kit import parsable
 import numpy as np
-import pytorch_lightning as pl
+from ranzen import implements, parsable
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
@@ -17,7 +16,7 @@ from torch.optim.lr_scheduler import LambdaLR
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
-from .model_components import index_by_s, to_discrete
+from .model_components import CommonModel, index_by_s
 
 __all__ = [
     "SharedStepOut",
@@ -60,22 +59,22 @@ class Initializer:
 
     def init_module(self, module: nn.Module) -> None:
         cls_name = module.__class__.__name__
-        if hasattr(module, 'weight') and (
-            cls_name.find('Conv') != -1 or cls_name.find('Linear') != -1
+        if hasattr(module, "weight") and (
+            cls_name.find("Conv") != -1 or cls_name.find("Linear") != -1
         ):
             if self.init_type is InitType.KAIMING:
-                nn.init.kaiming_normal_(module.weight.data, a=0, mode='fan_in')
+                nn.init.kaiming_normal_(module.weight.data, a=0, mode="fan_in")
             elif self.init_type is InitType.XAVIER:
                 nn.init.xavier_normal_(module.weight.data, gain=self.init_gain)  # type: ignore[arg-type]
             elif self.init_type is InitType.NORMAL:
                 nn.init.normal_(module.weight.data, mean=0, std=self.init_gain)  # type: ignore[arg-type]
             else:
-                raise ValueError('Initialization not found!!')
+                raise ValueError("Initialization not found!!")
 
             if module.bias is not None:
                 nn.init.constant_(module.bias.data, val=0)  # type: ignore[arg-type]
 
-        if hasattr(module, 'weight') and cls_name.find('BatchNorm2d') != -1:
+        if hasattr(module, "weight") and cls_name.find("BatchNorm2d") != -1:
             nn.init.normal_(module.weight.data, mean=1.0, std=self.init_gain)  # type: ignore[arg-type]
             nn.init.constant_(module.bias.data, val=0)  # type: ignore[arg-type]
 
@@ -122,7 +121,7 @@ class Loss:
     ):
         """Init Loss."""
         self._loss_fn = nn.MSELoss() if loss_type is LossType.MSE else nn.BCEWithLogitsLoss()
-        self._recon_loss_fn = nn.L1Loss(reduction="mean")  # TODO: Make this MSE
+        self._recon_loss_fn = nn.L1Loss(reduction="mean")
         self.lambda_ = lambda_
         self.feature_groups = feature_groups if feature_groups is not None else {}
 
@@ -288,9 +287,8 @@ class Discriminator(nn.Module):
         return self.net(x)
 
 
-class CycleGan(pl.LightningModule):
+class CycleGan(CommonModel):
     loss: Loss
-    name = "CycleGan"
     g_a2b: nn.Module
     g_b2a: nn.Module
     d_a: nn.Module
@@ -317,7 +315,7 @@ class CycleGan(pl.LightningModule):
         epoch_decay: int = 200,
     ):
 
-        super().__init__()
+        super().__init__(name="CycleGan")
         self.d_lr = d_lr
         self.g_lr = g_lr
         self.beta_1 = beta_1
@@ -329,8 +327,10 @@ class CycleGan(pl.LightningModule):
 
         self.init_fn = Initializer(init_type=InitType.NORMAL, init_gain=0.02)
 
+    @implements(CommonModel)
     def build(
         self,
+        *,
         num_s: int,
         data_dim: int,
         s_dim: int,
@@ -339,6 +339,7 @@ class CycleGan(pl.LightningModule):
         outcome_cols: list[str],
         scaler: MinMaxScaler,
     ) -> None:
+        _ = (num_s, s_dim, cf_available)
         self.loss = Loss(loss_type=LossType.MSE, lambda_=1, feature_groups=feature_groups)
         self.g_a2b = self.init_fn(Generator(in_dims=data_dim))
         self.g_b2a = self.init_fn(Generator(in_dims=data_dim))
@@ -383,6 +384,7 @@ class CycleGan(pl.LightningModule):
         return DisFwd(real=pred_real_data, fake=pred_fake_data)
 
     def training_step(self, batch: Batch | CfBatch, batch_idx: int, optimizer_idx: int) -> Tensor:
+        _ = (batch_idx,)
         real_a, real_b = batch.x[batch.s == 0], batch.x[batch.s == 1]
         size = min(len(real_a), len(real_b))
         real_a = real_a[:size]
@@ -406,9 +408,9 @@ class CycleGan(pl.LightningModule):
             )
 
             dict_ = {
-                'g_tot_train_loss': gen_loss.tot,
-                'g_A2B_train_loss': gen_loss.a2b,
-                'g_B2A_train_loss': gen_loss.b2a,
+                "g_tot_train_loss": gen_loss.tot,
+                "g_A2B_train_loss": gen_loss.a2b,
+                "g_B2A_train_loss": gen_loss.b2a,
             }
             self.log_dict(dict_, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
@@ -461,11 +463,12 @@ class CycleGan(pl.LightningModule):
         d_b_loss = self.loss.get_dis_loss(dis_out_b.real, dis_out_b.fake)
 
         dict_ = {
-            f'g_tot_{stage.value}_loss': g_tot_loss,
-            f'g_A2B_{stage.value}_loss': g_a2b_loss,
-            f'g_B2A_{stage.value}_loss': g_b2a_loss,
-            f'd_A_{stage.value}_loss': d_a_loss,
-            f'd_B_{stage.value}_loss': d_b_loss,
+            f"g_tot_{stage.value}_loss": g_tot_loss,
+            f"g_A2B_{stage.value}_loss": g_a2b_loss,
+            f"g_B2A_{stage.value}_loss": g_b2a_loss,
+            f"d_A_{stage.value}_loss": d_a_loss,
+            f"d_B_{stage.value}_loss": d_b_loss,
+            "loss": g_tot_loss,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
@@ -479,12 +482,12 @@ class CycleGan(pl.LightningModule):
         )
 
     def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:
-        self.shared_epoch_end(outputs, stage=Stage.test)
+        self.shared_epoch_end(outputs)
 
     def validation_epoch_end(self, outputs: list[SharedStepOut]) -> None:
-        self.shared_epoch_end(outputs, stage=Stage.validate)
+        self.shared_epoch_end(outputs)
 
-    def shared_epoch_end(self, outputs: list[SharedStepOut], stage: Stage) -> None:
+    def shared_epoch_end(self, outputs: list[SharedStepOut]) -> None:
         self.all_x = torch.cat([_r.x for _r in outputs], 0)
         self.all_s = torch.cat([_r.s for _r in outputs], 0)
         self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
@@ -518,35 +521,6 @@ class CycleGan(pl.LightningModule):
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
         return [g_opt, d_a_opt, d_b_opt], [g_sch, d_a_sch, d_b_sch]
-
-    @torch.no_grad()
-    def invert(self, z: Tensor, x: Tensor) -> Tensor:
-        """Go from soft to discrete features."""
-        k = z.detach().clone()
-        if self.loss.feature_groups["discrete"]:
-            for i in range(
-                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
-            ):
-                if i in []:  # [0]: Features to transplant to the reconstrcution
-                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ] = x[:, slice(self.loss.feature_groups["discrete"][-1].stop, x.shape[1])][:, i]
-                else:
-                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ] = k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ].sigmoid()
-            for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
-                if i in []:  # [2, 4]: Features to transplant
-                    k[:, group_slice] = x[:, group_slice]
-                else:
-                    one_hot = to_discrete(inputs=k[:, group_slice])
-                    k[:, group_slice] = one_hot
-        else:
-            k = k.sigmoid()
-
-        return k
 
 
 class GenFwd(NamedTuple):

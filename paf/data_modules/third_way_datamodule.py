@@ -4,9 +4,9 @@ import logging
 from typing import Optional, Tuple
 
 from ethicml import Dataset, DataTuple
-from kit import implements, parsable
 import pandas as pd
 import pytorch_lightning as pl
+from ranzen import implements, parsable
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
@@ -118,8 +118,8 @@ class ThirdWayDataModule(BaseDataModule):
                 s1_0_s2_1_test.y.rename(columns={"outcome": "s1_0_s2_1"}),
                 s1_1_s2_0_test.y.rename(columns={"outcome": "s1_1_s2_0"}),
                 s1_1_s2_1_test.y.rename(columns={"outcome": "s1_1_s2_1"}),
-                self.test_datatuple.s.rename(columns={"sens": "true_s"}),
-                self.test_datatuple.y.rename(columns={"outcome": "actual"}),
+                self.data_group.test.s.rename(columns={"sens": "true_s"}),
+                self.data_group.test.y.rename(columns={"outcome": "actual"}),
             ],
             axis=1,
         )
@@ -138,8 +138,8 @@ class ThirdWayDataModule(BaseDataModule):
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
-            batch_size=self.batch_size,
             num_workers=self.num_workers,
+            batch_size=self.batch_size,
             shuffle=shuffle,
             drop_last=drop_last,
         )
@@ -148,22 +148,22 @@ class ThirdWayDataModule(BaseDataModule):
     def _val_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
-                self.val_datatuple,
+                dataset=self.val_datatuple,
                 cf_dataset=self.cf_val_datatuple,
-                disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
+                disc_features=self.dataset.discrete_features,
             ),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=shuffle,
             drop_last=drop_last,
+            shuffle=shuffle,
         )
 
     @implements(BaseDataModule)
     def _test_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             CFDataTupleDataset(
-                self.test_datatuple,
+                self.data_group.test,
                 cf_dataset=self.cf_test_datatuple,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,

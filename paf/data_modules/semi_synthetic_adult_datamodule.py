@@ -1,8 +1,8 @@
 """Adult Dataset DataModule."""
 from __future__ import annotations
 
-from kit import implements, parsable
 import pytorch_lightning as pl
+from ranzen import implements, parsable
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 
@@ -51,7 +51,7 @@ class SemiAdultDataModule(BaseDataModule):
     def _train_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
-                dataset=self.train_datatuple,
+                dataset=self.data_group.train,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -65,7 +65,7 @@ class SemiAdultDataModule(BaseDataModule):
     def _val_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
-                dataset=self.val_datatuple,
+                dataset=self.data_group.val,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
@@ -79,7 +79,7 @@ class SemiAdultDataModule(BaseDataModule):
     def _test_dataloader(self, *, shuffle: bool = False, drop_last: bool = False) -> DataLoader:
         return DataLoader(
             DataTupleDataset(
-                dataset=self.test_datatuple,
+                dataset=self.data_group.test,
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),

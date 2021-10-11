@@ -5,9 +5,9 @@ import logging
 from typing import Any, NamedTuple
 
 from conduit.types import Stage
-from kit import implements, parsable
 import numpy as np
 import pytorch_lightning as pl
+from ranzen import implements, parsable
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn, no_grad, optim
@@ -21,7 +21,7 @@ from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
 
 from .common_model import Adversary, BaseModel, CommonModel, Decoder, Encoder
-from .model_utils import index_by_s, to_discrete
+from .model_utils import index_by_s
 
 __all__ = [
     "SharedStepOut",
@@ -115,7 +115,6 @@ class Loss:
 class AE(CommonModel):
     """Main Autoencoder."""
 
-    feature_groups: dict[str, list[slice]]
     cf_model: bool
     data_cols: list[str]
     scaler: MinMaxScaler
@@ -156,7 +155,6 @@ class AE(CommonModel):
         self.mmd_kernel = mmd_kernel
         self.scheduler_rate = scheduler_rate
         self.weight_decay = weight_decay
-        self.num_batches = 0
         self.encoder_blocks = encoder_blocks
         self.latent_multiplier = latent_multiplier
         self.adv_blocks = adv_blocks
@@ -177,9 +175,9 @@ class AE(CommonModel):
         outcome_cols: list[str],
         scaler: MinMaxScaler,
     ) -> None:
+        _ = (scaler,)
         self.cf_model = cf_available
         self.data_cols = outcome_cols
-        self.scaler = scaler
 
         self.enc = Encoder(
             in_size=data_dim + s_dim if self.s_as_input else data_dim,
@@ -257,46 +255,27 @@ class AE(CommonModel):
 
         return loss
 
-    @torch.no_grad()
-    def invert(self, z: Tensor, x: Tensor) -> Tensor:
-        """Go from soft to discrete features."""
-        k = z.detach().clone()
-        if self.loss.feature_groups["discrete"]:
-            for i in range(
-                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
-            ):
-                if i in []:  # [0]: Features to transplant to the reconstrcution
-                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ] = x[:, slice(self.loss.feature_groups["discrete"][-1].stop, x.shape[1])][:, i]
-                else:
-                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ] = k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ].sigmoid()
-            for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
-                if i in []:  # [2, 4]: Features to transplant
-                    k[:, group_slice] = x[:, group_slice]
-                else:
-                    one_hot = to_discrete(inputs=k[:, group_slice])
-                    k[:, group_slice] = one_hot
-        else:
-            k = k.sigmoid()
-
-        return k
-
     @implements(pl.LightningModule)
     def test_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
-        return self.shared_step(batch, Stage.test)
+        return self.shared_step(batch)
 
     @implements(pl.LightningModule)
     def validation_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
-        return self.shared_step(batch, Stage.validate)
+        return self.shared_step(batch)
 
-    def shared_step(self, batch: Batch | CfBatch, stage: Stage) -> SharedStepOut | CfSharedStepOut:
+    def shared_step(self, batch: Batch | CfBatch) -> SharedStepOut | CfSharedStepOut:
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
+
+        recon_loss = self.loss.recon_loss(enc_fwd.x, batch)
+        adv_loss = self.loss.adv_loss(enc_fwd, batch, self.mmd_kernel)
+        cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
+        cycle_loss = self.loss.cycle_loss(cyc_fwd, batch)
+
+        loss = recon_loss + adv_loss + cycle_loss
+        self.log("loss", loss)
+        self.log("recon_loss", recon_loss)
+        self.log("cycle_loss", cycle_loss)
 
         to_return = SharedStepOut(
             x=batch.x,
@@ -328,7 +307,7 @@ class AE(CommonModel):
     def shared_epoch_end(
         self, output_results: list[SharedStepOut | CfSharedStepOut], stage: Stage
     ) -> None:
-        self.all_x = torch.cat([_r.x for _r in output_results], 0)
+        self.all_self.all_x = torch.cat([_r.x for _r in output_results], 0)
         all_z = torch.cat([_r.z for _r in output_results], 0)
         self.all_s = torch.cat([_r.s for _r in output_results], 0)
         self.all_recon = torch.cat([_r.recon for _r in output_results], 0)

@@ -2,9 +2,9 @@
 from __future__ import annotations
 from abc import abstractmethod
 
-from kit import implements
 import numpy as np
 import pytorch_lightning as pl
+from ranzen import implements
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 __all__ = ["CommonModel", "BaseModel", "Encoder", "Adversary", "Decoder"]
 
 from .blocks import block, mid_blocks
-from .model_utils import grad_reverse
+from .model_utils import grad_reverse, to_discrete
 
 
 class CommonModel(pl.LightningModule):
@@ -49,6 +49,7 @@ class CommonModel(pl.LightningModule):
     @abstractmethod
     def build(
         self,
+        *,
         num_s: int,
         data_dim: int,
         s_dim: int,
@@ -58,6 +59,35 @@ class CommonModel(pl.LightningModule):
         scaler: MinMaxScaler | None,
     ) -> None:
         """Build the network using data not available in advance."""
+
+    @torch.no_grad()
+    def invert(self, z: Tensor, x: Tensor) -> Tensor:
+        """Go from soft to discrete features."""
+        k = z.detach().clone()
+        if self.loss.feature_groups["discrete"]:
+            for i in range(
+                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
+            ):
+                if i in []:  # [0]: Features to transplant to the reconstrcution
+                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
+                        :, i
+                    ] = x[:, slice(self.loss.feature_groups["discrete"][-1].stop, x.shape[1])][:, i]
+                else:
+                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
+                        :, i
+                    ] = k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
+                        :, i
+                    ].sigmoid()
+            for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
+                if i in []:  # [2, 4]: Features to transplant
+                    k[:, group_slice] = x[:, group_slice]
+                else:
+                    one_hot = to_discrete(inputs=k[:, group_slice])
+                    k[:, group_slice] = one_hot
+        else:
+            k = k.sigmoid()
+
+        return k
 
 
 class BaseModel(nn.Module):

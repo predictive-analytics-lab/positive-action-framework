@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import abstractmethod
 
 from ethicml import DataTuple, PostAlgorithm, Prediction, TestTuple
-from kit import implements
 import numpy as np
+from ranzen import implements
 
 __all__ = ["FlipBase", "DPFlip", "EqOppFlip"]
 
@@ -140,20 +140,20 @@ class EqOppFlip(FlipBase):
         s_1 = test.s[test.s[test.s.columns[0]] == 1]
         y_1 = test.y[test.y[test.y.columns[0]] == 1]  # type: ignore[attr-defined]
 
-        r0 = preds.hard[(s_0.index) & (y_1.index) & (preds_1.index)].count()
-        r1 = preds.hard[(s_1.index) & (y_1.index) & (preds_1.index)].count()
+        s0_y1_p1 = preds.hard[(s_0.index) & (y_1.index) & (preds_1.index)].count()
+        s1_y1_p1 = preds.hard[(s_1.index) & (y_1.index) & (preds_1.index)].count()
 
         # Naming is nSY
-        n01 = preds.hard[(s_0.index) & (y_1.index)].count()
-        n11 = preds.hard[(s_1.index) & (y_1.index)].count()
+        s0_y1 = preds.hard[(s_0.index) & (y_1.index)].count()
+        s1_y1 = preds.hard[(s_1.index) & (y_1.index)].count()
 
-        a = r1 - ((n11 * r0) / n01)
-        b = n11 / n01
+        ratio_a = s1_y1_p1 - ((s1_y1 * s0_y1_p1) / s0_y1)
+        ratio_b = s1_y1 / s0_y1
 
-        if b > 1:
-            x = a / b
+        if ratio_b > 1:
+            x = ratio_a / ratio_b
             z = 0
         else:
             x = 0
-            z = a
+            z = ratio_a
         return int(round(x)), int(round(z))

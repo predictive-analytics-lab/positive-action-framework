@@ -65,7 +65,8 @@ disable=bad-continuation,
         missing-module-docstring,
         missing-class-docstring,
         missing-function-docstring,
-        logging-fstring-interpolation
+        logging-fstring-interpolation,
+        invalid-sequence-index
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -185,7 +186,8 @@ good-names=i,
            xx,
            xy,
            yy,
-           lr
+           lr,
+           xi
 
 # Include a hint for the correct naming format with invalid-name
 include-naming-hint=no
@@ -291,13 +293,13 @@ notes=FIXME,
 ignore-comments=yes
 
 # Ignore docstrings when computing similarities.
-ignore-docstrings=no
+ignore-docstrings=yes
 
 # Ignore imports when computing similarities.
 ignore-imports=yes
 
 # Minimum lines number of a similarity.
-min-similarity-lines=4
+min-similarity-lines=8
 
 
 [SPELLING]
@@ -423,10 +425,10 @@ valid-metaclass-classmethod-first-arg=mcs
 [DESIGN]
 
 # Maximum number of arguments for function / method
-max-args=10
+max-args=15
 
 # Maximum number of attributes for a class (see R0902).
-max-attributes=12
+max-attributes=25
 
 # Maximum number of boolean expressions in a if statement
 max-bool-expr=5
