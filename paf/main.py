@@ -232,7 +232,6 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         data=data,
         encoder=encoder,
         classifier=classifier,
-        model_name=model.name,
         _model_trainer=_model_trainer,
     )
 
@@ -248,7 +247,6 @@ def evaluate(
     data: BaseDataModule,
     encoder: pl.LightningModule,
     classifier: pl.LightningModule,
-    model_name: str,
     _model_trainer: pl.Trainer,
 ) -> None:
 
@@ -313,7 +311,7 @@ def evaluate(
             multiple_metrics(
                 preds=preds,
                 target=data.true_test_datatuple,
-                name=f"{model_name}_{fair_bool=}-TrueLabels",
+                name=f"TrueLabels-{fair_bool=}",
                 logger=wandb_logger,
             )
             get_full_breakdown(
@@ -351,14 +349,14 @@ def evaluate(
         multiple_metrics(
             preds=our_clf_preds,
             target=data.test_datatuple,
-            name=f"{model_name}-Real-World-Preds",
+            name="Real-World-Preds",
             logger=wandb_logger,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
             multiple_metrics(
                 preds=our_clf_preds,
                 target=data.test_datatuple,
-                name=f"{model_name}-Real-World-Preds",
+                name="Real-World-Preds",
                 logger=wandb_logger,
             )
             assert data.true_test_datatuple is not None
@@ -390,11 +388,11 @@ def evaluate(
 def baseline_models(
     model: em.InAlgorithm, *, data: BaseDataModule, logger: pll.WandbLogger
 ) -> None:
-    LOGGER.info("=== %s ===", model.name)
+    LOGGER.info(f"=== {model.name} ===")
     results = model.run(data.train_datatuple, data.test_datatuple)
     multiple_metrics(preds=results, target=data.test_datatuple, name="Results", logger=logger)
     if isinstance(data, BaseDataModule):
-        LOGGER.info("=== %s and 'True' Data ===", str(model.name))
+        LOGGER.info(f"=== {model.name} and 'True' Data ===")
         results = model.run(data.train_datatuple, data.test_datatuple)
         assert data.true_test_datatuple is not None
         multiple_metrics(

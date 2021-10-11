@@ -64,7 +64,8 @@ disable=bad-continuation,
         no-else-return,
         missing-module-docstring,
         missing-class-docstring,
-        missing-function-docstring
+        missing-function-docstring,
+        logging-fstring-interpolation
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -183,7 +184,8 @@ good-names=i,
            mu,
            xx,
            xy,
-           yy
+           yy,
+           lr
 
 # Include a hint for the correct naming format with invalid-name
 include-naming-hint=no
@@ -272,7 +274,7 @@ single-line-if-stmt=no
 # Logging modules to check that the string format arguments are in logging
 # function parameter format
 logging-modules=logging
-logging-format-style=old
+logging-format-style=new
 
 
 [MISCELLANEOUS]
