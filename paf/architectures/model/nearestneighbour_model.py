@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from conduit.fair.data import EthicMlDataModule
 import pandas as pd
 import pytorch_lightning as pl
 import pytorch_lightning.utilities.types as plut
@@ -12,6 +13,7 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 from paf.architectures import NnResults
 from paf.architectures.model.model_components import augment_recons
+from paf.base_templates import BaseDataModule
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
 __all__ = ["NearestNeighbourModel", "NnStepOut"]
@@ -39,7 +41,7 @@ class NearestNeighbourModel(pl.LightningModule):
     all_y: Tensor
     pd_results: pd.DataFrame
 
-    def __init__(self, clf_model: nn.Module, data: pl.LightningDataModule):
+    def __init__(self, clf_model: nn.Module, data: BaseDataModule | EthicMlDataModule):
         super().__init__()
         self.clf = clf_model
         self.train_features = torch.tensor(data.train_datatuple.x.values)

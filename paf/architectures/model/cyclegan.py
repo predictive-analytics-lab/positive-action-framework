@@ -13,6 +13,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import Parameter
 from torch.optim.lr_scheduler import LambdaLR
+from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
@@ -521,6 +522,9 @@ class CycleGan(CommonModel):
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
         return [g_opt, d_a_opt, d_b_opt], [g_sch, d_a_sch, d_b_sch]
+
+    def get_recon(self, dataloader: DataLoader) -> np.ndarray:
+        raise NotImplementedError("This shouldn't be called. Only implementing for th abc.")
 
 
 class GenFwd(NamedTuple):

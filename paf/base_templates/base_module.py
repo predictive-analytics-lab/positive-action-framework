@@ -194,6 +194,51 @@ class BaseDataModule(pl.LightningDataModule):
             except (IndexError, KeyError):
                 pass
 
+    @property
+    def train_datatuple(self) -> DataTuple:
+        assert self.data_group is not None
+        return self.data_group.train
+
+    @property
+    def val_datatuple(self) -> DataTuple:
+        assert self.data_group is not None
+        return self.data_group.val
+
+    @property
+    def test_datatuple(self) -> DataTuple:
+        assert self.data_group is not None
+        return self.data_group.test
+
+    @property
+    def true_train_datatuple(self) -> DataTuple:
+        assert self.true_data_group is not None
+        return self.true_data_group.train
+
+    @property
+    def true_val_datatuple(self) -> DataTuple:
+        assert self.true_data_group is not None
+        return self.true_data_group.val
+
+    @property
+    def true_test_datatuple(self) -> DataTuple:
+        assert self.true_data_group is not None
+        return self.true_data_group.test
+
+    @property
+    def cf_train_datatuple(self) -> DataTuple:
+        assert self.cf_data_group is not None
+        return self.cf_data_group.train
+
+    @property
+    def cf_val_datatuple(self) -> DataTuple:
+        assert self.cf_data_group is not None
+        return self.cf_data_group.val
+
+    @property
+    def cf_test_datatuple(self) -> DataTuple:
+        assert self.cf_data_group is not None
+        return self.cf_data_group.test
+
 
 class DataGroup(NamedTuple):
     train: DataTuple

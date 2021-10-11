@@ -175,8 +175,7 @@ class AE(CommonModel):
         outcome_cols: list[str],
         scaler: MinMaxScaler,
     ) -> None:
-        _ = (scaler,)
-        self.cf_model = cf_available
+        _ = (scaler, cf_available)
         self.data_cols = outcome_cols
 
         self.enc = Encoder(
@@ -307,7 +306,7 @@ class AE(CommonModel):
     def shared_epoch_end(
         self, output_results: list[SharedStepOut | CfSharedStepOut], stage: Stage
     ) -> None:
-        self.all_self.all_x = torch.cat([_r.x for _r in output_results], 0)
+        self.all_x = torch.cat([_r.x for _r in output_results], 0)
         all_z = torch.cat([_r.z for _r in output_results], 0)
         self.all_s = torch.cat([_r.s for _r in output_results], 0)
         self.all_recon = torch.cat([_r.recon for _r in output_results], 0)

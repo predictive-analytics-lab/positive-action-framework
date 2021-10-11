@@ -307,7 +307,7 @@ def evaluate(
             logger=wandb_logger,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
-            assert data.true_test_datatuple is not None
+            assert data.true_data_group is not None
             multiple_metrics(
                 preds=preds,
                 target=data.true_test_datatuple,
