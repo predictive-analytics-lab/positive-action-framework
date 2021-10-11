@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 from paf.architectures import NnResults
+from paf.architectures.model.model_components import augment_recons
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
 __all__ = ["NearestNeighbourModel", "NnStepOut"]
@@ -71,6 +72,8 @@ class NearestNeighbourModel(pl.LightningModule):
         cf_feats, cf_outcome = self.forward(test_features=batch.x, sens_label=batch.s)
         preds = (self.clf.forward(batch.x) >= 0).long()
 
+        augmented_recons = augment_recons(batch.x, cf_feats, batch.s)
+
         return NnStepOut(
             cf_preds=cf_outcome,
             cf_x=cf_feats,
@@ -78,6 +81,8 @@ class NearestNeighbourModel(pl.LightningModule):
             x=batch.x,
             s=batch.s,
             y=batch.y,
+            recons_0=augmented_recons[0],
+            recons_1=augmented_recons[1],
         )
 
     @staticmethod
