@@ -145,7 +145,7 @@ def make_plot(
 
         plt.xticks(rotation=90)
         plt.tight_layout()
-        do_log(f"distplot_image_{name}/{col}", wandb.Image(plt), logger)
+        do_log(f"distplot/{name}/{col}", wandb.Image(plt), logger)
         plt.clf()
 
 

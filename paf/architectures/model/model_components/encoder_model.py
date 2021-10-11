@@ -53,6 +53,18 @@ class CfSharedStepOut(SharedStepOut):
     cf_recon: Tensor
 
 
+class RunThroughOut(NamedTuple):
+    x: Tensor
+    s: Tensor
+    y: Tensor
+
+
+class EncFwd(NamedTuple):
+    z: Tensor
+    s: Tensor
+    x: list[Tensor]
+
+
 class Loss:
     def __init__(
         self,
@@ -229,11 +241,11 @@ class AE(CommonModel):
         loss = recon_loss + adv_loss + cycle_loss
 
         to_log = {
-            "training_enc/loss": loss,
-            "training_enc/recon_loss": recon_loss,
-            "training_enc/adv_loss": adv_loss,
-            "training_enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
-            "training_enc/z_mean_abs_diff": (
+            f"{Stage.fit}/enc_loss": loss,
+            f"{Stage.fit}/enc_recon_loss": recon_loss,
+            f"{Stage.fit}/enc_adv_loss": adv_loss,
+            f"{Stage.fit}/enc_z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
+            f"{Stage.fit}/enc_z_mean_abs_diff": (
                 enc_fwd.z[batch.s <= 0].mean() - enc_fwd.z[batch.s > 0].mean()
             ).abs(),
         }
@@ -245,8 +257,8 @@ class AE(CommonModel):
                     index_by_s(enc_fwd.x, batch.cfs), batch.cfx, reduction="mean"
                 )
                 cf_loss = cf_recon_loss - 1e-6
-                to_log["training_enc/cf_loss"] = cf_loss
-                to_log["training_enc/cf_recon_loss"] = cf_recon_loss
+                to_log[f"{Stage.fit}/enc_cf_loss"] = cf_loss
+                to_log[f"{Stage.fit}/enc_cf_recon_loss"] = cf_recon_loss
 
         self.log_dict(to_log, logger=True)
 
@@ -254,13 +266,13 @@ class AE(CommonModel):
 
     @implements(pl.LightningModule)
     def test_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
-        return self.shared_step(batch)
+        return self.shared_step(batch, stage=Stage.test)
 
     @implements(pl.LightningModule)
     def validation_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
-        return self.shared_step(batch)
+        return self.shared_step(batch, stage=Stage.validate)
 
-    def shared_step(self, batch: Batch | CfBatch) -> SharedStepOut | CfSharedStepOut:
+    def shared_step(self, batch: Batch | CfBatch, stage: Stage) -> SharedStepOut | CfSharedStepOut:
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
 
@@ -270,9 +282,9 @@ class AE(CommonModel):
         cycle_loss, _ = self.loss.cycle_loss(cyc_fwd, batch)
 
         loss = recon_loss + adv_loss + cycle_loss
-        self.log("loss", loss)
-        self.log("recon_loss", recon_loss)
-        self.log("cycle_loss", cycle_loss)
+        self.log(f"{stage}/loss", loss)
+        self.log(f"{stage}/recon_loss", recon_loss)
+        self.log(f"{stage}/cycle_loss", cycle_loss)
 
         to_return = SharedStepOut(
             x=batch.x,
@@ -314,7 +326,7 @@ class AE(CommonModel):
             x=all_z.clone(),
             s=self.all_s.clone(),
             logger=self.logger,
-            name=f"{stage.value}_z",
+            name=f"{stage}_z",
             cols=[str(i) for i in range(self.latent_dims)],
         )
 
@@ -325,14 +337,14 @@ class AE(CommonModel):
                 x=all_cf_x.clone(),
                 s=self.all_s.clone(),
                 logger=self.logger,
-                name=f"{stage.value}_true_counterfactual",
+                name=f"{stage}_true_counterfactual",
                 cols=self.data_cols,
             )
             make_plot(
                 x=cf_recon.clone(),
                 s=self.all_s.clone(),
                 logger=self.logger,
-                name=f"{stage.value}_cf_recons",
+                name=f"{stage}_cf_recons",
                 cols=self.data_cols,
             )
 
@@ -391,15 +403,3 @@ class AE(CommonModel):
         assert labels is not None
         _labels = torch.cat(labels, dim=0)
         return RunThroughOut(x=_recons.detach(), s=_sens.detach(), y=_labels.detach())
-
-
-class RunThroughOut(NamedTuple):
-    x: Tensor
-    s: Tensor
-    y: Tensor
-
-
-class EncFwd(NamedTuple):
-    z: Tensor
-    s: Tensor
-    x: list[Tensor]
