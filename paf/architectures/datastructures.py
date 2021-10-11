@@ -26,8 +26,6 @@ class PafResults(Results):
     preds_0_1: Tensor
     preds_1_0: Tensor
     preds_1_1: Tensor
-    enc_z: Tensor
-    enc_s_pred: Tensor
     recon: Tensor
     cycle_loss: Tensor
 

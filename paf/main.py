@@ -305,7 +305,7 @@ def evaluate(
         multiple_metrics(
             preds=preds,
             target=data.test_datatuple,
-            name=f"{model_name}_{fair_bool=}-Post-Selection",
+            name=f"Post-Selection-{fair_bool=}",
             logger=wandb_logger,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:

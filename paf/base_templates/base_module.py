@@ -18,7 +18,7 @@ from paf.plotting import label_plot
 
 __all__ = ["BaseDataModule", "ScaleSplitOut"]
 
-warnings.simplefilter(action='ignore', category=RuntimeWarning)
+warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
 
 class BaseDataModule(pl.LightningDataModule):

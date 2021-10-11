@@ -25,7 +25,9 @@ repos:
     rev: v2.29.0
     hooks:
       - id: pyupgrade
-        args: [ --py36-plus ]
+        args:
+        - --py36-plus
+        - --keep-runtime-typing
 #  - repo: https://github.com/pycqa/pydocstyle
 #    rev: 5.1.1  # pick a git hash / tag to point to
 #    hooks:
@@ -46,7 +48,8 @@ repos:
     hooks:
       - id: pylint
         name: pylint
-        entry: pylint
+        verbose: true
+        entry: bash -c 'pylint "$@" || true' --
         language: system
         types: [ python ]
         args:
@@ -60,7 +63,8 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: mypy
+        verbose: true
+        entry: bash -c 'mypy "$@" || true' --
         language: python
         types: [ python ]
 
