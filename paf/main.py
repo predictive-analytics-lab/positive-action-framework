@@ -149,7 +149,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     data.prepare_data()
     data.setup()
 
-    LOGGER.info(f"data_dim={data.size()}, num_s={data.card_s}")
+    LOGGER.info("data_dim=%s, num_s=%d" % data.size(), data.card_s)
 
     raw_config["name"] = name_lookup(cfg)
     raw_config["data_name"] = cfg.data.__class__.__name__
