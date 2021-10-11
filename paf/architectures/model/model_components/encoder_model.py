@@ -105,11 +105,9 @@ class Loss:
             / 2
         ) * self._adv_weight
 
-    def cycle_loss(self, cyc_fwd: EncFwd, batch: Batch | CfBatch) -> Tensor:
-        return (
-            self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
-            * self._cycle_weight
-        )
+    def cycle_loss(self, cyc_fwd: EncFwd, batch: Batch | CfBatch) -> tuple[Tensor, Tensor]:
+        cycle_loss = self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
+        return (cycle_loss, cycle_loss * self._cycle_weight)
 
 
 class AE(CommonModel):
@@ -226,7 +224,7 @@ class AE(CommonModel):
         recon_loss = self.loss.recon_loss(enc_fwd.x, batch)
         adv_loss = self.loss.adv_loss(enc_fwd, batch, self.mmd_kernel)
         cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
-        cycle_loss = self.loss.cycle_loss(cyc_fwd, batch)
+        _, cycle_loss = self.loss.cycle_loss(cyc_fwd, batch)
 
         loss = recon_loss + adv_loss + cycle_loss
 
@@ -269,7 +267,7 @@ class AE(CommonModel):
         recon_loss = self.loss.recon_loss(enc_fwd.x, batch)
         adv_loss = self.loss.adv_loss(enc_fwd, batch, self.mmd_kernel)
         cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
-        cycle_loss = self.loss.cycle_loss(cyc_fwd, batch)
+        cycle_loss, _ = self.loss.cycle_loss(cyc_fwd, batch)
 
         loss = recon_loss + adv_loss + cycle_loss
         self.log("loss", loss)
