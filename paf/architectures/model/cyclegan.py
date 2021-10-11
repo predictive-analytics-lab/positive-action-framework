@@ -409,10 +409,10 @@ class CycleGan(CommonModel):
                 d_b_pred_fake_data,
             )
 
-            self.log("g_tot_train_loss", gen_loss.tot)
-            self.log("g_A2B_train_loss", gen_loss.a2b)
-            self.log("g_B2A_train_loss", gen_loss.b2a)
-            self.log("cycle_loss", gen_loss.cycle_loss)
+            self.log(f"{Stage.fit}/g_tot_loss", gen_loss.tot)
+            self.log(f"{Stage.fit}/g_A2B_loss", gen_loss.a2b)
+            self.log(f"{Stage.fit}/g_B2A_loss", gen_loss.b2a)
+            self.log(f"{Stage.fit}/cycle_loss", gen_loss.cycle_loss)
 
             return gen_loss.tot
 
@@ -424,7 +424,12 @@ class CycleGan(CommonModel):
             # GAN loss
             d_a_loss = self.loss.get_dis_loss(dis_out.real, dis_out.fake)
             self.log(
-                "d_A_train_loss", d_a_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+                f"{Stage.fit}/d_A_loss",
+                d_a_loss,
+                on_step=True,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
             )
 
             return d_a_loss
@@ -437,7 +442,12 @@ class CycleGan(CommonModel):
             # GAN loss
             d_b_loss = self.loss.get_dis_loss(dis_b_out.real, dis_b_out.fake)
             self.log(
-                "d_B_train_loss", d_b_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+                f"{Stage.fit}/d_B_loss",
+                d_b_loss,
+                on_step=True,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
             )
 
             return d_b_loss
@@ -461,12 +471,12 @@ class CycleGan(CommonModel):
         d_b_loss = self.loss.get_dis_loss(dis_out_b.real, dis_out_b.fake)
 
         dict_ = {
-            f"g_tot_{stage.value}_loss": gen_losses.tot,
-            f"g_A2B_{stage.value}_loss": gen_losses.a2b,
-            f"g_B2A_{stage.value}_loss": gen_losses.b2a,
-            f"d_A_{stage.value}_loss": d_a_loss,
-            f"d_B_{stage.value}_loss": d_b_loss,
-            "loss": gen_losses.tot,
+            f"{stage}/g_tot_loss": gen_losses.tot,
+            f"{stage}/g_A2B_loss": gen_losses.a2b,
+            f"{stage}/g_B2A_loss": gen_losses.b2a,
+            f"{stage}/d_A_loss": d_a_loss,
+            f"{stage}/d_B_loss": d_b_loss,
+            f"{stage}/loss": gen_losses.tot,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
@@ -521,7 +531,7 @@ class CycleGan(CommonModel):
         return [g_opt, d_a_opt, d_b_opt], [g_sch, d_a_sch, d_b_sch]
 
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
-        raise NotImplementedError("This shouldn't be called. Only implementing for th abc.")
+        raise NotImplementedError("This shouldn't be called. Only implementing for the abc.")
 
 
 class GenFwd(NamedTuple):
