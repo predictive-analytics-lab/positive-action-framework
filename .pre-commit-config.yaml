@@ -48,8 +48,7 @@ repos:
     hooks:
       - id: pylint
         name: pylint
-        verbose: true
-        entry: bash -c 'pylint "$@" || true' --
+        entry: pylint
         language: system
         types: [ python ]
         args:
@@ -63,8 +62,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        verbose: true
-        entry: bash -c 'mypy "$@" || true' --
+        entry: mypy
         language: python
         types: [ python ]
 

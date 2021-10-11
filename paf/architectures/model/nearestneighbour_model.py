@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import Any
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -24,6 +25,8 @@ class NnStepOut:
     x: Tensor
     s: Tensor
     y: Tensor
+    recons_0: Tensor
+    recons_1: Tensor
 
 
 class NearestNeighbourModel(pl.LightningModule):
@@ -65,10 +68,10 @@ class NearestNeighbourModel(pl.LightningModule):
 
         return torch.stack(features, dim=0), torch.stack(labels, dim=0)
 
-    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> plut.STEP_OUTPUT:
+    def training_step(self, *_: Any) -> plut.STEP_OUTPUT:
         ...
 
-    def predict_step(self, batch: Batch | CfBatch, batch_idx: int, **kwargs) -> NnStepOut | None:
+    def predict_step(self, batch: Batch | CfBatch, batch_idx: int, *_: Any) -> NnStepOut | None:
         cf_feats, cf_outcome = self.forward(test_features=batch.x, sens_label=batch.s)
         preds = (self.clf.forward(batch.x) >= 0).long()
 
@@ -124,6 +127,8 @@ class NearestNeighbourModel(pl.LightningModule):
                 .numpy(),
                 columns=["s1_0_s2_0", "s1_1_s2_1", "true_s", "actual"],
             ),
+            recons_0=torch.cat([_r.recons_0 for _r in outputs], 0),
+            recons_1=torch.cat([_r.recons_1 for _r in outputs], 0),
         )
 
     def configure_optimizers(

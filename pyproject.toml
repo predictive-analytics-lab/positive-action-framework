@@ -83,7 +83,7 @@ disallow_any_unimported = false
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 show_error_codes = true
-warn_unused_ignores = true
+warn_unused_ignores = false
 exclude = "config_classes/"
 
 [[tool.mypy.overrides]]
