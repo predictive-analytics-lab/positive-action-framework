@@ -292,6 +292,7 @@ def evaluate(
                 recon_1=results.recons_1,
                 logger=wandb_logger,
                 data_name="Outcomes",
+                fair=fair_bool,
             )
         else:
             preds = baseline_selection_rules(
