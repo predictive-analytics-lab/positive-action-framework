@@ -240,6 +240,29 @@ class AE(CommonModel):
 
         loss = recon_loss + adv_loss + cycle_loss
 
+        recon_mmd = mmd2(
+            batch.x, self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), kernel=KernelType.LINEAR
+        )
+
+        cf_mmd = mmd2(
+            batch.x,
+            self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.x),
+            kernel=KernelType.LINEAR,
+        )
+
+        s0_dist_mmd = mmd2(
+            batch.x[batch.s == 0],
+            self.invert(index_by_s(enc_fwd.x, torch.zeros_like(batch.s)), batch.x),
+            kernel=KernelType.LINEAR,
+            biased=True,
+        )
+        s1_dist_mmd = mmd2(
+            batch.x[batch.s == 1],
+            self.invert(index_by_s(enc_fwd.x, torch.ones_like(batch.s)), batch.x),
+            kernel=KernelType.LINEAR,
+            biased=True,
+        )
+
         to_log = {
             f"{Stage.fit}/enc_loss": loss,
             f"{Stage.fit}/enc_recon_loss": recon_loss,
@@ -249,6 +272,10 @@ class AE(CommonModel):
                 enc_fwd.z[batch.s <= 0].mean() - enc_fwd.z[batch.s > 0].mean()
             ).abs(),
             f"{Stage.fit}/cycle_loss": report_of_cyc_loss,
+            f"{Stage.fit}/recon_mmd": recon_mmd,
+            f"{Stage.fit}/cf_recon_mmd": cf_mmd,
+            f"{Stage.fit}/s0_dist_mmd": s0_dist_mmd,
+            f"{Stage.fit}/s1_dist_mmd": s1_dist_mmd,
         }
 
         if isinstance(batch, CfBatch):
