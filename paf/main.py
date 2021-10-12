@@ -78,6 +78,7 @@ class ExpConfig:
     log_offline: Optional[bool] = False
     tags: str = ""
     model: ModelType = ModelType.PAF
+    debug: bool = False
 
 
 @dataclass
@@ -170,7 +171,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     # make_data_plots(data, cfg.trainer.logger)
 
     if isinstance(cfg.clf, em.InAlgorithm):
-        baseline_models(cfg.clf, data=data, logger=wandb_logger)
+        baseline_models(cfg.clf, data=data, logger=wandb_logger, debug=cfg.exp.debug)
         return
 
     encoder: AE | CycleGan | None = None
@@ -306,6 +307,7 @@ def evaluate(
             target=data.test_datatuple,
             name=f"Post-Selection-{fair_bool=}",
             logger=wandb_logger,
+            debug=cfg.exp.debug,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
             assert data.true_data_group is not None
@@ -314,6 +316,7 @@ def evaluate(
                 target=data.true_test_datatuple,
                 name=f"TrueLabels-{fair_bool=}",
                 logger=wandb_logger,
+                debug=cfg.exp.debug,
             )
             get_full_breakdown(
                 target_info=f"Stats/{fair_bool=}",
@@ -352,6 +355,7 @@ def evaluate(
             target=data.test_datatuple,
             name="Real-World-Preds",
             logger=wandb_logger,
+            debug=cfg.exp.debug,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
             multiple_metrics(
@@ -359,6 +363,7 @@ def evaluate(
                 target=data.test_datatuple,
                 name="Real-World-Preds",
                 logger=wandb_logger,
+                debug=cfg.exp.debug,
             )
             assert data.true_test_datatuple is not None
             get_full_breakdown(
@@ -387,17 +392,23 @@ def evaluate(
 
 
 def baseline_models(
-    model: em.InAlgorithm, *, data: BaseDataModule, logger: pll.WandbLogger
+    model: em.InAlgorithm, *, data: BaseDataModule, logger: pll.WandbLogger, debug: bool
 ) -> None:
     LOGGER.info(f"=== {model.name} ===")
     results = model.run(data.train_datatuple, data.test_datatuple)
-    multiple_metrics(preds=results, target=data.test_datatuple, name="Results", logger=logger)
+    multiple_metrics(
+        preds=results, target=data.test_datatuple, name="Results", logger=logger, debug=debug
+    )
     if isinstance(data, BaseDataModule):
         LOGGER.info(f"=== {model.name} and 'True' Data ===")
         results = model.run(data.train_datatuple, data.test_datatuple)
         assert data.true_test_datatuple is not None
         multiple_metrics(
-            preds=results, target=data.true_test_datatuple, name="Results-TrueLabels", logger=logger
+            preds=results,
+            target=data.true_test_datatuple,
+            name="Results-TrueLabels",
+            logger=logger,
+            debug=debug,
         )
         get_full_breakdown(
             target_info="Stats",
@@ -412,13 +423,14 @@ def baseline_models(
 
 
 def multiple_metrics(
-    preds: em.Prediction, *, target: em.DataTuple, name: str, logger: pll.WandbLogger
+    preds: em.Prediction, *, target: em.DataTuple, name: str, logger: pll.WandbLogger, debug: bool
 ) -> None:
     """Get multiple metrics."""
-    try:
-        label_plot(target.replace(y=preds.hard.to_frame()), logger, name)
-    except (IndexError, KeyError):
-        pass
+    if debug:
+        try:
+            label_plot(target.replace(y=preds.hard.to_frame()), logger, name)
+        except (IndexError, KeyError):
+            pass
 
     results = em.run_metrics(
         predictions=preds,

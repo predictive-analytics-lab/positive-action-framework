@@ -30,7 +30,6 @@ configen:
         - LilliputDataModule
         - ThirdWayDataModule
         - SimpleXDataModule
-        - SimpleAdultDataModule
         - SemiAdultDataModule
     - name: paf.architectures.model.model_components
       classes:

@@ -66,6 +66,7 @@ class Clf(CommonModel):
         adv_blocks: int,
         decoder_blocks: int,
         latent_multiplier: int,
+        debug: bool,
     ):
         """Classifier."""
         super().__init__(name="Clf")
@@ -84,6 +85,7 @@ class Clf(CommonModel):
         self.adv_blocks = adv_blocks
         self.decoder_blocks = decoder_blocks
         self.latent_multiplier = latent_multiplier
+        self.debug = debug
         self.built = False
 
     @implements(CommonModel)
@@ -197,35 +199,37 @@ class Clf(CommonModel):
         preds_0 = torch.cat([_r.preds_0 for _r in outputs], 0)
         preds_1 = torch.cat([_r.preds_1 for _r in outputs], 0)
 
-        make_plot(
-            x=all_y.unsqueeze(-1),
-            s=all_s,
-            logger=self.logger,
-            name="true_data",
-            cols=["out"],
-        )
-        make_plot(x=all_preds, s=all_s, logger=self.logger, name="preds", cols=["preds"])
-        make_plot(x=preds_0, s=all_s, logger=self.logger, name="preds", cols=["preds"])
-        make_plot(x=preds_1, s=all_s, logger=self.logger, name="preds", cols=["preds"])
-        make_plot(
-            x=all_z,
-            s=all_s,
-            logger=self.logger,
-            name="z",
-            cols=[str(i) for i in range(self.latent_dims)],
-        )
+        if self.debug:
+            make_plot(
+                x=all_y.unsqueeze(-1),
+                s=all_s,
+                logger=self.logger,
+                name="true_data",
+                cols=["out"],
+            )
+            make_plot(x=all_preds, s=all_s, logger=self.logger, name="preds", cols=["preds"])
+            make_plot(x=preds_0, s=all_s, logger=self.logger, name="preds", cols=["preds"])
+            make_plot(x=preds_1, s=all_s, logger=self.logger, name="preds", cols=["preds"])
+            make_plot(
+                x=all_z,
+                s=all_s,
+                logger=self.logger,
+                name="z",
+                cols=[str(i) for i in range(self.latent_dims)],
+            )
 
         if self.cf_model:
             all_cf_y = torch.cat([_r.cf_y for _r in outputs if _r.cf_y is not None], 0)
             cf_preds = torch.cat([_r.cf_preds for _r in outputs if _r.cf_preds is not None], 0)
-            make_plot(
-                x=all_cf_y.unsqueeze(-1),
-                s=all_s,
-                logger=self.logger,
-                name="true_counterfactual_outcome",
-                cols=["preds"],
-            )
-            make_plot(x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=["preds"])
+            if self.debug:
+                make_plot(
+                    x=all_cf_y.unsqueeze(-1),
+                    s=all_s,
+                    logger=self.logger,
+                    name="true_counterfactual_outcome",
+                    cols=["preds"],
+                )
+                make_plot(x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=["preds"])
 
     @implements(pl.LightningModule)
     def configure_optimizers(self) -> Adam:

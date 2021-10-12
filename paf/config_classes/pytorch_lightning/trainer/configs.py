@@ -16,7 +16,7 @@ class TrainerConf:
     checkpoint_callback: bool = True
     callbacks: Any = None  # Union[List[Callback], Callback, NoneType]
     default_root_dir: Optional[str] = None
-    gradient_clip_val: float = 0.0
+    gradient_clip_val: Any = 0.0  # Union[int, float]
     gradient_clip_algorithm: str = "norm"
     process_position: int = 0
     num_nodes: int = 1

@@ -13,3 +13,4 @@ s_as_input: true
 mmd_kernel: "RBF"
 scheduler_rate: 0.99
 use_iw: false
+debug: false

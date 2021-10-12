@@ -155,6 +155,7 @@ class AE(CommonModel):
         mmd_kernel: KernelType,
         scheduler_rate: float,
         weight_decay: float,
+        debug: bool,
     ):
         super().__init__(name="Enc")
 
@@ -171,6 +172,7 @@ class AE(CommonModel):
         self.latent_multiplier = latent_multiplier
         self.adv_blocks = adv_blocks
         self.decoder_blocks = decoder_blocks
+        self.debug = debug
         self.built = False
 
         self.val_mse = MeanSquaredError()
@@ -338,31 +340,33 @@ class AE(CommonModel):
         self.all_recon = torch.cat([_r.recon for _r in output_results], 0)
         self.all_cf_pred = torch.cat([_r.cf_pred for _r in output_results], 0)
 
-        make_plot(
-            x=all_z.clone(),
-            s=self.all_s.clone(),
-            logger=self.logger,
-            name=f"{stage}_z",
-            cols=[str(i) for i in range(self.latent_dims)],
-        )
+        if self.debug:
+            make_plot(
+                x=all_z.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_z",
+                cols=[str(i) for i in range(self.latent_dims)],
+            )
 
         if isinstance(output_results[0], CfSharedStepOut):
             all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)  # type: ignore[union-attr]
             cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)  # type: ignore[union-attr]
-            make_plot(
-                x=all_cf_x.clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name=f"{stage}_true_counterfactual",
-                cols=self.data_cols,
-            )
-            make_plot(
-                x=cf_recon.clone(),
-                s=self.all_s.clone(),
-                logger=self.logger,
-                name=f"{stage}_cf_recons",
-                cols=self.data_cols,
-            )
+            if self.debug:
+                make_plot(
+                    x=all_cf_x.clone(),
+                    s=self.all_s.clone(),
+                    logger=self.logger,
+                    name=f"{stage}_true_counterfactual",
+                    cols=self.data_cols,
+                )
+                make_plot(
+                    x=cf_recon.clone(),
+                    s=self.all_s.clone(),
+                    logger=self.logger,
+                    name=f"{stage}_cf_recons",
+                    cols=self.data_cols,
+                )
 
     @implements(pl.LightningModule)
     def configure_optimizers(
@@ -425,25 +429,25 @@ class AE(CommonModel):
             recon_mmd = mmd2(
                 batch.x,
                 self.invert(index_by_s(enc_fwd.x, batch.s), batch.x),
-                kernel=KernelType.LINEAR,
+                kernel=self.mmd_kernel,
             )
 
             cf_mmd = mmd2(
                 batch.x,
                 self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.x),
-                kernel=KernelType.LINEAR,
+                kernel=self.mmd_kernel,
             )
 
             s0_dist_mmd = mmd2(
                 batch.x[batch.s == 0],
                 self.invert(index_by_s(enc_fwd.x, torch.zeros_like(batch.s)), batch.x),
-                kernel=KernelType.LINEAR,
+                kernel=self.mmd_kernel,
                 biased=True,
             )
             s1_dist_mmd = mmd2(
                 batch.x[batch.s == 1],
                 self.invert(index_by_s(enc_fwd.x, torch.ones_like(batch.s)), batch.x),
-                kernel=KernelType.LINEAR,
+                kernel=self.mmd_kernel,
                 biased=True,
             )
         return MmdReportingResults(

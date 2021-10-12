@@ -13,12 +13,6 @@ from sklearn.preprocessing import MinMaxScaler
 import torch
 
 from paf.architectures.paf_model import PafModel
-from paf.config_classes.paf.data_modules.configs import (  # type: ignore[import]
-    LilliputDataModuleConf,
-    SimpleAdultDataModuleConf,
-    SimpleXDataModuleConf,
-    ThirdWayDataModuleConf,
-)
 from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: ignore[import]
     TrainerConf,
 )
@@ -96,10 +90,8 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
                 torch.testing.assert_allclose(batch.y, batch.cfy)
 
 
-@pytest.mark.parametrize(
-    "dm_schema,cf_available", [("third", True), ("lill", True), ("synth", True), ("ad", False)]
-)
-def test_datamods(dm_schema: str, cf_available: bool) -> None:
+@pytest.mark.parametrize("dm_schema,cf_available", ["third", "lill", "synth", "ad"])
+def test_datamods(dm_schema: str) -> None:
     """Test the flip dataset function."""
     with initialize(config_path=CFG_PTH):
         # config is relative to a module

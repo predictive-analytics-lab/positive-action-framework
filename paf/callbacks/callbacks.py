@@ -42,73 +42,78 @@ class FeaturePlots(pl.callbacks.Callback):
 
     @staticmethod
     def _shared(pl_module: pl.LightningModule, stage: Stage) -> None:
-        if pl_module.loss.feature_groups["discrete"]:
-            make_plot(
-                x=pl_module.all_x[
-                    :,
-                    slice(
-                        pl_module.loss.feature_groups["discrete"][-1].stop, pl_module.all_x.shape[1]
-                    ),
-                ].clone(),
-                s=pl_module.all_s.clone(),
-                logger=pl_module.logger,
-                name=f"{stage}_true_data",
-                cols=pl_module.data_cols[
-                    slice(
-                        pl_module.loss.feature_groups["discrete"][-1].stop, pl_module.all_x.shape[1]
-                    )
-                ],
-                scaler=pl_module.scaler,
-            )
-            make_plot(
-                x=pl_module.all_recon[
-                    :,
-                    slice(
-                        pl_module.loss.feature_groups["discrete"][-1].stop, pl_module.all_x.shape[1]
-                    ),
-                ].clone(),
-                s=pl_module.all_s.clone(),
-                logger=pl_module.logger,
-                name=f"{stage}_recons",
-                cols=pl_module.data_cols[
-                    slice(
-                        pl_module.loss.feature_groups["discrete"][-1].stop, pl_module.all_x.shape[1]
-                    )
-                ],
-                scaler=pl_module.scaler,
-            )
-            for group_slice in pl_module.loss.feature_groups["discrete"]:
+        if pl_module.debug:
+            if pl_module.loss.feature_groups["discrete"]:
                 make_plot(
-                    x=pl_module.all_x[:, group_slice].clone(),
+                    x=pl_module.all_x[
+                        :,
+                        slice(
+                            pl_module.loss.feature_groups["discrete"][-1].stop,
+                            pl_module.all_x.shape[1],
+                        ),
+                    ].clone(),
                     s=pl_module.all_s.clone(),
                     logger=pl_module.logger,
                     name=f"{stage}_true_data",
-                    cols=pl_module.data_cols[group_slice],
-                    cat_plot=True,
+                    cols=pl_module.data_cols[
+                        slice(
+                            pl_module.loss.feature_groups["discrete"][-1].stop,
+                            pl_module.all_x.shape[1],
+                        )
+                    ],
+                    scaler=pl_module.scaler,
                 )
                 make_plot(
-                    x=pl_module.all_recon[:, group_slice].clone(),
+                    x=pl_module.all_recon[
+                        :,
+                        slice(
+                            pl_module.loss.feature_groups["discrete"][-1].stop,
+                            pl_module.all_x.shape[1],
+                        ),
+                    ].clone(),
                     s=pl_module.all_s.clone(),
                     logger=pl_module.logger,
                     name=f"{stage}_recons",
-                    cols=pl_module.data_cols[group_slice],
-                    cat_plot=True,
+                    cols=pl_module.data_cols[
+                        slice(
+                            pl_module.loss.feature_groups["discrete"][-1].stop,
+                            pl_module.all_x.shape[1],
+                        )
+                    ],
+                    scaler=pl_module.scaler,
                 )
-        else:
-            make_plot(
-                x=pl_module.all_x.clone(),
-                s=pl_module.all_s.clone(),
-                logger=pl_module.logger,
-                name=f"{stage}_true_data",
-                cols=pl_module.data_cols,
-            )
-            make_plot(
-                x=pl_module.all_recon.clone(),
-                s=pl_module.all_s.clone(),
-                logger=pl_module.logger,
-                name=f"{stage}_recons",
-                cols=pl_module.data_cols,
-            )
+                for group_slice in pl_module.loss.feature_groups["discrete"]:
+                    make_plot(
+                        x=pl_module.all_x[:, group_slice].clone(),
+                        s=pl_module.all_s.clone(),
+                        logger=pl_module.logger,
+                        name=f"{stage}_true_data",
+                        cols=pl_module.data_cols[group_slice],
+                        cat_plot=True,
+                    )
+                    make_plot(
+                        x=pl_module.all_recon[:, group_slice].clone(),
+                        s=pl_module.all_s.clone(),
+                        logger=pl_module.logger,
+                        name=f"{stage}_recons",
+                        cols=pl_module.data_cols[group_slice],
+                        cat_plot=True,
+                    )
+            else:
+                make_plot(
+                    x=pl_module.all_x.clone(),
+                    s=pl_module.all_s.clone(),
+                    logger=pl_module.logger,
+                    name=f"{stage}_true_data",
+                    cols=pl_module.data_cols,
+                )
+                make_plot(
+                    x=pl_module.all_recon.clone(),
+                    s=pl_module.all_s.clone(),
+                    logger=pl_module.logger,
+                    name=f"{stage}_recons",
+                    cols=pl_module.data_cols,
+                )
 
 
 class MmdLogger(pl.callbacks.Callback):

@@ -26,6 +26,7 @@ class AEConf:
     mmd_kernel: KernelType = MISSING
     scheduler_rate: float = MISSING
     weight_decay: float = MISSING
+    debug: bool = MISSING
 
 
 @dataclass
@@ -45,3 +46,4 @@ class ClfConf:
     adv_blocks: int = MISSING
     decoder_blocks: int = MISSING
     latent_multiplier: int = MISSING
+    debug: bool = MISSING

@@ -55,18 +55,6 @@ class SimpleXDataModuleConf:
 
 
 @dataclass
-class SimpleAdultDataModuleConf:
-    _target_: str = "paf.data_modules.SimpleAdultDataModule"
-    batch_size: int = MISSING
-    bin_nat: bool = MISSING
-    bin_race: bool = MISSING
-    seed: int = MISSING
-    num_workers: int = MISSING
-    sens: str = MISSING
-    cf_available: bool = False
-
-
-@dataclass
 class SemiAdultDataModuleConf:
     _target_: str = "paf.data_modules.SemiAdultDataModule"
     batch_size: int = MISSING
