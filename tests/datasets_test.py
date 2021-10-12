@@ -90,7 +90,7 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
                 torch.testing.assert_allclose(batch.y, batch.cfy)
 
 
-@pytest.mark.parametrize("dm_schema,cf_available", ["third", "lill", "synth", "ad"])
+@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
 def test_datamods(dm_schema: str) -> None:
     """Test the flip dataset function."""
     with initialize(config_path=CFG_PTH):
