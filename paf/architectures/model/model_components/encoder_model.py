@@ -65,6 +65,13 @@ class EncFwd(NamedTuple):
     x: list[Tensor]
 
 
+class MmdReportingResults(NamedTuple):
+    recon: Tensor
+    cf_recon: Tensor
+    s0_dist: Tensor
+    s1_dist: Tensor
+
+
 class Loss:
     def __init__(
         self,
@@ -240,28 +247,7 @@ class AE(CommonModel):
 
         loss = recon_loss + adv_loss + cycle_loss
 
-        recon_mmd = mmd2(
-            batch.x, self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), kernel=KernelType.LINEAR
-        )
-
-        cf_mmd = mmd2(
-            batch.x,
-            self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.x),
-            kernel=KernelType.LINEAR,
-        )
-
-        s0_dist_mmd = mmd2(
-            batch.x[batch.s == 0],
-            self.invert(index_by_s(enc_fwd.x, torch.zeros_like(batch.s)), batch.x),
-            kernel=KernelType.LINEAR,
-            biased=True,
-        )
-        s1_dist_mmd = mmd2(
-            batch.x[batch.s == 1],
-            self.invert(index_by_s(enc_fwd.x, torch.ones_like(batch.s)), batch.x),
-            kernel=KernelType.LINEAR,
-            biased=True,
-        )
+        mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         to_log = {
             f"{Stage.fit}/enc_loss": loss,
@@ -272,10 +258,10 @@ class AE(CommonModel):
                 enc_fwd.z[batch.s <= 0].mean() - enc_fwd.z[batch.s > 0].mean()
             ).abs(),
             f"{Stage.fit}/cycle_loss": report_of_cyc_loss,
-            f"{Stage.fit}/recon_mmd": recon_mmd,
-            f"{Stage.fit}/cf_recon_mmd": cf_mmd,
-            f"{Stage.fit}/s0_dist_mmd": s0_dist_mmd,
-            f"{Stage.fit}/s1_dist_mmd": s1_dist_mmd,
+            f"{Stage.fit}/recon_mmd": mmd_results.recon,
+            f"{Stage.fit}/cf_recon_mmd": mmd_results.cf_recon,
+            f"{Stage.fit}/s0_dist_mmd": mmd_results.s0_dist,
+            f"{Stage.fit}/s1_dist_mmd": mmd_results.s1_dist,
         }
 
         if isinstance(batch, CfBatch):
@@ -310,9 +296,16 @@ class AE(CommonModel):
         cycle_loss, _ = self.loss.cycle_loss(cyc_fwd, batch)
 
         loss = recon_loss + adv_loss + cycle_loss
+
+        mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
+
         self.log(f"{stage}/loss", loss)
         self.log(f"{stage}/recon_loss", recon_loss)
         self.log(f"{stage}/cycle_loss", cycle_loss)
+        self.log(f"{stage}/recon_mmd", mmd_results.recon)
+        self.log(f"{stage}/cf_recon_mmd", mmd_results.cf_recon)
+        self.log(f"{stage}/s0_dist_mmd", mmd_results.s0_dist)
+        self.log(f"{stage}/s1_dist_mmd", mmd_results.s1_dist)
 
         to_return = SharedStepOut(
             x=batch.x,
@@ -431,3 +424,33 @@ class AE(CommonModel):
         assert labels is not None
         _labels = torch.cat(labels, dim=0)
         return RunThroughOut(x=_recons.detach(), s=_sens.detach(), y=_labels.detach())
+
+    def mmd_reporting(self, enc_fwd: EncFwd, batch: Batch | CfBatch) -> MmdReportingResults:
+        with torch.no_grad():
+            recon_mmd = mmd2(
+                batch.x,
+                self.invert(index_by_s(enc_fwd.x, batch.s), batch.x),
+                kernel=KernelType.LINEAR,
+            )
+
+            cf_mmd = mmd2(
+                batch.x,
+                self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.x),
+                kernel=KernelType.LINEAR,
+            )
+
+            s0_dist_mmd = mmd2(
+                batch.x[batch.s == 0],
+                self.invert(index_by_s(enc_fwd.x, torch.zeros_like(batch.s)), batch.x),
+                kernel=KernelType.LINEAR,
+                biased=True,
+            )
+            s1_dist_mmd = mmd2(
+                batch.x[batch.s == 1],
+                self.invert(index_by_s(enc_fwd.x, torch.ones_like(batch.s)), batch.x),
+                kernel=KernelType.LINEAR,
+                biased=True,
+            )
+        return MmdReportingResults(
+            recon=recon_mmd, cf_recon=cf_mmd, s0_dist=s0_dist_mmd, s1_dist=s1_dist_mmd
+        )
