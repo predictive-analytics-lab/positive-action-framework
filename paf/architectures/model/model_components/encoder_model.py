@@ -33,6 +33,8 @@ __all__ = [
     "EncFwd",
 ]
 
+from ... import MmdReportingResults
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,13 +65,6 @@ class EncFwd(NamedTuple):
     z: Tensor
     s: Tensor
     x: list[Tensor]
-
-
-class MmdReportingResults(NamedTuple):
-    recon: Tensor
-    cf_recon: Tensor
-    s0_dist: Tensor
-    s1_dist: Tensor
 
 
 class Loss:

@@ -34,6 +34,8 @@ __all__ = [
     "CycleFwd",
 ]
 
+from .. import MmdReportingResults
+from ...mmd import KernelType, mmd2
 
 logger = logging.getLogger(__name__)
 
@@ -393,6 +395,12 @@ class CycleGan(CommonModel):
         real_b = real_b[:size]
         cyc_out = self.forward(real_a, real_b)
 
+        mmd_results = self.mmd_reporting(enc_fwd=cyc_out, batch=batch)
+        self.log(f"{Stage.fit}/recon_mmd", mmd_results.recon)
+        self.log(f"{Stage.fit}/cf_recon_mmd", mmd_results.cf_recon)
+        self.log(f"{Stage.fit}/s0_dist_mmd", mmd_results.s0_dist)
+        self.log(f"{Stage.fit}/s1_dist_mmd", mmd_results.s1_dist)
+
         if optimizer_idx == 0:
             gen_fwd = self.forward_gen(real_a, real_b, cyc_out.fake_a, cyc_out.fake_b)
 
@@ -470,6 +478,8 @@ class CycleGan(CommonModel):
         d_a_loss = self.loss.get_dis_loss(dis_out_a.real, dis_out_a.fake)
         d_b_loss = self.loss.get_dis_loss(dis_out_b.real, dis_out_b.fake)
 
+        mmd_results = self.mmd_reporting(enc_fwd=cyc_out, batch=batch)
+
         dict_ = {
             f"{stage}/g_tot_loss": gen_losses.tot,
             f"{stage}/g_A2B_loss": gen_losses.a2b,
@@ -478,6 +488,10 @@ class CycleGan(CommonModel):
             f"{stage}/d_B_loss": d_b_loss,
             f"{stage}/loss": gen_losses.tot,
             f"{stage}/cycle_loss": gen_losses.cycle_loss,
+            f"{stage}/recon_mmd": mmd_results.recon,
+            f"{stage}/cf_recon_mmd": mmd_results.cf_recon,
+            f"{stage}/s0_dist_mmd": mmd_results.s0_dist,
+            f"{stage}/s1_dist_mmd": mmd_results.s1_dist,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
@@ -509,7 +523,6 @@ class CycleGan(CommonModel):
         return self.shared_step(batch, Stage.test)
 
     def lr_lambda(self, epoch: int) -> float:
-
         fraction = (epoch - self.epoch_decay) / self.epoch_decay
         return 1 if epoch < self.epoch_decay else 1 - fraction
 
@@ -533,6 +546,37 @@ class CycleGan(CommonModel):
 
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         raise NotImplementedError("This shouldn't be called. Only implementing for the abc.")
+
+    def mmd_reporting(self, enc_fwd: CycleFwd, batch: Batch | CfBatch) -> MmdReportingResults:
+        with torch.no_grad():
+            x = [enc_fwd.fake_a, enc_fwd.fake_b]
+            recon_mmd = mmd2(
+                batch.x,
+                self.invert(index_by_s(x, batch.s), batch.x),
+                kernel=KernelType.LINEAR,
+            )
+
+            cf_mmd = mmd2(
+                batch.x,
+                self.invert(index_by_s(x, 1 - batch.s), batch.x),
+                kernel=KernelType.LINEAR,
+            )
+
+            s0_dist_mmd = mmd2(
+                batch.x[batch.s == 0],
+                self.invert(index_by_s(x, torch.zeros_like(batch.s)), batch.x),
+                kernel=KernelType.LINEAR,
+                biased=True,
+            )
+            s1_dist_mmd = mmd2(
+                batch.x[batch.s == 1],
+                self.invert(index_by_s(x, torch.ones_like(batch.s)), batch.x),
+                kernel=KernelType.LINEAR,
+                biased=True,
+            )
+        return MmdReportingResults(
+            recon=recon_mmd, cf_recon=cf_mmd, s0_dist=s0_dist_mmd, s1_dist=s1_dist_mmd
+        )
 
 
 class GenFwd(NamedTuple):
