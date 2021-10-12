@@ -236,7 +236,7 @@ class AE(CommonModel):
         recon_loss = self.loss.recon_loss(enc_fwd.x, batch)
         adv_loss = self.loss.adv_loss(enc_fwd, batch, self.mmd_kernel)
         cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
-        _, cycle_loss = self.loss.cycle_loss(cyc_fwd, batch)
+        report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_fwd, batch)
 
         loss = recon_loss + adv_loss + cycle_loss
 
@@ -248,6 +248,7 @@ class AE(CommonModel):
             f"{Stage.fit}/enc_z_mean_abs_diff": (
                 enc_fwd.z[batch.s <= 0].mean() - enc_fwd.z[batch.s > 0].mean()
             ).abs(),
+            f"{Stage.fit}/cycle_loss": report_of_cyc_loss,
         }
 
         if isinstance(batch, CfBatch):

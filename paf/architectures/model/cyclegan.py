@@ -477,6 +477,7 @@ class CycleGan(CommonModel):
             f"{stage}/d_A_loss": d_a_loss,
             f"{stage}/d_B_loss": d_b_loss,
             f"{stage}/loss": gen_losses.tot,
+            f"{stage}/cycle_loss": gen_losses.cycle_loss,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
