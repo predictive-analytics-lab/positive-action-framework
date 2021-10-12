@@ -10,6 +10,8 @@ import warnings
 from conduit.hydra.conduit.fair.data.datamodules.conf import (  # type: ignore[import]
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
+    CompasDataModuleConf,
+    CrimeDataModuleConf,
     HealthDataModuleConf,
     LawDataModuleConf,
 )
@@ -120,7 +122,8 @@ DATA_PKG: Final[str] = "data"  # package:dir_within_config_path
 DATA_GROUP: Final[str] = "schema/data"  # group
 CS.store(name="adult-bolt", node=AdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="admiss-bolt", node=AdmissionsDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
-# CS.store(name="crime-bolt", node=CrimeDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="compas-bolt", node=CompasDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="crime-bolt", node=CrimeDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="health-bolt", node=HealthDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="law-bolt", node=LawDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="semi-synth", node=SemiAdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)

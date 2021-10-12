@@ -3,7 +3,7 @@ defaults:
 
 batch_size: 64
 num_workers: 0
-seed: 0
+seed: ${exp.seed}
 
 bin_nat: true
 bin_race: true

@@ -1,0 +1,14 @@
+train_batch_size: 512
+eval_batch_size: 2056
+val_prop: 0.2
+test_prop: 0.2
+num_workers: 0
+seed: ${exp.seed}
+persist_workers: false
+pin_memory: true
+stratified_sampling: false
+instance_weighting: false
+training_mode: "epoch"
+disc_feats_only: false
+scaler:
+  _target_: "sklearn.preprocessing.MinMaxScaler"

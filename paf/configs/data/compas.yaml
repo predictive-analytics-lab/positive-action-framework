@@ -1,17 +1,5 @@
-# @package _group_
-num_workers: 0
-seed: ${exp.seed}
+defaults:
+  - /schema/data: compas-bolt
+  - em_base
 
-train_batch_size: 64
-eval_batch_size: 512
-val_prop: 0.2
-test_prop: 0.2
-persist_workers: false
-pin_memory: true
-stratified_sampling: false
-instance_weighting: false
-training_mode: "epoch"
 sens_feat: "sex"
-disc_feats_only: false
-scaler:
-  _target_: "sklearn.preprocessing.MinMaxScaler"

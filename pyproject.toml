@@ -13,10 +13,10 @@ plotly = "^5.1.0"
 ethicml = {extras = ["all"], version = "^0.3.3"}
 pytorch-lightning = "^1.4.2"
 neoconfigen = "^2.1.0"
-conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", branch = "main", rev="2cfa5ca3365dc92a07d722168229d5b23ac287ea"}
 hydra-submitit-launcher = {version = "^1.1.1", allow-prereleases = true}
 hydra-joblib-launcher = {version = "^1.1.2", allow-prereleases = true}
 attrs = "^21.2.0"
+conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", rev = "8531f579e4c1f03e813d5eb4a2fa25ac8f26a56e"}
 
 [tool.poetry.dev-dependencies]
 black = "^21.7b0"
@@ -88,49 +88,16 @@ exclude = "config_classes/"
 
 [[tool.mypy.overrides]]
 module = [
-#    "albumentations.*",
-#    "bolts.*",
-#    "cv2.*",
-#    "ethicml.*",
-#    "flash.*",
-#    "gdown.*",
-#    "git.*",
-#    "hydra.*",
-#    "kit.*",
-#    "omegaconf.*",
-#    "pandas.*",
-#    "PIL.*",
-#    "pl_bolts.*",
-#    "pytest.*",
     "pytorch_lightning.*",
-#    "requests.*",
     "seaborn.*",
     "scipy.*",
     "sklearn.*",
-#    "torch.*",
-#    "torchmetrics.*",
-#    "torchvision.*",
-#    "typer.*",
-#    "typing_inspect.*",
-#    "tqdm.*",
-#    "wandb.*"
 ]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
-#    "bolts.*",
-#    "ethicml.*",
-#    "kit.*",
-#    "numpy.typing.*",
-#    "pytest.*",
     "pytorch_lightning.*",
-#    "seaborn.*",
-#    "scipy.*",
-#    "sklearn.*",
-#    "torch.*",
-#    "torchmetrics.*",
-#    "wandb.*"
 ]
 follow_imports = "skip"
 follow_imports_for_stubs = true

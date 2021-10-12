@@ -3,7 +3,7 @@ defaults:
 
 batch_size: 64
 num_workers: 0
-seed: 0
+seed: ${exp.seed}
 
 alpha: 0.5
 gamma: 2.0

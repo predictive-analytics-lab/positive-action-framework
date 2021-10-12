@@ -3,7 +3,7 @@ defaults:
 
 batch_size: 64
 num_workers: 0
-seed: 0
+seed: ${exp.seed}
 
 acceptance_rate: 0.4
 alpha: 0.6
