@@ -1,5 +1,7 @@
 defaults:
   - /schema/clf: clf_schema
+  - _self_
+
 encoder_blocks: 2
 adv_blocks: 2
 decoder_blocks: 2

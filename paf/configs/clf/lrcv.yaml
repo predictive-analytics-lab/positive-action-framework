@@ -1,4 +1,6 @@
 defaults:
   - /schema/clf: lrcv
+  - _self_
+
 n_splits: 3
 seed: ${exp.seed}

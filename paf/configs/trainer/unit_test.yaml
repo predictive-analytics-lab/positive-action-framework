@@ -1,5 +1,6 @@
 defaults:
   - base
+  - _self_
 
 max_epochs: 1
 gpus: 0

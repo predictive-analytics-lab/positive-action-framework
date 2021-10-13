@@ -1,5 +1,6 @@
 defaults:
   - /schema/data: health-bolt
   - em_base
+  - _self_
 
 sens_feat: "sex"

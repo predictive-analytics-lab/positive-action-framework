@@ -1,2 +1,3 @@
 defaults:
   - /schema/clf: dp_oracle
+  - _self_

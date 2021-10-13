@@ -1,5 +1,6 @@
 defaults:
   - /trainer_schema
+  - _self_
 
 check_val_every_n_epoch: 1
 deterministic: True

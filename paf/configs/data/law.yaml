@@ -1,5 +1,6 @@
 defaults:
   - /schema/data: law-bolt
   - em_base
+  - _self_
 
 sens_feat: "sex"

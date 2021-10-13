@@ -1,6 +1,7 @@
 # usage: hydra/launcher=slurm
 defaults:
   - submitit_slurm
+  - _self_
 
 partition: goedel
 cpus_per_task: 3  # on goedel, we have 3 CPUs per GPU

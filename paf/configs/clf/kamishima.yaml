@@ -1,3 +1,5 @@
 defaults:
   - /schema/clf: kamishima
+  - _self_
+
 eta: 1.0

@@ -1,5 +1,6 @@
 defaults:
   - /schema/data: semi-synth
+  - _self_
 
 batch_size: 64
 num_workers: 0

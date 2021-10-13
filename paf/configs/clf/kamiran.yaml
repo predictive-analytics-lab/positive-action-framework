@@ -1,5 +1,8 @@
 defaults:
   - /schema/clf: kamiran
+  - _self_
+
 classifier:  "LR"
 C:  null
 kernel: null
+seed: ${exp.seed}

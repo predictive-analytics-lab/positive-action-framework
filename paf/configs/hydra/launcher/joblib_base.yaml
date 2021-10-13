@@ -1,4 +1,5 @@
 defaults:
   - joblib
+  - _self_
 
 n_jobs: 0

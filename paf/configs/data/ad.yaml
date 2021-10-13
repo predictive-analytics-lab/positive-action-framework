@@ -1,6 +1,7 @@
 defaults:
   - /schema/data: adult-bolt
   - em_base
+  - _self_
 
 bin_nationality: true
 bin_race: true

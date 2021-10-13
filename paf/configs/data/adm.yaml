@@ -1,5 +1,6 @@
 defaults:
   - /schema/data: admiss-bolt
   - em_base
+  - _self_
 
 sens_feat: "gender"

@@ -1,5 +1,6 @@
 defaults:
   - /schema/data: crime-bolt
   - em_base
+  - _self_
 
 sens_feat: "raceBinary"

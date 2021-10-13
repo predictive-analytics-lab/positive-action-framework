@@ -1,3 +1,5 @@
 defaults:
   - /schema/clf: zafar
+  - _self_
+
 c: 0.001

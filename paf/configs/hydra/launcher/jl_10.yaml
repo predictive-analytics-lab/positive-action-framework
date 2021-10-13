@@ -1,4 +1,5 @@
 defaults:
   - joblib_base
+  - _self_
 
 n_jobs: 10 # how many jobs to run in parallel

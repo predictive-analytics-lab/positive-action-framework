@@ -1,5 +1,6 @@
 defaults:
   - /schema/enc: enc_schema
+  - _self_
 
 encoder_blocks: 3
 adv_blocks: 3

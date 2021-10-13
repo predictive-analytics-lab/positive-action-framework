@@ -3,6 +3,7 @@
 #
 defaults:
   - submitit_slurm
+  - _self_
 
 partition: turing
 cpus_per_task: 10  # on turing, we have 10 CPUs per GPU

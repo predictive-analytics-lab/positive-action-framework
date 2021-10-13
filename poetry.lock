@@ -499,7 +499,7 @@ python-versions = ">=2.7"
 
 [[package]]
 name = "ethicml"
-version = "0.3.3"
+version = "0.3.4"
 description = "EthicML is a library for performing and assessing algorithmic fairness. Unlike other libraries, EthicML isn't an education tool, but rather a researcher's toolkit."
 category = "main"
 optional = false
@@ -508,7 +508,7 @@ python-versions = ">=3.7,<4.0"
 [package.dependencies]
 fairlearn = {version = "0.4.6", optional = true, markers = "extra == \"ci\" or extra == \"all\""}
 gitdb2 = "4.0.2"
-GitPython = ">=3.1,<4.0"
+GitPython = ">=3.1.20,<4.0.0"
 matplotlib = ">=3.0.2"
 numpy = ">=1.20.1"
 palkit = ">=0.1.10"
@@ -2859,7 +2859,7 @@ termcolor = ">=1.1.0,<2.0.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "4c51642302e633fceffba8b7f5f9e7913e69b37a94413fa83a953008e78baf0a"
+content-hash = "81f5d8c6b38e15f4d4bebb25448b82becc5a23f7b9532194525caf0f52e49524"
 
 [metadata.files]
 absl-py = [
@@ -3159,8 +3159,8 @@ entrypoints = [
     {file = "entrypoints-0.3.tar.gz", hash = "sha256:c70dd71abe5a8c85e55e12c19bd91ccfeec11a6e99044204511f9ed547d48451"},
 ]
 ethicml = [
-    {file = "EthicML-0.3.3-py3-none-any.whl", hash = "sha256:ea78c8135cd3818c352f55c2fe2145326ab5f4d49895f1ba4531e35924886677"},
-    {file = "EthicML-0.3.3.tar.gz", hash = "sha256:aae8ccbf0eb2f0d87b0f7c0c28f8b4e420e1ed9c9c8f02a597590a9c0f5f6abb"},
+    {file = "EthicML-0.3.4-py3-none-any.whl", hash = "sha256:046356194a66c53c1d0dce342d5c5042b4d5c0f634ad9a840104f7f394c2c66f"},
+    {file = "EthicML-0.3.4.tar.gz", hash = "sha256:30896246550f57c95ded5e1ddf078e81d9df6eb49271a449bb2bf740c5247c51"},
 ]
 fairlearn = [
     {file = "fairlearn-0.4.6-py3-none-any.whl", hash = "sha256:03a794321a0e5d22996f0076e5530cd390407312b0fa16bc24a3d5164385fe78"},

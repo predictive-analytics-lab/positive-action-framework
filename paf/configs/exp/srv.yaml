@@ -1,5 +1,6 @@
 defaults:
   - base
+  - _self_
 
 lr: 1.0e-3
 weight_decay: 1.0e-3

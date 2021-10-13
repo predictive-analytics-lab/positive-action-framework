@@ -1,5 +1,6 @@
 defaults:
   - /schema/enc: cyclegan
+  - _self_
 
 d_lr:  0.0002
 g_lr:  0.0002

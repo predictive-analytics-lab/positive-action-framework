@@ -21,6 +21,7 @@ class KamiranConf:
     classifier: str = "LR"
     C: Optional[float] = None
     kernel: Optional[str] = None
+    seed: int = 888
 
 
 @dataclass
@@ -54,3 +55,4 @@ class AgarwalConf:
     iters: int = 50
     C: Optional[float] = None
     kernel: Optional[str] = None
+    seed: int = 888
