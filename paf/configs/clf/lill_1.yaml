@@ -15,5 +15,5 @@ s_as_input: true
 mmd_kernel: "LINEAR"
 scheduler_rate: 0.99
 weight_decay: 1e-4
-use_iw: true
+use_iw: false
 debug: false
