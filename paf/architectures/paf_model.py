@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
+from conduit.data import TernarySample
 import pandas as pd
 import pytorch_lightning as pl
 from ranzen import implements
@@ -71,7 +72,7 @@ class PafModel(pl.LightningModule):
         """Empty as we do not train the model end to end."""
 
     @implements(pl.LightningModule)
-    def predict_step(self, batch: Batch | CfBatch, *_: Any) -> TestStepOut:
+    def predict_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> TestStepOut:
         if isinstance(self.enc, AE):
             enc_fwd = self.enc.forward(batch.x, batch.s)
             enc_z = enc_fwd.z

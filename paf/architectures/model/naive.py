@@ -1,5 +1,7 @@
 from __future__ import annotations
+from typing import Any
 
+from conduit.data import TernarySample
 import pytorch_lightning as pl
 from torch import Tensor, nn
 import torch.optim
@@ -18,11 +20,11 @@ class NaiveModel(pl.LightningModule):
         self._loss = nn.BCEWithLogitsLoss()
         self.learning_rate = 1e-2
 
-    def training_step(self, batch: Batch | CfBatch, batch_idx: int) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         logits = self.net(batch.x)
         return self._loss(logits, batch.y.view(-1, 1))
 
-    def test_step(self, batch: Batch | CfBatch, batch_dx: int) -> dict[str, Tensor]:
+    def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> dict[str, Tensor]:
         return {"preds": self.forward(batch.x)}
 
     def test_epoch_end(self, outputs: dict[str, Tensor]) -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from conduit.data import TernarySample
 from conduit.fair.data import EthicMlDataModule
 import pandas as pd
 import pytorch_lightning as pl
@@ -73,7 +74,9 @@ class NearestNeighbourModel(pl.LightningModule):
     def training_step(self, *_: Any) -> plut.STEP_OUTPUT:
         ...
 
-    def predict_step(self, batch: Batch | CfBatch, batch_idx: int, *_: Any) -> NnStepOut | None:
+    def predict_step(
+        self, batch: Batch | CfBatch | TernarySample, batch_idx: int, *_: Any
+    ) -> NnStepOut | None:
         cf_feats, cf_outcome = self.forward(test_features=batch.x, sens_label=batch.s)
         preds = (self.clf.forward(batch.x) >= 0).long()
 

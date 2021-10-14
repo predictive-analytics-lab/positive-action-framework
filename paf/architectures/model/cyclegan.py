@@ -5,6 +5,7 @@ import itertools
 import logging
 from typing import Any, Iterator, NamedTuple
 
+from conduit.data import TernarySample
 from conduit.types import Stage
 import numpy as np
 from ranzen import implements, parsable
@@ -387,7 +388,9 @@ class CycleGan(CommonModel):
         pred_fake_data = dis(fake_data)
         return DisFwd(real=pred_real_data, fake=pred_fake_data)
 
-    def training_step(self, batch: Batch | CfBatch, batch_idx: int, optimizer_idx: int) -> Tensor:
+    def training_step(
+        self, batch: Batch | CfBatch | TernarySample, batch_idx: int, optimizer_idx: int
+    ) -> Tensor:
         _ = (batch_idx,)
         real_a, real_b = batch.x[batch.s == 0], batch.x[batch.s == 1]
         size = min(len(real_a), len(real_b))
@@ -463,7 +466,7 @@ class CycleGan(CommonModel):
             return d_b_loss
         raise NotImplementedError("There should only be 3 optimizers.")
 
-    def shared_step(self, batch: Batch | CfBatch, stage: Stage) -> SharedStepOut:
+    def shared_step(self, batch: Batch | CfBatch | TernarySample, stage: Stage) -> SharedStepOut:
         real_a = batch.x
         real_b = batch.x
 
@@ -518,10 +521,10 @@ class CycleGan(CommonModel):
         self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
         self.all_cf_pred = torch.cat([_r.recon for _r in outputs], 0)
 
-    def validation_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut:
+    def validation_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> SharedStepOut:
         return self.shared_step(batch, Stage.validate)
 
-    def test_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut:
+    def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> SharedStepOut:
         return self.shared_step(batch, Stage.test)
 
     def lr_lambda(self, epoch: int) -> float:
@@ -550,7 +553,11 @@ class CycleGan(CommonModel):
         raise NotImplementedError("This shouldn't be called. Only implementing for the abc.")
 
     def mmd_reporting(
-        self, gen_fwd: GenFwd, enc_fwd: CycleFwd, batch: Batch | CfBatch, train: bool = False
+        self,
+        gen_fwd: GenFwd,
+        enc_fwd: CycleFwd,
+        batch: Batch | CfBatch | TernarySample,
+        train: bool = False,
     ) -> MmdReportingResults:
         with torch.no_grad():
             if train:

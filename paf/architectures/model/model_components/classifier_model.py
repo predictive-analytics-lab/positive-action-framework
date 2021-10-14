@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Any, NamedTuple, Union
 
+from conduit.data import TernarySample
 import numpy as np
 import pytorch_lightning as pl
 from ranzen import implements, parsable, str_to_enum
@@ -91,6 +92,7 @@ class Clf(CommonModel):
     @implements(CommonModel)
     def build(
         self,
+        *,
         num_s: int,
         data_dim: int,
         s_dim: int,
@@ -137,10 +139,10 @@ class Clf(CommonModel):
         return ClfFwd(z=z, s=s_pred, y=preds)
 
     @implements(pl.LightningModule)
-    def training_step(self, batch: Batch | CfBatch, *_: Any) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
         clf_out = self.forward(batch.x, batch.s)
-        _iw = batch.iw if self.use_iw else None
+        _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
         pred_loss = binary_cross_entropy_with_logits(
             index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y, reduction="mean", weight=_iw
         )
@@ -173,7 +175,7 @@ class Clf(CommonModel):
             return z.sigmoid().round()
 
     @implements(pl.LightningModule)
-    def test_step(self, batch: Batch | CfBatch, *_: Any) -> ClfInferenceOut:
+    def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> ClfInferenceOut:
         assert self.built
         clf_out = self.forward(batch.x, batch.s)
 

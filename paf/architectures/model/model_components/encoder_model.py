@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 import logging
 from typing import Any, NamedTuple
 
+from conduit.data import TernarySample
 from conduit.types import Stage
 import numpy as np
 import pytorch_lightning as pl
@@ -82,7 +83,7 @@ class Loss:
         self._recon_weight = recon_weight
         self._cycle_loss_fn = nn.MSELoss(reduction="mean")
 
-    def recon_loss(self, recons: list[Tensor], batch: Batch | CfBatch) -> Tensor:
+    def recon_loss(self, recons: list[Tensor], batch: Batch | CfBatch | TernarySample) -> Tensor:
 
         if self.feature_groups["discrete"]:
             recon_loss = batch.x.new_tensor(0.0)
@@ -110,7 +111,9 @@ class Loss:
 
         return recon_loss * self._recon_weight
 
-    def adv_loss(self, enc_fwd: EncFwd, batch: Batch | CfBatch, kernel: KernelType) -> Tensor:
+    def adv_loss(
+        self, enc_fwd: EncFwd, batch: Batch | CfBatch | TernarySample, kernel: KernelType
+    ) -> Tensor:
         return (
             (
                 mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel)
@@ -119,7 +122,9 @@ class Loss:
             / 2
         ) * self._adv_weight
 
-    def cycle_loss(self, cyc_fwd: EncFwd, batch: Batch | CfBatch) -> tuple[Tensor, Tensor]:
+    def cycle_loss(
+        self, cyc_fwd: EncFwd, batch: Batch | CfBatch | TernarySample
+    ) -> tuple[Tensor, Tensor]:
         cycle_loss = self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
         return (cycle_loss, cycle_loss * self._cycle_weight)
 
@@ -181,6 +186,7 @@ class AE(CommonModel):
     @implements(CommonModel)
     def build(
         self,
+        *,
         num_s: int,
         data_dim: int,
         s_dim: int,
@@ -192,16 +198,16 @@ class AE(CommonModel):
         _ = (scaler, cf_available)
         self.data_cols = outcome_cols
 
-        self.enc = Encoder(
-            in_size=data_dim + s_dim if self.s_as_input else data_dim,
-            latent_dim=self.latent_dims,
-            blocks=self.encoder_blocks,
-            hid_multiplier=self.latent_multiplier,
-        )
         self.adv = Adversary(
             latent_dim=self.latent_dims,
             out_size=1,
             blocks=self.adv_blocks,
+            hid_multiplier=self.latent_multiplier,
+        )
+        self.enc = Encoder(
+            in_size=data_dim + s_dim if self.s_as_input else data_dim,
+            latent_dim=self.latent_dims,
+            blocks=self.encoder_blocks,
             hid_multiplier=self.latent_multiplier,
         )
         self.decoders = nn.ModuleList(
@@ -233,7 +239,7 @@ class AE(CommonModel):
         return EncFwd(z=z, s=s_pred, x=recons)
 
     @implements(pl.LightningModule)
-    def training_step(self, batch: Batch | CfBatch, *_: Any) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
 
@@ -276,14 +282,20 @@ class AE(CommonModel):
         return loss
 
     @implements(pl.LightningModule)
-    def test_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
+    def test_step(
+        self, batch: Batch | CfBatch | TernarySample, *_: Any
+    ) -> SharedStepOut | CfSharedStepOut:
         return self.shared_step(batch, stage=Stage.test)
 
     @implements(pl.LightningModule)
-    def validation_step(self, batch: Batch | CfBatch, *_: Any) -> SharedStepOut | CfSharedStepOut:
+    def validation_step(
+        self, batch: Batch | CfBatch | TernarySample, *_: Any
+    ) -> SharedStepOut | CfSharedStepOut:
         return self.shared_step(batch, stage=Stage.validate)
 
-    def shared_step(self, batch: Batch | CfBatch, stage: Stage) -> SharedStepOut | CfSharedStepOut:
+    def shared_step(
+        self, batch: Batch | CfBatch | TernarySample, stage: Stage
+    ) -> SharedStepOut | CfSharedStepOut:
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
 
@@ -424,7 +436,9 @@ class AE(CommonModel):
         _labels = torch.cat(labels, dim=0)
         return RunThroughOut(x=_recons.detach(), s=_sens.detach(), y=_labels.detach())
 
-    def mmd_reporting(self, enc_fwd: EncFwd, batch: Batch | CfBatch) -> MmdReportingResults:
+    def mmd_reporting(
+        self, enc_fwd: EncFwd, batch: Batch | CfBatch | TernarySample
+    ) -> MmdReportingResults:
         with torch.no_grad():
             recon_mmd = mmd2(
                 batch.x,
