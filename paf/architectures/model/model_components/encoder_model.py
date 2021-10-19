@@ -256,18 +256,18 @@ class AE(CommonModel):
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         to_log = {
-            f"{Stage.fit}/enc_loss": loss,
-            f"{Stage.fit}/enc_recon_loss": recon_loss,
-            f"{Stage.fit}/enc_adv_loss": adv_loss,
-            f"{Stage.fit}/enc_z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
-            f"{Stage.fit}/enc_z_mean_abs_diff": (
+            f"{Stage.fit}/enc/loss": loss,
+            f"{Stage.fit}/enc/recon_loss": recon_loss,
+            f"{Stage.fit}/enc/adv_loss": adv_loss,
+            f"{Stage.fit}/enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
+            f"{Stage.fit}/enc/z_mean_abs_diff": (
                 enc_fwd.z[batch.s <= 0].mean() - enc_fwd.z[batch.s > 0].mean()
             ).abs(),
-            f"{Stage.fit}/cycle_loss": report_of_cyc_loss,
-            f"{Stage.fit}/recon_mmd": mmd_results.recon,
-            f"{Stage.fit}/cf_recon_mmd": mmd_results.cf_recon,
-            f"{Stage.fit}/s0_dist_mmd": mmd_results.s0_dist,
-            f"{Stage.fit}/s1_dist_mmd": mmd_results.s1_dist,
+            f"{Stage.fit}/enc/cycle_loss": report_of_cyc_loss,
+            f"{Stage.fit}/enc/recon_mmd": mmd_results.recon,
+            f"{Stage.fit}/enc/cf_recon_mmd": mmd_results.cf_recon,
+            f"{Stage.fit}/enc/s0_dist_mmd": mmd_results.s0_dist,
+            f"{Stage.fit}/enc/s1_dist_mmd": mmd_results.s1_dist,
         }
 
         if isinstance(batch, CfBatch):
@@ -277,8 +277,8 @@ class AE(CommonModel):
                     index_by_s(enc_fwd.x, batch.cfs), batch.cfx, reduction="mean"
                 )
                 cf_loss = cf_recon_loss - 1e-6
-                to_log[f"{Stage.fit}/enc_cf_loss"] = cf_loss
-                to_log[f"{Stage.fit}/enc_cf_recon_loss"] = cf_recon_loss
+                to_log[f"{Stage.fit}/enc/cf_loss"] = cf_loss
+                to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
         self.log_dict(to_log, logger=True)
 
@@ -312,13 +312,14 @@ class AE(CommonModel):
 
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
-        self.log(f"{stage}/loss", loss)
-        self.log(f"{stage}/recon_loss", recon_loss)
-        self.log(f"{stage}/cycle_loss", cycle_loss)
-        self.log(f"{stage}/recon_mmd", mmd_results.recon)
-        self.log(f"{stage}/cf_recon_mmd", mmd_results.cf_recon)
-        self.log(f"{stage}/s0_dist_mmd", mmd_results.s0_dist)
-        self.log(f"{stage}/s1_dist_mmd", mmd_results.s1_dist)
+        self.log(f"{stage}/enc/loss", loss)
+        self.log(f"{stage}/enc/recon_loss", recon_loss)
+        self.log(f"{stage}/enc/cycle_loss", cycle_loss)
+        self.log(f"{stage}/enc/mmd_loss", mmd_loss)
+        self.log(f"{stage}/enc/recon_mmd", mmd_results.recon)
+        self.log(f"{stage}/enc/cf_recon_mmd", mmd_results.cf_recon)
+        self.log(f"{stage}/enc/s0_dist_mmd", mmd_results.s0_dist)
+        self.log(f"{stage}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
         to_return = SharedStepOut(
             x=batch.x,

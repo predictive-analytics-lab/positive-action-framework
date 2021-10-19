@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, NamedTuple, Union
 
 from conduit.data import TernarySample
+from conduit.types import Stage
 import numpy as np
 import pytorch_lightning as pl
 from ranzen import implements, parsable, str_to_enum
@@ -155,11 +156,11 @@ class Clf(CommonModel):
         loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
 
         to_log = {
-            "training_clf/loss": loss,
-            "training_clf/pred_loss": pred_loss,
-            "training_clf/adv_loss": adv_loss,
-            "training_clf/z_norm": clf_out.z.detach().norm(dim=1).mean(),
-            "training_clf/z_mean_abs_diff": (
+            f"{Stage.fit}/clf_loss": loss,
+            f"{Stage.fit}/clf_pred_loss": pred_loss,
+            f"{Stage.fit}/clf_adv_loss": adv_loss,
+            f"{Stage.fit}/clf_z_norm": clf_out.z.detach().norm(dim=1).mean(),
+            f"{Stage.fit}/clf_z_mean_abs_diff": (
                 clf_out.z[batch.s <= 0].mean() - clf_out.z[batch.s > 0].mean()
             ).abs(),
         }
