@@ -66,6 +66,8 @@ class EncFwd(NamedTuple):
     z: Tensor
     s: Tensor
     x: list[Tensor]
+    cyc_x: list[Tensor]
+    cyc_z: Tensor
 
 
 class Loss:
@@ -125,10 +127,10 @@ class Loss:
         )
 
     def cycle_loss(
-        self, cyc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample
+        self, cyc_x: list[Tensor], *, batch: Batch | CfBatch | TernarySample
     ) -> tuple[Tensor, Tensor]:
-        cycle_loss = self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
-        return (cycle_loss, cycle_loss * self._cycle_weight)
+        cycle_loss = self._cycle_loss_fn(index_by_s(cyc_x, batch.s).squeeze(-1), batch.x)
+        return cycle_loss, cycle_loss * self._cycle_weight
 
 
 class AE(CommonModel):
@@ -238,7 +240,15 @@ class AE(CommonModel):
         z = self.enc.forward(_x)
         s_pred = self.adv.forward(z)
         recons = [dec(z) for dec in self.decoders]
-        return EncFwd(z=z, s=s_pred, x=recons)
+
+        cycle_x = (
+            torch.cat([index_by_s(recons, 1 - s), 1 - s[..., None]], dim=1)
+            if self.s_as_input
+            else index_by_s(recons, 1 - s)
+        )
+        cycle_z = self.enc.forward(cycle_x)
+        cycle_dec = [dec(cycle_z) for dec in self.decoders]
+        return EncFwd(z=z, s=s_pred, x=recons, cyc_z=cycle_z, cyc_x=cycle_dec)
 
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
@@ -248,8 +258,7 @@ class AE(CommonModel):
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
-        cyc_fwd = self.forward(x=index_by_s(enc_fwd.x, 1 - batch.s), s=1 - batch.s)
-        report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_fwd=cyc_fwd, batch=batch)
+        report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + cycle_loss + mmd_loss
 
@@ -306,8 +315,7 @@ class AE(CommonModel):
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
-        cyc_fwd = self.forward(x=index_by_s(enc_fwd.x, 1 - batch.s), s=1 - batch.s)
-        cycle_loss, _ = self.loss.cycle_loss(cyc_fwd=cyc_fwd, batch=batch)
+        cycle_loss, _ = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + cycle_loss + mmd_loss
 
