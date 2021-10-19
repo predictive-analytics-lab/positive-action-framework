@@ -79,7 +79,7 @@ class Loss:
         cycle_weight: float = 1.0,
         recon_weight: float = 1.0,
     ):
-        self._recon_loss_fn = nn.L1Loss(reduction="mean")
+        self._recon_loss_fn = nn.MSELoss(reduction="mean")
         self.feature_groups = feature_groups if feature_groups is not None else {}
         self._adv_weight = adv_weight
         self._cycle_weight = cycle_weight
