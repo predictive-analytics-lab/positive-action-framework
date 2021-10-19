@@ -232,7 +232,7 @@ class AE(CommonModel):
         self.built = True
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor) -> EncFwd:
+    def forward(self, x: Tensor, *, s: Tensor) -> EncFwd:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc.forward(_x)
@@ -243,12 +243,12 @@ class AE(CommonModel):
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
-        enc_fwd = self.forward(batch.x, batch.s)
+        enc_fwd = self.forward(x=batch.x, s=batch.s)
 
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
-        cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
+        cyc_fwd = self.forward(x=index_by_s(enc_fwd.x, 1 - batch.s), s=1 - batch.s)
         report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_fwd=cyc_fwd, batch=batch)
 
         loss = recon_loss + adv_loss + cycle_loss + mmd_loss
@@ -272,7 +272,7 @@ class AE(CommonModel):
 
         if isinstance(batch, CfBatch):
             with no_grad():
-                enc_fwd = self.forward(batch.cfx, batch.cfs)
+                enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
                 cf_recon_loss = l1_loss(
                     index_by_s(enc_fwd.x, batch.cfs), batch.cfx, reduction="mean"
                 )
@@ -297,15 +297,15 @@ class AE(CommonModel):
         return self.shared_step(batch, stage=Stage.validate)
 
     def shared_step(
-        self, batch: Batch | CfBatch | TernarySample, stage: Stage
+        self, batch: Batch | CfBatch | TernarySample, *, stage: Stage
     ) -> SharedStepOut | CfSharedStepOut:
         assert self.built
-        enc_fwd = self.forward(batch.x, batch.s)
+        enc_fwd = self.forward(x=batch.x, s=batch.s)
 
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
-        cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
+        cyc_fwd = self.forward(x=index_by_s(enc_fwd.x, 1 - batch.s), s=1 - batch.s)
         cycle_loss, _ = self.loss.cycle_loss(cyc_fwd=cyc_fwd, batch=batch)
 
         loss = recon_loss + adv_loss + cycle_loss + mmd_loss
@@ -349,7 +349,7 @@ class AE(CommonModel):
         self.shared_epoch_end(outputs, stage=Stage.validate)
 
     def shared_epoch_end(
-        self, output_results: list[SharedStepOut | CfSharedStepOut], stage: Stage
+        self, output_results: list[SharedStepOut | CfSharedStepOut], *, stage: Stage
     ) -> None:
         self.all_x = torch.cat([_r.x for _r in output_results], 0)
         all_z = torch.cat([_r.z for _r in output_results], 0)
@@ -399,7 +399,7 @@ class AE(CommonModel):
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
-            enc_fwd = self.forward(x, s)
+            enc_fwd = self.forward(x=x, s=s)
             recon = self.invert(index_by_s(enc_fwd.x, s), x)
             if recons is None:
                 recons = [recon]
@@ -418,7 +418,7 @@ class AE(CommonModel):
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
             y = batch.y.to(self.device)
-            enc_fwd = self.forward(x, s)
+            enc_fwd = self.forward(x=x, s=s)
             recon_0 = self.invert(enc_fwd.x[0], x)
             recon_1 = self.invert(enc_fwd.x[1], x)
             if recons is None:
@@ -442,7 +442,7 @@ class AE(CommonModel):
         return RunThroughOut(x=_recons.detach(), s=_sens.detach(), y=_labels.detach())
 
     def mmd_reporting(
-        self, enc_fwd: EncFwd, batch: Batch | CfBatch | TernarySample
+        self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample
     ) -> MmdReportingResults:
         with torch.no_grad():
             recon_mmd = mmd2(

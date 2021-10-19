@@ -131,7 +131,7 @@ class Clf(CommonModel):
         self.built = True
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, s: Tensor) -> ClfFwd:
+    def forward(self, x: Tensor, *, s: Tensor) -> ClfFwd:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc.forward(_x)
@@ -142,7 +142,7 @@ class Clf(CommonModel):
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
-        clf_out = self.forward(batch.x, batch.s)
+        clf_out = self.forward(x=batch.x, s=batch.s)
         _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
         pred_loss = binary_cross_entropy_with_logits(
             index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y, reduction="mean", weight=_iw
@@ -178,7 +178,7 @@ class Clf(CommonModel):
     @implements(pl.LightningModule)
     def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> ClfInferenceOut:
         assert self.built
-        clf_out = self.forward(batch.x, batch.s)
+        clf_out = self.forward(x=batch.x, s=batch.s)
 
         return ClfInferenceOut(
             y=batch.y,
@@ -245,7 +245,7 @@ class Clf(CommonModel):
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
-            clf_out = self.forward(x, s)
+            clf_out = self.forward(x=x, s=s)
             pred = self.threshold(index_by_s(clf_out.y, s))
             if preds is None:
                 preds = [pred]
@@ -260,7 +260,7 @@ class Clf(CommonModel):
         preds_dict: dict[str, tuple[Tensor, ...]] = {}
 
         for i, rec in enumerate(recons):
-            z, s_pred, preds = self.forward(rec, torch.ones_like(rec[:, 0]) * i)
+            z, s_pred, preds = self.forward(x=rec, s=torch.ones_like(rec[:, 0]) * i)
             for _s in range(2):
                 preds_dict[f"{i}_{_s}"] = (z, s_pred, preds[_s])
         return preds_dict
