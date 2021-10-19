@@ -71,6 +71,7 @@ class EncFwd(NamedTuple):
 class Loss:
     def __init__(
         self,
+        *,
         feature_groups: dict[str, list[slice]] | None = None,
         adv_weight: float = 1.0,
         cycle_weight: float = 1.0,
@@ -83,7 +84,7 @@ class Loss:
         self._recon_weight = recon_weight
         self._cycle_loss_fn = nn.MSELoss(reduction="mean")
 
-    def recon_loss(self, recons: list[Tensor], batch: Batch | CfBatch | TernarySample) -> Tensor:
+    def recon_loss(self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample) -> Tensor:
 
         if self.feature_groups["discrete"]:
             recon_loss = batch.x.new_tensor(0.0)
@@ -111,19 +112,20 @@ class Loss:
 
         return recon_loss * self._recon_weight
 
-    def adv_loss(
-        self, enc_fwd: EncFwd, batch: Batch | CfBatch | TernarySample, kernel: KernelType
-    ) -> Tensor:
+    def adv_loss(self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample) -> Tensor:
         return (
-            (
-                mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel)
-                + binary_cross_entropy_with_logits(enc_fwd.s.squeeze(-1), batch.s, reduction="mean")
-            )
-            / 2
+            binary_cross_entropy_with_logits(enc_fwd.s.squeeze(-1), batch.s, reduction="mean")
         ) * self._adv_weight
 
+    def mmd_loss(
+        self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, kernel: KernelType
+    ) -> Tensor:
+        return (
+            mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel) * self._adv_weight
+        )
+
     def cycle_loss(
-        self, cyc_fwd: EncFwd, batch: Batch | CfBatch | TernarySample
+        self, cyc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample
     ) -> tuple[Tensor, Tensor]:
         cycle_loss = self._cycle_loss_fn(index_by_s(cyc_fwd.x, batch.s).squeeze(-1), batch.x)
         return (cycle_loss, cycle_loss * self._cycle_weight)
@@ -243,12 +245,13 @@ class AE(CommonModel):
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
 
-        recon_loss = self.loss.recon_loss(enc_fwd.x, batch)
-        adv_loss = self.loss.adv_loss(enc_fwd, batch, self.mmd_kernel)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
+        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
+        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
         cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
-        report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_fwd, batch)
+        report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_fwd=cyc_fwd, batch=batch)
 
-        loss = recon_loss + adv_loss + cycle_loss
+        loss = recon_loss + adv_loss + cycle_loss + mmd_loss
 
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
@@ -299,12 +302,13 @@ class AE(CommonModel):
         assert self.built
         enc_fwd = self.forward(batch.x, batch.s)
 
-        recon_loss = self.loss.recon_loss(enc_fwd.x, batch)
-        adv_loss = self.loss.adv_loss(enc_fwd, batch, self.mmd_kernel)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
+        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
+        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
         cyc_fwd = self.forward(index_by_s(enc_fwd.x, 1 - batch.s), 1 - batch.s)
-        cycle_loss, _ = self.loss.cycle_loss(cyc_fwd, batch)
+        cycle_loss, _ = self.loss.cycle_loss(cyc_fwd=cyc_fwd, batch=batch)
 
-        loss = recon_loss + adv_loss + cycle_loss
+        loss = recon_loss + adv_loss + cycle_loss + mmd_loss
 
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
