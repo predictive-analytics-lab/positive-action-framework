@@ -258,6 +258,7 @@ class AE(CommonModel):
         to_log = {
             f"{Stage.fit}/enc/loss": loss,
             f"{Stage.fit}/enc/recon_loss": recon_loss,
+            f"{Stage.fit}/enc/mmd_loss": mmd_loss,
             f"{Stage.fit}/enc/adv_loss": adv_loss,
             f"{Stage.fit}/enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/enc/z_mean_abs_diff": (
