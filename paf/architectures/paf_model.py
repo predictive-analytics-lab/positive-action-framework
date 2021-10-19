@@ -55,10 +55,10 @@ class PafModel(pl.LightningModule):
     def forward(self, *, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
         recons: list[Tensor] | None = None
         if isinstance(self.enc, AE):
-            enc_fwd = self.enc.forward(x, s)
+            enc_fwd = self.enc.forward(x=x, s=s)
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
-            cyc_fwd = self.enc.forward(x, x)
+            cyc_fwd = self.enc.forward(real_a=x, real_b=x)
             recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
         assert recons is not None
         return self.clf.from_recons(recons)
@@ -79,7 +79,7 @@ class PafModel(pl.LightningModule):
             enc_s_pred = enc_fwd.s
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
-            cyc_fwd = self.enc.forward(batch.x, batch.x)
+            cyc_fwd = self.enc.forward(real_a=batch.x, real_b=batch.x)
             recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
             enc_z = torch.ones_like(batch.x)
             enc_s_pred = torch.ones_like(batch.s)
@@ -120,13 +120,13 @@ class PafModel(pl.LightningModule):
             "recons_0": self.enc.invert(recons[0], batch.x),
             "recons_1": self.enc.invert(recons[1], batch.x),
             "preds": self.clf.threshold(
-                index_by_s(self.clf.forward(batch.x, batch.s)[-1], batch.s)
+                index_by_s(self.clf.forward(x=batch.x, s=batch.s)[-1], batch.s)
             ),
             "cycle_loss": _cyc_loss,
         }
 
         for i, recon in enumerate(augmented_recons):
-            clf_out = self.clf.forward(recon, torch.ones_like(batch.s) * i)
+            clf_out = self.clf.forward(x=recon, s=torch.ones_like(batch.s) * i)
             vals.update({f"preds_{i}_{j}": self.clf.threshold(clf_out.y[j]) for j in range(2)})
         return TestStepOut(**vals)
 

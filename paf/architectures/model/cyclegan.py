@@ -57,7 +57,7 @@ class InitType(Enum):
 
 
 class Initializer:
-    def __init__(self, init_type: InitType = InitType.NORMAL, init_gain: float = 0.02):
+    def __init__(self, init_type: InitType = InitType.NORMAL, *, init_gain: float = 0.02):
         self.init_type = init_type
         self.init_gain = init_gain
 
@@ -129,7 +129,7 @@ class Loss:
         self.lambda_ = lambda_
         self.feature_groups = feature_groups if feature_groups is not None else {}
 
-    def get_dis_loss(self, dis_pred_real_data: Tensor, dis_pred_fake_data: Tensor) -> Tensor:
+    def get_dis_loss(self, dis_pred_real_data: Tensor, *, dis_pred_fake_data: Tensor) -> Tensor:
         dis_tar_real_data = torch.ones_like(dis_pred_real_data, requires_grad=False)
         dis_tar_fake_data = torch.zeros_like(dis_pred_fake_data, requires_grad=False)
 
@@ -141,7 +141,7 @@ class Loss:
         gen_tar_fake_data = torch.ones_like(dis_pred_fake_data, requires_grad=False)
         return self._loss_fn(dis_pred_fake_data, gen_tar_fake_data)
 
-    def get_gen_cyc_loss(self, real_data: Tensor, cyc_data: Tensor) -> Tensor:
+    def get_gen_cyc_loss(self, real_data: Tensor, *, cyc_data: Tensor) -> Tensor:
         if self.feature_groups["discrete"]:
             gen_cyc_loss = real_data.new_tensor(0.0)
             for i in range(
@@ -166,7 +166,7 @@ class Loss:
             gen_cyc_loss = self._recon_loss_fn(cyc_data.sigmoid(), real_data)
         return gen_cyc_loss * self.lambda_
 
-    def get_gen_idt_loss(self, real_data: Tensor, idt_data: Tensor) -> Tensor:
+    def get_gen_idt_loss(self, real_data: Tensor, *, idt_data: Tensor) -> Tensor:
         if self.feature_groups["discrete"]:
             gen_idt_loss = real_data.new_tensor(0.0)
             for i in range(
@@ -193,6 +193,7 @@ class Loss:
 
     def get_gen_loss(
         self,
+        *,
         real_a: Tensor,
         real_b: Tensor,
         gen_fwd: GenFwd,
@@ -200,8 +201,8 @@ class Loss:
         d_b_pred_fake_data: Tensor,
     ) -> GenLoss:
         # Cycle loss
-        cyc_loss_a = self.get_gen_cyc_loss(real_a, gen_fwd.cyc_a)
-        cyc_loss_b = self.get_gen_cyc_loss(real_b, gen_fwd.cyc_b)
+        cyc_loss_a = self.get_gen_cyc_loss(real_data=real_a, cyc_data=gen_fwd.cyc_a)
+        cyc_loss_b = self.get_gen_cyc_loss(real_data=real_b, cyc_data=gen_fwd.cyc_b)
         tot_cyc_loss = cyc_loss_a + cyc_loss_b
 
         # GAN loss
@@ -209,8 +210,8 @@ class Loss:
         g_b2a_gan_loss = self.get_gen_gan_loss(d_a_pred_fake_data)
 
         # Identity loss
-        g_b2a_idt_loss = self.get_gen_idt_loss(real_a, gen_fwd.idt_a)
-        g_a2b_idt_loss = self.get_gen_idt_loss(real_b, gen_fwd.idt_b)
+        g_b2a_idt_loss = self.get_gen_idt_loss(real_data=real_a, idt_data=gen_fwd.idt_a)
+        g_a2b_idt_loss = self.get_gen_idt_loss(real_data=real_b, idt_data=gen_fwd.idt_b)
 
         # Total individual losses
         g_a2b_loss = g_a2b_gan_loss + g_a2b_idt_loss + tot_cyc_loss
@@ -228,7 +229,7 @@ class GenLoss(NamedTuple):
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_channels: int, apply_dp: bool = True):
+    def __init__(self, in_channels: int, *, apply_dp: bool = True):
         """ResBlock."""
         super().__init__()
         conv = nn.Linear(in_channels, in_channels)
@@ -246,7 +247,7 @@ class ResBlock(nn.Module):
 class Generator(nn.Module):
     net: nn.Module
 
-    def __init__(self, in_dims: int, nb_resblks: int = 3):
+    def __init__(self, in_dims: int, *, nb_resblks: int = 3):
         """Generator."""
         super().__init__()
         out_dims = in_dims * 3
@@ -369,12 +370,14 @@ class CycleGan(CommonModel):
             for param in net.parameters():
                 param.requires_grad = requires_grad
 
-    def forward(self, real_a: Tensor, real_b: Tensor) -> CycleFwd:
+    def forward(self, *, real_a: Tensor, real_b: Tensor) -> CycleFwd:
         fake_b = self.g_a2b(real_a)
         fake_a = self.g_b2a(real_b)
         return CycleFwd(fake_b=fake_b, fake_a=fake_a)
 
-    def forward_gen(self, real_a: Tensor, real_b: Tensor, fake_a: Tensor, fake_b: Tensor) -> GenFwd:
+    def forward_gen(
+        self, *, real_a: Tensor, real_b: Tensor, fake_a: Tensor, fake_b: Tensor
+    ) -> GenFwd:
         cyc_a = self.g_b2a(fake_b)
         idt_a = self.g_b2a(real_a)
 
@@ -383,7 +386,7 @@ class CycleGan(CommonModel):
         return GenFwd(cyc_a=cyc_a, idt_a=idt_a, cyc_b=cyc_b, idt_b=idt_b)
 
     @staticmethod
-    def forward_dis(dis: nn.Module, real_data: Tensor, fake_data: Tensor) -> DisFwd:
+    def forward_dis(dis: nn.Module, *, real_data: Tensor, fake_data: Tensor) -> DisFwd:
         pred_real_data = dis(real_data)
         pred_fake_data = dis(fake_data)
         return DisFwd(real=pred_real_data, fake=pred_fake_data)
@@ -396,10 +399,12 @@ class CycleGan(CommonModel):
         size = min(len(real_a), len(real_b))
         real_a = real_a[:size]
         real_b = real_b[:size]
-        cyc_out = self.forward(real_a, real_b)
+        cyc_out = self.forward(real_a=real_a, real_b=real_b)
 
         if optimizer_idx == 0:
-            gen_fwd = self.forward_gen(real_a, real_b, cyc_out.fake_a, cyc_out.fake_b)
+            gen_fwd = self.forward_gen(
+                real_a=real_a, real_b=real_b, fake_a=cyc_out.fake_a, fake_b=cyc_out.fake_b
+            )
 
             mmd_results = self.mmd_reporting(
                 gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch, train=True
@@ -415,11 +420,11 @@ class CycleGan(CommonModel):
             d_b_pred_fake_data = self.d_b(cyc_out.fake_b)
 
             gen_loss = self.loss.get_gen_loss(
-                real_a,
-                real_b,
-                gen_fwd,
-                d_a_pred_fake_data,
-                d_b_pred_fake_data,
+                real_a=real_a,
+                real_b=real_b,
+                gen_fwd=gen_fwd,
+                d_a_pred_fake_data=d_a_pred_fake_data,
+                d_b_pred_fake_data=d_b_pred_fake_data,
             )
 
             self.log(f"{Stage.fit}/g_tot_loss", gen_loss.tot)
@@ -432,10 +437,12 @@ class CycleGan(CommonModel):
         if optimizer_idx == 1:
             self.set_requires_grad([self.d_a], requires_grad=True)
             fake_a = self.fake_pool_a.push_and_pop(cyc_out.fake_a)
-            dis_out = self.forward_dis(self.d_a, real_a, fake_a.detach())
+            dis_out = self.forward_dis(dis=self.d_a, real_data=real_a, fake_data=fake_a.detach())
 
             # GAN loss
-            d_a_loss = self.loss.get_dis_loss(dis_out.real, dis_out.fake)
+            d_a_loss = self.loss.get_dis_loss(
+                dis_pred_real_data=dis_out.real, dis_pred_fake_data=dis_out.fake
+            )
             self.log(
                 f"{Stage.fit}/d_A_loss",
                 d_a_loss,
@@ -450,10 +457,12 @@ class CycleGan(CommonModel):
         if optimizer_idx == 2:
             self.set_requires_grad([self.d_b], requires_grad=True)
             fake_b = self.fake_pool_b.push_and_pop(cyc_out.fake_b)
-            dis_b_out = self.forward_dis(self.d_b, real_b, fake_b.detach())
+            dis_b_out = self.forward_dis(dis=self.d_b, real_data=real_b, fake_data=fake_b.detach())
 
             # GAN loss
-            d_b_loss = self.loss.get_dis_loss(dis_b_out.real, dis_b_out.fake)
+            d_b_loss = self.loss.get_dis_loss(
+                dis_pred_real_data=dis_b_out.real, dis_pred_fake_data=dis_b_out.fake
+            )
             self.log(
                 f"{Stage.fit}/d_B_loss",
                 d_b_loss,
@@ -466,22 +475,34 @@ class CycleGan(CommonModel):
             return d_b_loss
         raise NotImplementedError("There should only be 3 optimizers.")
 
-    def shared_step(self, batch: Batch | CfBatch | TernarySample, stage: Stage) -> SharedStepOut:
+    def shared_step(self, batch: Batch | CfBatch | TernarySample, *, stage: Stage) -> SharedStepOut:
         real_a = batch.x
         real_b = batch.x
 
-        cyc_out = self.forward(real_a, real_b)
-        gen_fwd = self.forward_gen(real_a, real_b, cyc_out.fake_a, cyc_out.fake_b)
+        cyc_out = self.forward(real_a=real_a, real_b=real_b)
+        gen_fwd = self.forward_gen(
+            real_a=real_a, real_b=real_b, fake_a=cyc_out.fake_a, fake_b=cyc_out.fake_b
+        )
 
-        dis_out_a = self.forward_dis(self.d_a, real_a, cyc_out.fake_a)
-        dis_out_b = self.forward_dis(self.d_b, real_b, cyc_out.fake_b)
+        dis_out_a = self.forward_dis(dis=self.d_a, real_data=real_a, fake_data=cyc_out.fake_a)
+        dis_out_b = self.forward_dis(dis=self.d_b, real_data=real_b, fake_data=cyc_out.fake_b)
 
         # G_A2B loss, G_B2A loss, G loss
-        gen_losses = self.loss.get_gen_loss(real_a, real_b, gen_fwd, dis_out_a.fake, dis_out_b.fake)
+        gen_losses = self.loss.get_gen_loss(
+            real_a=real_a,
+            real_b=real_b,
+            gen_fwd=gen_fwd,
+            d_a_pred_fake_data=dis_out_a.fake,
+            d_b_pred_fake_data=dis_out_b.fake,
+        )
 
         # D_A loss, D_B loss
-        d_a_loss = self.loss.get_dis_loss(dis_out_a.real, dis_out_a.fake)
-        d_b_loss = self.loss.get_dis_loss(dis_out_b.real, dis_out_b.fake)
+        d_a_loss = self.loss.get_dis_loss(
+            dis_pred_real_data=dis_out_a.real, dis_pred_fake_data=dis_out_a.fake
+        )
+        d_b_loss = self.loss.get_dis_loss(
+            dis_pred_real_data=dis_out_b.real, dis_pred_fake_data=dis_out_b.fake
+        )
 
         mmd_results = self.mmd_reporting(gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch)
 
@@ -522,10 +543,10 @@ class CycleGan(CommonModel):
         self.all_cf_pred = torch.cat([_r.recon for _r in outputs], 0)
 
     def validation_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> SharedStepOut:
-        return self.shared_step(batch, Stage.validate)
+        return self.shared_step(batch=batch, stage=Stage.validate)
 
     def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> SharedStepOut:
-        return self.shared_step(batch, Stage.test)
+        return self.shared_step(batch=batch, stage=Stage.test)
 
     def lr_lambda(self, epoch: int) -> float:
         fraction = (epoch - self.epoch_decay) / self.epoch_decay
@@ -554,6 +575,7 @@ class CycleGan(CommonModel):
 
     def mmd_reporting(
         self,
+        *,
         gen_fwd: GenFwd,
         enc_fwd: CycleFwd,
         batch: Batch | CfBatch | TernarySample,
