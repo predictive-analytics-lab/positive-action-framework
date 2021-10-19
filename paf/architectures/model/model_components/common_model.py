@@ -33,7 +33,7 @@ class CommonModel(pl.LightningModule):
         for batch in dataloader:
             x = batch.x.to(self.device)
             s = batch.s.to(self.device)
-            z, _, _ = self.forward(x, s)
+            z, _, _ = self.forward(x=x, s=s)
             if latent is None:
                 latent = [z]
             else:

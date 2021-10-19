@@ -304,7 +304,7 @@ class CycleGan(CommonModel):
     g_params: Iterator[Parameter]
     data_cols: list[str]
     scaler: MinMaxScaler
-    example_input_array: list[Tensor]
+    example_input_array: dict[str, Tensor]
     built: bool
     all_x: Tensor
     all_s: Tensor
@@ -356,10 +356,10 @@ class CycleGan(CommonModel):
         self.g_params = itertools.chain([*self.g_a2b.parameters(), *self.g_b2a.parameters()])
         self.data_cols = outcome_cols
         self.scaler = scaler
-        self.example_input_array = [
-            torch.rand(33, data_dim, device=self.device),
-            torch.rand(33, data_dim, device=self.device),
-        ]
+        self.example_input_array = {
+            "real_a": torch.rand(33, data_dim, device=self.device),
+            "real_b": torch.rand(33, data_dim, device=self.device),
+        }
         self.built = True
 
     @staticmethod

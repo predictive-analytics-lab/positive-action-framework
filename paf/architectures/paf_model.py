@@ -74,7 +74,7 @@ class PafModel(pl.LightningModule):
     @implements(pl.LightningModule)
     def predict_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> TestStepOut:
         if isinstance(self.enc, AE):
-            enc_fwd = self.enc.forward(batch.x, batch.s)
+            enc_fwd = self.enc.forward(x=batch.x, s=batch.s)
             enc_z = enc_fwd.z
             enc_s_pred = enc_fwd.s
             recons = enc_fwd.x
@@ -95,18 +95,18 @@ class PafModel(pl.LightningModule):
         for i in range(1):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
             if isinstance(self.enc, AE):
-                cf_fwd = self.enc.forward(_cfx, 1 - batch.s)
+                cf_fwd = self.enc.forward(x=_cfx, s=1 - batch.s)
             else:
-                cf_fwd = self.enc.forward(_cfx, _cfx)  # type: ignore[assignment]
+                cf_fwd = self.enc.forward(real_a=_cfx, real_b=_cfx)  # type: ignore[assignment]
             _og = self.enc.invert(index_by_s(cf_fwd.x, batch.s), batch.x)
             cycle_loss = mse_loss_fn(_og, batch.x)
             if i == 0:
                 _cyc_loss = cycle_loss
             # self.log(f"Cycle_loss_{i}", cycle_loss)
             if isinstance(self.enc, AE):
-                _fwd = self.enc.forward(_og, 1 - batch.s)
+                _fwd = self.enc.forward(x=_og, s=1 - batch.s)
             else:
-                _fwd = self.enc.forward(_og, _og)  # type: ignore[assignment]
+                _fwd = self.enc.forward(real_a=_og, real_b=_og)  # type: ignore[assignment]
             _recons = _fwd.x
 
         vals: Dict[str, Tensor] = {
