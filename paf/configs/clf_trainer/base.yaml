@@ -1,0 +1,12 @@
+defaults:
+  - /clf_trainer_schema
+  - _self_
+
+check_val_every_n_epoch: 1
+deterministic: True
+gpus: 1
+auto_select_gpus: False
+auto_scale_batch_size: False
+accelerator: null
+terminate_on_nan: True
+distributed_backend: null

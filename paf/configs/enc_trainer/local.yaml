@@ -1,0 +1,9 @@
+defaults:
+  - base
+  - _self_
+
+max_epochs: 50
+gpus: 0
+limit_train_batches: 0.1
+limit_val_batches: 0.1
+limit_test_batches: 1.0

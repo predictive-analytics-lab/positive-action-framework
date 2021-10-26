@@ -27,7 +27,8 @@ SCHEMAS: Final[list[str]] = [
     "enc=basic",
     "clf=basic",
     "exp=unit_test",
-    "trainer=unit_test",
+    "enc_trainer=unit_test",
+    "clf_trainer=unit_test",
 ]
 
 
@@ -137,8 +138,8 @@ def test_enc(dm_schema: str) -> None:
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
             scaler=cfg.data.scaler,
         )
-        cfg.trainer.fit(model=encoder, datamodule=cfg.data)
-        cfg.trainer.test(model=encoder, ckpt_path=None, datamodule=cfg.data)
+        cfg.enc_trainer.fit(model=encoder, datamodule=cfg.data)
+        cfg.enc_trainer.test(model=encoder, ckpt_path=None, datamodule=cfg.data)
 
 
 @pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
@@ -165,8 +166,8 @@ def test_clf(dm_schema: str) -> None:
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
             scaler=cfg.data.scaler,
         )
-        cfg.trainer.fit(model=classifier, datamodule=cfg.data)
-        cfg.trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
+        cfg.clf_trainer.fit(model=classifier, datamodule=cfg.data)
+        cfg.clf_trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
 
 
 @pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
@@ -181,9 +182,7 @@ def test_clfmod(dm_schema: str) -> None:
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
         cfg.data.scaler = MinMaxScaler()
 
-        enc_trainer = copy.deepcopy(cfg.trainer)
-        clf_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
-        model_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
+        model_trainer: pl.Trainer = copy.deepcopy(cfg.enc_trainer)
 
         data = cfg.data
         data.prepare_data()
@@ -198,8 +197,8 @@ def test_clfmod(dm_schema: str) -> None:
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
             scaler=cfg.data.scaler,
         )
-        enc_trainer.fit(model=encoder, datamodule=data)
-        enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
+        cfg.enc_trainer.fit(model=encoder, datamodule=data)
+        cfg.enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
 
         classifier = cfg.clf
         classifier.build(
@@ -211,8 +210,8 @@ def test_clfmod(dm_schema: str) -> None:
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
             scaler=cfg.data.scaler,
         )
-        clf_trainer.fit(model=classifier, datamodule=data)
-        clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
+        cfg.clf_trainer.fit(model=classifier, datamodule=data)
+        cfg.clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)
 
         model = PafModel(encoder=encoder, classifier=classifier)
         model_trainer.fit(model=model, datamodule=data)

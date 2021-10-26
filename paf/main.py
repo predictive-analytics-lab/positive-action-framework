@@ -67,6 +67,8 @@ LOGGER = logging.getLogger(__name__)
 class ModelType(Enum):
     PAF = auto()
     NN = auto()
+    ERM_DP = auto()
+    EQ_DP = auto()
 
 
 @dataclass
@@ -91,7 +93,8 @@ class Config:
     data: Any = MISSING
     enc: Any = MISSING  # put config files for this into `conf/model/`
     clf: Any = MISSING  # put config files for this into `conf/model/`
-    trainer: Any = MISSING
+    enc_trainer: Any = MISSING
+    clf_trainer: Any = MISSING
     exp: ExpConfig = MISSING
     exp_group: Optional[str] = None
 
@@ -100,7 +103,8 @@ warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
 CS = ConfigStore.instance()
 CS.store(name="config_schema", node=Config)  # General Schema
-CS.store(name="trainer_schema", node=TrainerConf, package="trainer")
+CS.store(name="enc_trainer_schema", node=TrainerConf, package="enc_trainer")
+CS.store(name="clf_trainer_schema", node=TrainerConf, package="clf_trainer")
 
 CLF_PKG: Final[str] = "clf"
 CLF_GROUP: Final[str] = "schema/clf"
@@ -165,16 +169,63 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         config=raw_config,
         offline=cfg.exp.log_offline,
     )
-    cfg.trainer.logger = wandb_logger
+    cfg.enc_trainer.logger = wandb_logger
+    cfg.clf_trainer.logger = wandb_logger
 
-    clf_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
-    model_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
-    _model_trainer: pl.Trainer = copy.deepcopy(cfg.trainer)
+    model_trainer: pl.Trainer = copy.deepcopy(cfg.enc_trainer)
+    _model_trainer: pl.Trainer = copy.deepcopy(cfg.enc_trainer)
 
     # make_data_plots(data, cfg.trainer.logger)
 
     if isinstance(cfg.clf, em.InAlgorithm):
         baseline_models(cfg.clf, data=data, logger=wandb_logger, debug=cfg.exp.debug)
+        return
+
+    if cfg.exp.model in (ModelType.ERM_DP, ModelType.EQ_DP):
+        if cfg.exp.model is ModelType.ERM_DP:
+            first_model = em.LRCV(seed=cfg.exp.seed)
+            first_results = first_model.run(data.train_datatuple, data.test_datatuple)
+        else:
+            erm_model = em.LRCV(seed=cfg.exp.seed)
+            first_model = em.Hardt(seed=cfg.exp.seed)
+            first_results = first_model.run(
+                train_predictions=erm_model.run(data.train_datatuple, data.train_datatuple),
+                train=data.train_datatuple,
+                test_predictions=erm_model.run(data.train_datatuple, data.test_datatuple),
+                test=data.test_datatuple,
+            )
+        dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+
+        matches = {
+            f"{c}": first_results.hard[
+                pd.concat([dp_results.hard, first_results.hard], axis=1).sum(axis=1) == c
+            ].count()
+            for c in range(3)
+        }
+        print(matches)
+        df = pd.DataFrame.from_dict(
+            {
+                "s1_0_s2_0": first_results.hard.values,
+                "s1_1_s2_1": dp_results.hard.values,
+                "true_s": data.test_datatuple.s.values[:, 0],
+            }
+        )
+
+        for fair_bool in (True, False):
+            preds = baseline_selection_rules(
+                outcomes=df,
+                logger=wandb_logger,
+                fair=fair_bool,
+                data_name="Outcomes",
+            )
+            multiple_metrics(
+                preds=preds,
+                target=data.test_datatuple,
+                name=f"Post-Selection-{fair_bool=}",
+                logger=wandb_logger,
+                debug=cfg.exp.debug,
+            )
         return
 
     encoder: AE | CycleGan | None = None
@@ -191,15 +242,14 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
             scaler=data.scaler,
         )
 
-        enc_trainer = cfg.trainer
-        enc_trainer.callbacks += [
+        cfg.enc_trainer.callbacks += [
             L1Logger(),
             # MmdLogger(),
             # FeaturePlots()
         ]
-        enc_trainer.tune(model=encoder, datamodule=data)
-        enc_trainer.fit(model=encoder, datamodule=data)
-        enc_trainer.test(datamodule=data)
+        cfg.enc_trainer.tune(model=encoder, datamodule=data)
+        cfg.enc_trainer.fit(model=encoder, datamodule=data)
+        cfg.enc_trainer.test(datamodule=data)
 
         classifier = cfg.clf
         classifier.build(
@@ -211,16 +261,16 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
             outcome_cols=data.disc_features + data.cont_features,
             scaler=None,
         )
-        clf_trainer.tune(model=classifier, datamodule=data)
-        clf_trainer.fit(model=classifier, datamodule=data)
-        clf_trainer.test(datamodule=data)
+        cfg.clf_trainer.tune(model=classifier, datamodule=data)
+        cfg.clf_trainer.fit(model=classifier, datamodule=data)
+        cfg.clf_trainer.test(datamodule=data)
 
         model = PafModel(encoder=encoder, classifier=classifier)
 
     elif cfg.exp.model == ModelType.NN:
         classifier = NaiveModel(in_size=cfg.data.size()[0])
-        clf_trainer.tune(model=classifier, datamodule=data)
-        clf_trainer.fit(model=classifier, datamodule=data)
+        cfg.clf_trainer.tune(model=classifier, datamodule=data)
+        cfg.clf_trainer.fit(model=classifier, datamodule=data)
 
         model = NearestNeighbourModel(clf_model=classifier, data=data)
 
@@ -379,18 +429,18 @@ def evaluate(
                 graduated=data.true_test_datatuple,
                 logger=wandb_logger,
             )
-        if isinstance(cfg.enc, AE) and cfg.trainer.max_epochs > 1:
+        if isinstance(cfg.enc, AE) and cfg.enc_trainer.max_epochs > 1:
             produce_baselines(
                 encoder=encoder,
                 datamodule=data,
                 logger=wandb_logger,
-                test_mode=cfg.trainer.fast_dev_run,
+                test_mode=cfg.enc_trainer.fast_dev_run,
             )
             produce_baselines(
                 encoder=classifier,
                 datamodule=data,
                 logger=wandb_logger,
-                test_mode=cfg.trainer.fast_dev_run,
+                test_mode=cfg.clf_trainer.fast_dev_run,
             )
 
 

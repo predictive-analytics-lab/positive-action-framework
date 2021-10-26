@@ -5,4 +5,6 @@ defaults:
   - enc: basic  # `configs/model/basic.yaml`
   - clf: basic  # `configs/model/basic.yaml`
   - exp: srv
-  - trainer: srv # `configs/training/simple.yaml`
+  - enc_trainer: srv
+  - clf_trainer: srv
+  - _self_

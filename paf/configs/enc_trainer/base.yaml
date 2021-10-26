@@ -1,5 +1,5 @@
 defaults:
-  - /trainer_schema
+  - /enc_trainer_schema
   - _self_
 
 check_val_every_n_epoch: 1
