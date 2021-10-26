@@ -156,11 +156,11 @@ class Clf(CommonModel):
         loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
 
         to_log = {
-            f"{Stage.fit}/clf_loss": loss,
-            f"{Stage.fit}/clf_pred_loss": pred_loss,
-            f"{Stage.fit}/clf_adv_loss": adv_loss,
-            f"{Stage.fit}/clf_z_norm": clf_out.z.detach().norm(dim=1).mean(),
-            f"{Stage.fit}/clf_z_mean_abs_diff": (
+            f"{Stage.fit}/clf/loss": loss,
+            f"{Stage.fit}/clf/pred_loss": pred_loss,
+            f"{Stage.fit}/clf/adv_loss": adv_loss,
+            f"{Stage.fit}/clf/z_norm": clf_out.z.detach().norm(dim=1).mean(),
+            f"{Stage.fit}/clf/z_mean_abs_diff": (
                 clf_out.z[batch.s <= 0].mean() - clf_out.z[batch.s > 0].mean()
             ).abs(),
         }
