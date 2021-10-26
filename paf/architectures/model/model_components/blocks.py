@@ -11,8 +11,9 @@ __all__ = ["block", "mid_blocks"]
 def block(*, in_dim: int, out_dim: int) -> nn.Module:
     """Make a simple block."""
     linear = nn.Linear(in_dim, out_dim)
-    relu = nn.SELU()
-    seq = nn.Sequential(linear, relu)
+    relu = nn.GELU()
+    b_norm = nn.BatchNorm1d(out_dim)
+    seq = nn.Sequential(linear, relu, b_norm)
     seq.apply(init_weights)
     return seq
 
