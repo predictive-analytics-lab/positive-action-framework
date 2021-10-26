@@ -19,10 +19,14 @@ import ethicml as em
 import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
+import matplotlib.pyplot as plt
 from omegaconf import DictConfig, MISSING, OmegaConf
 import pandas as pd
 import pytorch_lightning as pl
 import pytorch_lightning.loggers as pll
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+import umap
 
 from paf.architectures import PafModel, PafResults, Results
 from paf.architectures.model import CycleGan, NearestNeighbourModel
@@ -278,6 +282,14 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     results = model.collate_results(
         model_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
     )
+
+    reducer = umap.UMAP(random_state=cfg.exp.seed)
+    scaled_embedding = StandardScaler().fit_transform(results.enc_z.detach().cpu().numpy())
+    embedding = pd.DataFrame(reducer.fit_transform(scaled_embedding), columns=["x1", "x2"])
+    embedding["s"] = data.test_datatuple.s
+    embedding["y"] = data.test_datatuple.y
+    sns.scatterplot(data=embedding, x="x1", y="x2", hue="y", style="s")
+    wandb_logger.experiment.log({"embedding": plt})
 
     evaluate(
         cfg=cfg,
