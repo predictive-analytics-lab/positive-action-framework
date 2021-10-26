@@ -253,7 +253,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         ]
         cfg.enc_trainer.tune(model=encoder, datamodule=data)
         cfg.enc_trainer.fit(model=encoder, datamodule=data)
-        cfg.enc_trainer.test(datamodule=data)
+        cfg.enc_trainer.test(datamodule=data, ckpt_path=None)
 
         classifier = cfg.clf
         classifier.build(
@@ -267,7 +267,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         )
         cfg.clf_trainer.tune(model=classifier, datamodule=data)
         cfg.clf_trainer.fit(model=classifier, datamodule=data)
-        cfg.clf_trainer.test(datamodule=data)
+        cfg.clf_trainer.test(datamodule=data, ckpt_path=None)
 
         model = PafModel(encoder=encoder, classifier=classifier)
 
