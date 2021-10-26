@@ -10,7 +10,6 @@ latent_multiplier: 1
 lr: 1e-3
 adv_weight: 1.0
 recon_weight: 1.0
-reg_weight: 1e-3
 s_as_input: true
 mmd_kernel: "RBF"
 scheduler_rate: 0.99

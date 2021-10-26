@@ -55,7 +55,6 @@ class Clf(CommonModel):
     def __init__(
         self,
         adv_weight: float,
-        reg_weight: float,
         pred_weight: float,
         lr: float,
         s_as_input: bool,
@@ -74,7 +73,6 @@ class Clf(CommonModel):
         super().__init__(name="Clf")
 
         self.adv_weight = adv_weight
-        self.reg_weight = reg_weight
         self.pred_weight = pred_weight
         self.learning_rate = lr
         self.s_as_input = s_as_input
