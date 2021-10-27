@@ -221,7 +221,7 @@ class AE(CommonModel):
         self.decoders = nn.ModuleList(
             [
                 Decoder(
-                    latent_dim=self.latent_dims,
+                    latent_dim=self.latent_dims + s_dim,
                     in_size=data_dim,
                     blocks=self.decoder_blocks,
                     hid_multiplier=self.latent_multiplier,
@@ -244,7 +244,10 @@ class AE(CommonModel):
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc.forward(_x)
         s_pred = self.adv.forward(z)
-        recons = [dec(z) for dec in self.decoders]
+        recons = [
+            dec(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
+            for i, dec in enumerate(self.decoders)
+        ]
 
         # cycle_x = (
         #     torch.cat([index_by_s(recons, 1 - s), 1 - s[..., None]], dim=1)
