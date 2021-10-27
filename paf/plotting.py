@@ -6,14 +6,15 @@ from ethicml import DataTuple
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 import pandas as pd
+import pytorch_lightning as pl
 import pytorch_lightning.loggers as pll
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor
 
-from paf.base_templates import BaseDataModule
-from paf.log_progress import do_log
 import wandb
+
+from .log_progress import do_log
 
 
 def label_plot(data: DataTuple, logger: pll.WandbLogger, name: str = "") -> None:
@@ -165,7 +166,7 @@ def make_plot(
 #     plt.clf()
 
 
-def make_data_plots(data: BaseDataModule, logger: pll.WandbLogger) -> None:
+def make_data_plots(data: pl.LightningDataModule, logger: pll.WandbLogger) -> None:
     """Make plots of the data."""
     try:
         label_plot(data.train_datatuple, logger, "train")
