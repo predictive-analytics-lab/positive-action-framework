@@ -2,6 +2,7 @@
 from __future__ import annotations
 from copy import copy
 
+import ethicml as em
 from ethicml import Accuracy, DataTuple, Prediction
 import numpy as np
 import numpy.typing as npt
@@ -45,7 +46,12 @@ def lrcv_results(
         do_log(
             f"Baselines/LRCV/Accuracy-{target_name}-from-{component}",
             Accuracy().score(
-                prediction=s_preds, actual=datamodule.test_datatuple.replace(y=test_target)
+                prediction=s_preds,
+                actual=em.DataTuple(
+                    x=datamodule.test_datatuple.x.copy(),
+                    s=datamodule.test_datatuple.s.copy(),
+                    y=test_target,
+                ),
             ),
             logger,
         )

@@ -545,7 +545,11 @@ def multiple_metrics(
     """Get multiple metrics."""
     if debug:
         try:
-            label_plot(target.replace(y=preds.hard.to_frame()), logger, name)
+            label_plot(
+                em.DataTuple(x=target.x.copy(), s=target.s.copy(), y=preds.hard.to_frame()),
+                logger,
+                name,
+            )
         except (IndexError, KeyError):
             pass
 

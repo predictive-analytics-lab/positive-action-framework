@@ -1,16 +1,17 @@
 """Plotting related functions."""
 from __future__ import annotations
 
+import ethicml as em
 from ethicml import DataTuple
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 import pandas as pd
-import pytorch_lightning as pl
 import pytorch_lightning.loggers as pll
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
 from torch import Tensor
 
+from paf.base_templates import BaseDataModule
 from paf.log_progress import do_log
 import wandb
 
@@ -164,7 +165,7 @@ def make_plot(
 #     plt.clf()
 
 
-def make_data_plots(data: pl.LightningDataModule, logger: pll.WandbLogger) -> None:
+def make_data_plots(data: BaseDataModule, logger: pll.WandbLogger) -> None:
     """Make plots of the data."""
     try:
         label_plot(data.train_datatuple, logger, "train")
@@ -177,7 +178,11 @@ def make_data_plots(data: pl.LightningDataModule, logger: pll.WandbLogger) -> No
     if hasattr(data, "cf_available") and data.cf_available and data.best_guess is not None:
         try:
             label_plot(
-                data.factual_data.replace(y=data.best_guess.hard.to_frame()),
+                em.DataTuple(
+                    x=data.factual_data.x.copy(),
+                    s=data.factual_data.s.copy(),
+                    y=data.best_guess.hard.to_frame(),
+                ),
                 logger,
                 "best_guess",
             )

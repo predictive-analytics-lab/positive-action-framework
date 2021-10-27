@@ -4,6 +4,7 @@ from abc import abstractmethod
 from typing import NamedTuple
 import warnings
 
+import ethicml as em
 from ethicml import Dataset, DataTuple, Prediction
 import numpy as np
 import pandas as pd
@@ -181,7 +182,11 @@ class BaseDataModule(pl.LightningDataModule):
             assert self.cf_outcomes is not None
             try:
                 label_plot(
-                    self.factual_data.replace(y=self.best_guess.hard.to_frame()),
+                    em.DataTuple(
+                        x=self.factual_data.x.copy(),
+                        s=self.factual_data.s.copy(),
+                        y=self.best_guess.hard.to_frame(),
+                    ),
                     logger,
                     "best_guess",
                 )
