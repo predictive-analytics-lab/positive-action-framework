@@ -200,7 +200,7 @@ class Clf(CommonModel):
 
         to_log = {
             f"{Stage.fit}/clf/acc": self.fit_acc(
-                index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y
+                index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y.int()
             ),
             f"{Stage.fit}/clf/loss": loss,
             f"{Stage.fit}/clf/pred_loss": pred_loss,
@@ -229,7 +229,7 @@ class Clf(CommonModel):
 
         self.log(
             f"{Stage.validate}/clf/acc",
-            self.val_acc(index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y),
+            self.val_acc(index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y.int()),
         )
 
         return ClfInferenceOut(
@@ -251,7 +251,7 @@ class Clf(CommonModel):
         clf_out = self.forward(x=batch.x, s=batch.s)
         self.log(
             f"{Stage.test}/clf/acc",
-            self.test_acc(index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y),
+            self.test_acc(index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y.int()),
         )
 
         return ClfInferenceOut(
