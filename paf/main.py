@@ -354,6 +354,7 @@ def make_umap(
 
     sns.scatterplot(data=embedding, x="x1", y="x2", hue="group")
     logger.experiment.log({f"{data_name}": wandb.Image(plt)})
+    plt.clf()
 
 
 def evaluate(
