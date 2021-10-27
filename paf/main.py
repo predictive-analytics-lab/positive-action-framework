@@ -64,6 +64,7 @@ from paf.mmd import KernelType, mmd2
 from paf.plotting import label_plot
 from paf.scoring import get_full_breakdown, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
+import wandb
 
 LOGGER = logging.getLogger(__name__)
 
@@ -251,9 +252,12 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
             # MmdLogger(),
             # FeaturePlots()
         ]
-        cfg.enc_trainer.tune(model=encoder, datamodule=data)
-        cfg.enc_trainer.fit(model=encoder, datamodule=data)
-        cfg.enc_trainer.test(datamodule=data, ckpt_path=None)
+        cfg.enc_trainer.fit(
+            model=encoder,
+            train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
+            val_dataloaders=data.val_dataloader(),
+        )
+        cfg.enc_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
 
         classifier = cfg.clf
         classifier.build(
@@ -265,9 +269,12 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
             outcome_cols=data.disc_features + data.cont_features,
             scaler=None,
         )
-        cfg.clf_trainer.tune(model=classifier, datamodule=data)
-        cfg.clf_trainer.fit(model=classifier, datamodule=data)
-        cfg.clf_trainer.test(datamodule=data, ckpt_path=None)
+        cfg.clf_trainer.fit(
+            model=classifier,
+            train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
+            val_dataloaders=data.val_dataloader(),
+        )
+        cfg.clf_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
 
         model = PafModel(encoder=encoder, classifier=classifier)
 
@@ -289,7 +296,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     embedding["s"] = data.test_datatuple.s
     embedding["y"] = data.test_datatuple.y
     sns.scatterplot(data=embedding, x="x1", y="x2", hue="y", style="s")
-    wandb_logger.experiment.log({"embedding": plt})
+    wandb_logger.experiment.log({"embedding": wandb.Image(plt)})
 
     evaluate(
         cfg=cfg,
