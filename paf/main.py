@@ -291,34 +291,23 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         model_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
     )
 
-    make_umap(
-        results.x.detach().cpu().numpy(),
-        data_name="Input",
-        cfg=cfg,
-        datamod=data,
-        logger=wandb_logger,
-    )
-    make_umap(
-        results.enc_z.detach().cpu().numpy(),
-        data_name="Enc Embedding",
-        cfg=cfg,
-        datamod=data,
-        logger=wandb_logger,
-    )
-    make_umap(
-        results.recon.detach().cpu().numpy(),
-        data_name="Enc Recon",
-        cfg=cfg,
-        datamod=data,
-        logger=wandb_logger,
-    )
-    make_umap(
-        results.clf_z.detach().cpu().numpy(),
-        data_name="Clf Embedding",
-        cfg=cfg,
-        datamod=data,
-        logger=wandb_logger,
-    )
+    _s = data.test_datatuple.s.copy().to_numpy()
+    _y = data.test_datatuple.y.copy().to_numpy()
+
+    for arr, name in [
+        (results.x.detach().cpu().numpy(), "Input"),
+        (results.enc_z.detach().cpu().numpy(), "Enc Embedding"),
+        (results.recon.detach().cpu().numpy(), "Enc Recon"),
+        (results.clf_z.detach().cpu().numpy(), "Clf Embedding"),
+    ]:
+        make_umap(
+            arr,
+            data_name=name,
+            cfg=cfg,
+            s=_s,
+            y=_y,
+            logger=wandb_logger,
+        )
 
     evaluate(
         cfg=cfg,
@@ -335,13 +324,18 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
 
 def make_umap(
-    data: np.ndarray, data_name: str, cfg: Config, datamod: BaseDataModule, logger: pll.WandbLogger
+    data: np.ndarray,
+    data_name: str,
+    cfg: Config,
+    s: np.ndarray,
+    y: np.ndarray,
+    logger: pll.WandbLogger,
 ) -> None:
     reducer = umap.UMAP(random_state=cfg.exp.seed)
     scaled_embedding = StandardScaler().fit_transform(data)
     embedding = pd.DataFrame(reducer.fit_transform(scaled_embedding), columns=["x1", "x2"])
-    embedding["s"] = datamod.test_datatuple.s.copy()
-    embedding["y"] = datamod.test_datatuple.y.copy()
+    embedding["s"] = s.copy()
+    embedding["y"] = y.copy()
 
     conditions = [
         (embedding["s"] == 0) & (embedding["y"] == 0),
@@ -440,7 +434,7 @@ def evaluate(
                 acceptance=em.DataTuple(
                     x=data.test_datatuple.x.copy(),
                     s=data.test_datatuple.s.copy(),
-                    y=preds.hard.to_frame(),
+                    y=preds.hard.to_frame().copy(),
                 ),
                 graduated=data.true_test_datatuple,
                 logger=wandb_logger,
