@@ -129,7 +129,7 @@ class PafModel(pl.LightningModule):
 
         for i, recon in enumerate(augmented_recons):
             clf_out = self.clf.forward(x=recon, s=torch.ones_like(batch.s) * i)
-            vals.update({f"z_{i}": clf_out.z})
+            vals.update({f"clf_z{i}": clf_out.z})
             vals.update({f"preds_{i}_{j}": self.clf.threshold(clf_out.y[j]) for j in range(2)})
         return TestStepOut(**vals)
 
@@ -141,8 +141,8 @@ class PafModel(pl.LightningModule):
         preds_1_1 = torch.cat([_r.preds_1_1 for _r in outputs], 0)
         s = torch.cat([_r.s for _r in outputs], 0)
         preds = torch.cat([_r.preds for _r in outputs], 0)
-        clf_z0 = (torch.cat([_r.clf_z0 for _r in outputs], 0),)
-        clf_z1 = (torch.cat([_r.clf_z1 for _r in outputs], 0),)
+        clf_z0 = torch.cat([_r.clf_z0 for _r in outputs], 0)
+        clf_z1 = torch.cat([_r.clf_z1 for _r in outputs], 0)
 
         return PafResults(
             enc_z=torch.cat([_r.enc_z for _r in outputs], 0),

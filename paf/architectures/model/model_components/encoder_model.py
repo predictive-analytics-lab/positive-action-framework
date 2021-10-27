@@ -271,7 +271,7 @@ class AE(CommonModel):
             f"{Stage.fit}/enc/adv_loss": adv_loss,
             f"{Stage.fit}/enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/enc/z_mean_abs_diff": (
-                enc_fwd.z[batch.s <= 0].mean() - enc_fwd.z[batch.s > 0].mean()
+                enc_fwd.z[batch.s <= 0].detach().mean() - enc_fwd.z[batch.s > 0].detach().mean()
             ).abs(),
             # f"{Stage.fit}/enc/cycle_loss": report_of_cyc_loss,
             f"{Stage.fit}/enc/recon_mmd": mmd_results.recon,

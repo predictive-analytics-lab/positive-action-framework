@@ -292,27 +292,31 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     )
 
     make_umap(
-        results.x.detach().cpu().numpy(), data_name="Input", cfg=cfg, dm=data, logger=wandb_logger
+        results.x.detach().cpu().numpy(),
+        data_name="Input",
+        cfg=cfg,
+        datamod=data,
+        logger=wandb_logger,
     )
     make_umap(
         results.enc_z.detach().cpu().numpy(),
         data_name="Enc Embedding",
         cfg=cfg,
-        dm=data,
+        datamod=data,
         logger=wandb_logger,
     )
     make_umap(
         results.recon.detach().cpu().numpy(),
         data_name="Enc Recon",
         cfg=cfg,
-        dm=data,
+        datamod=data,
         logger=wandb_logger,
     )
     make_umap(
         results.clf_z.detach().cpu().numpy(),
         data_name="Clf Embedding",
         cfg=cfg,
-        dm=data,
+        datamod=data,
         logger=wandb_logger,
     )
 
@@ -331,14 +335,24 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
 
 def make_umap(
-    data: np.ndarray, data_name: str, cfg: Config, dm: BaseDataModule, logger: pll.WandbLogger
+    data: np.ndarray, data_name: str, cfg: Config, datamod: BaseDataModule, logger: pll.WandbLogger
 ) -> None:
     reducer = umap.UMAP(random_state=cfg.exp.seed)
     scaled_embedding = StandardScaler().fit_transform(data)
     embedding = pd.DataFrame(reducer.fit_transform(scaled_embedding), columns=["x1", "x2"])
-    embedding["s"] = dm.test_datatuple.s
-    embedding["y"] = dm.test_datatuple.y
-    sns.scatterplot(data=embedding, x="x1", y="x2", hue="y", style="s")
+    embedding["s"] = datamod.test_datatuple.s
+    embedding["y"] = datamod.test_datatuple.y
+
+    conditions = [
+        (embedding["s"] == 0) & (embedding["y"] == 0),
+        (embedding["s"] == 0) & (embedding["y"] == 1),
+        (embedding["s"] == 1) & (embedding["y"] == 0),
+        (embedding["s"] == 1) & (embedding["y"] == 1),
+    ]
+    values = ["s0y0", "s0y1", "s1y0", "s1y1"]
+    embedding["group"] = np.select(conditions, values, -1)
+
+    sns.scatterplot(data=embedding, x="x1", y="x2", hue="group")
     logger.experiment.log({f"{data_name}": wandb.Image(plt)})
 
 

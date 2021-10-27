@@ -159,7 +159,7 @@ class Clf(CommonModel):
             f"{Stage.fit}/clf/adv_loss": adv_loss,
             f"{Stage.fit}/clf/z_norm": clf_out.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/clf/z_mean_abs_diff": (
-                clf_out.z[batch.s <= 0].mean() - clf_out.z[batch.s > 0].mean()
+                clf_out.z[batch.s <= 0].detach().mean() - clf_out.z[batch.s > 0].detach().mean()
             ).abs(),
         }
 
