@@ -337,6 +337,11 @@ def make_umap(
     embedding["s"] = s.copy()
     embedding["y"] = y.copy()
 
+    if len(np.unique(s)) > 2:
+        print(embedding["s"])
+    if len(np.unique(y)) > 2:
+        print(embedding["y"])
+
     conditions = [
         (embedding["s"] == 0) & (embedding["y"] == 0),
         (embedding["s"] == 0) & (embedding["y"] == 1),
