@@ -26,8 +26,8 @@ def lrcv_results(
 ) -> None:
     """Run an LRCV over some train set and apply to some test set."""
     for train_target, test_target, target_name in [
-        (datamodule.train_datatuple.s, datamodule.test_datatuple.s, "S"),
-        (datamodule.train_datatuple.y, datamodule.test_datatuple.y, "Y"),
+        (datamodule.train_datatuple.s, datamodule.test_datatuple.s.copy(), "S"),
+        (datamodule.train_datatuple.y, datamodule.test_datatuple.y.copy(), "Y"),
     ]:
         random_state = np.random.RandomState(888)
         folder = KFold(n_splits=5, shuffle=True, random_state=random_state)
@@ -83,8 +83,8 @@ def produce_baselines(
         )
         recon_name = "Recon-Data"
     else:
-        train_labels = datamodule.train_datatuple.y.to_numpy()
-        test_labels = datamodule.test_datatuple.y.to_numpy()
+        train_labels = datamodule.train_datatuple.y.copy().to_numpy()
+        test_labels = datamodule.test_datatuple.y.copy().to_numpy()
         lrcv_results(
             train=train_labels,
             test=test_labels,

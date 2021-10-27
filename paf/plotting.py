@@ -17,8 +17,8 @@ import wandb
 
 def label_plot(data: DataTuple, logger: pll.WandbLogger, name: str = "") -> None:
     """Make a label (quadrant) plot and uplad to wandb."""
-    s_col = data.s.columns[0]
-    s_values = data.s[s_col].value_counts() / data.s[s_col].count()
+    s_col = data.s.copy().columns[0]
+    s_values = data.s[s_col].copy().value_counts() / data.s[s_col].copy().count()
     if len(s_values) == 1:
         missing = s_values.index.min()
         missing_val = s_values[missing]
@@ -30,12 +30,14 @@ def label_plot(data: DataTuple, logger: pll.WandbLogger, name: str = "") -> None
     s_0_label = s_values.index.min()
     s_1_label = s_values.index.max()
 
-    y_col = data.y.columns[0]
+    y_col = data.y.copy().columns[0]
     y_s0 = (
-        data.y[y_col][data.s[s_col] == 0].value_counts() / data.y[y_col][data.s[s_col] == 0].count()
+        data.y[y_col][data.s[s_col] == 0].copy().value_counts()
+        / data.y[y_col][data.s[s_col] == 0].copy().count()
     )
     y_s1 = (
-        data.y[y_col][data.s[s_col] == 1].value_counts() / data.y[y_col][data.s[s_col] == 1].count()
+        data.y[y_col][data.s[s_col] == 1].copy().value_counts()
+        / data.y[y_col][data.s[s_col] == 1].copy().count()
     )
 
     if len(y_s1) == 0:

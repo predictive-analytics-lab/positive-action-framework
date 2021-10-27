@@ -76,12 +76,14 @@ class Loss:
         *,
         feature_groups: dict[str, list[slice]] | None = None,
         adv_weight: float = 1.0,
+        mmd_weight: float = 1.0,
         cycle_weight: float = 1.0,
         recon_weight: float = 1.0,
     ):
         self._recon_loss_fn = nn.MSELoss(reduction="mean")
         self.feature_groups = feature_groups if feature_groups is not None else {}
         self._adv_weight = adv_weight
+        self._mmd_weight = mmd_weight
         self._cycle_weight = cycle_weight
         self._recon_weight = recon_weight
         self._cycle_loss_fn = nn.MSELoss(reduction="mean")
@@ -123,7 +125,7 @@ class Loss:
         self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, kernel: KernelType
     ) -> Tensor:
         return (
-            mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel) * self._adv_weight
+            mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel) * self._mmd_weight
         )
 
     def cycle_loss(
@@ -158,6 +160,7 @@ class AE(CommonModel):
         adv_blocks: int,
         decoder_blocks: int,
         adv_weight: float,
+        mmd_weight: float,
         cycle_weight: float,
         target_weight: float,
         lr: float,
@@ -169,6 +172,7 @@ class AE(CommonModel):
         super().__init__(name="Enc")
 
         self._adv_weight = adv_weight
+        self._mmd_weight = mmd_weight
         self._cycle_weight = cycle_weight
         self._recon_weight = target_weight
         self.learning_rate = lr
@@ -228,6 +232,7 @@ class AE(CommonModel):
         self.loss = Loss(
             feature_groups=feature_groups,
             adv_weight=self._adv_weight,
+            mmd_weight=self._mmd_weight,
             cycle_weight=self._cycle_weight,
             recon_weight=self._recon_weight,
         )

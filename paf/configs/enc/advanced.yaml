@@ -9,6 +9,7 @@ latent_dims: 1
 latent_multiplier: 1
 lr: 1e-3
 adv_weight: 1.0
+mmd_weight: 1.0
 recon_weight: 1.0
 cycle_weight: 0.0
 s_as_input: true

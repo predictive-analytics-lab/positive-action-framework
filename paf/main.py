@@ -214,7 +214,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
             {
                 "s1_0_s2_0": first_results.hard.values,
                 "s1_1_s2_1": dp_results.hard.values,
-                "true_s": data.test_datatuple.s.values[:, 0],
+                "true_s": data.test_datatuple.s.copy().values[:, 0],
             }
         )
 
@@ -340,8 +340,8 @@ def make_umap(
     reducer = umap.UMAP(random_state=cfg.exp.seed)
     scaled_embedding = StandardScaler().fit_transform(data)
     embedding = pd.DataFrame(reducer.fit_transform(scaled_embedding), columns=["x1", "x2"])
-    embedding["s"] = datamod.test_datatuple.s
-    embedding["y"] = datamod.test_datatuple.y
+    embedding["s"] = datamod.test_datatuple.s.copy()
+    embedding["y"] = datamod.test_datatuple.y.copy()
 
     conditions = [
         (embedding["s"] == 0) & (embedding["y"] == 0),
