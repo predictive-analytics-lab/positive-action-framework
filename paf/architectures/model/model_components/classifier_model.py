@@ -10,11 +10,12 @@ from ranzen import implements, parsable, str_to_enum
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
-from torch.nn.functional import binary_cross_entropy_with_logits
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 __all__ = ["BaseModel", "Adversary", "Clf", "ClfInferenceOut", "ClfFwd"]
+
+from torchmetrics import Accuracy
 
 from paf.base_templates import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
@@ -41,6 +42,42 @@ class ClfInferenceOut(NamedTuple):
     cf_preds: Tensor | None
 
 
+class Loss:
+    def __init__(
+        self,
+        adv_weight: float = 1.0,
+        pred_weight: float = 1.0,
+        mmd_weight: float = 1.0,
+        kernel: KernelType = KernelType.LINEAR,
+    ):
+        self._adv_weight = adv_weight
+        self._pred_weight = pred_weight
+        self._mmd_weight = mmd_weight
+        self._kernel = kernel
+
+        self._pred_loss_fn = nn.BCEWithLogitsLoss
+        self._adv_loss_fn = nn.BCEWithLogitsLoss
+
+    def pred_loss(
+        self, clf_fwd: ClfFwd, batch: Batch | TernarySample, weight: Tensor | None
+    ) -> Tensor:
+        return self._pred_weight * self._pred_loss_fn(reduction="mean", weight=weight)(
+            index_by_s(clf_fwd.y, batch.s).squeeze(-1), batch.y
+        )
+
+    def mmd_loss(self, clf_fwd: ClfFwd, batch: Batch | TernarySample) -> Tensor:
+        return self._mmd_weight * mmd2(
+            clf_fwd.z[batch.s == 0], clf_fwd.z[batch.s == 1], kernel=self._kernel
+        )
+
+    def adv_loss(
+        self, clf_fwd: ClfFwd, batch: Batch | TernarySample, weight: Tensor | None
+    ) -> Tensor:
+        return self._adv_weight * self._adv_loss_fn(reduction="mean", weight=weight)(
+            clf_fwd.s.squeeze(-1), batch.s
+        )
+
+
 class Clf(CommonModel):
     """Main Autoencoder."""
 
@@ -56,6 +93,7 @@ class Clf(CommonModel):
         self,
         adv_weight: float,
         pred_weight: float,
+        mmd_weight: float,
         lr: float,
         s_as_input: bool,
         latent_dims: int,
@@ -72,12 +110,9 @@ class Clf(CommonModel):
         """Classifier."""
         super().__init__(name="Clf")
 
-        self.adv_weight = adv_weight
-        self.pred_weight = pred_weight
         self.learning_rate = lr
         self.s_as_input = s_as_input
         self.latent_dims = latent_dims
-        self.mmd_kernel = str_to_enum(mmd_kernel, enum=KernelType)
         self.scheduler_rate = scheduler_rate
         self.weight_decay = weight_decay
         self.use_iw = use_iw
@@ -86,6 +121,18 @@ class Clf(CommonModel):
         self.decoder_blocks = decoder_blocks
         self.latent_multiplier = latent_multiplier
         self.debug = debug
+
+        self.fit_acc = Accuracy()
+        self.val_acc = Accuracy()
+        self.test_acc = Accuracy()
+
+        self.loss = Loss(
+            adv_weight=adv_weight,
+            pred_weight=pred_weight,
+            mmd_weight=mmd_weight,
+            kernel=str_to_enum(mmd_kernel, enum=KernelType),
+        )
+
         self.built = False
 
     @implements(CommonModel)
@@ -146,21 +193,19 @@ class Clf(CommonModel):
         assert self.built
         clf_out = self.forward(x=batch.x, s=batch.s)
         _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
-        pred_loss = binary_cross_entropy_with_logits(
-            index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y, reduction="mean", weight=_iw
-        )
-        adv_loss = (
-            mmd2(clf_out.z[batch.s == 0], clf_out.z[batch.s == 1], kernel=self.mmd_kernel)
-            + binary_cross_entropy_with_logits(
-                clf_out.s.squeeze(-1), batch.s, reduction="mean", weight=_iw
-            )
-        ) / 2
-        loss = self.pred_weight * pred_loss + self.adv_weight * adv_loss
+        pred_loss = self.loss.pred_loss(clf_out, batch, weight=_iw)
+        adv_loss = self.loss.adv_loss(clf_out, batch, weight=_iw)
+        mmd_loss = self.loss.mmd_loss(clf_out, batch)
+        loss = pred_loss + adv_loss + mmd_loss
 
         to_log = {
+            f"{Stage.fit}/clf/acc": self.fit_acc(
+                index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y
+            ),
             f"{Stage.fit}/clf/loss": loss,
             f"{Stage.fit}/clf/pred_loss": pred_loss,
             f"{Stage.fit}/clf/adv_loss": adv_loss,
+            f"{Stage.fit}/clf/mmd_loss": mmd_loss,
             f"{Stage.fit}/clf/z_norm": clf_out.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/clf/z_mean_abs_diff": (
                 clf_out.z[batch.s <= 0].detach().mean() - clf_out.z[batch.s > 0].detach().mean()
@@ -178,9 +223,36 @@ class Clf(CommonModel):
             return z.sigmoid().round()
 
     @implements(pl.LightningModule)
+    def validation_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> ClfInferenceOut:
+        assert self.built
+        clf_out = self.forward(x=batch.x, s=batch.s)
+
+        self.log(
+            f"{Stage.validate}/clf/acc",
+            self.val_acc(index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y),
+        )
+
+        return ClfInferenceOut(
+            y=batch.y,
+            z=clf_out.z,
+            s=batch.s,
+            preds=self.threshold(index_by_s(clf_out.y, batch.s)),
+            preds_0=self.threshold(clf_out.y[0]),
+            preds_1=self.threshold(clf_out.y[1]),
+            cf_y=batch.cfy if isinstance(batch, CfBatch) else None,
+            cf_preds=self.threshold(index_by_s(clf_out.y, batch.cfs))
+            if isinstance(batch, CfBatch)
+            else None,
+        )
+
+    @implements(pl.LightningModule)
     def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> ClfInferenceOut:
         assert self.built
         clf_out = self.forward(x=batch.x, s=batch.s)
+        self.log(
+            f"{Stage.test}/clf/acc",
+            self.test_acc(index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y),
+        )
 
         return ClfInferenceOut(
             y=batch.y,

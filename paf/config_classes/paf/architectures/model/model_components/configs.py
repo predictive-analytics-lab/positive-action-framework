@@ -35,6 +35,7 @@ class ClfConf:
     _target_: str = "paf.architectures.model.model_components.Clf"
     adv_weight: float = MISSING
     pred_weight: float = MISSING
+    mmd_weight: float = MISSING
     lr: float = MISSING
     s_as_input: bool = MISSING
     latent_dims: int = MISSING
