@@ -20,6 +20,7 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
 import matplotlib.pyplot as plt
+import numpy as np
 from omegaconf import DictConfig, MISSING, OmegaConf
 import pandas as pd
 import pytorch_lightning as pl
@@ -290,13 +291,30 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         model_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
     )
 
-    reducer = umap.UMAP(random_state=cfg.exp.seed)
-    scaled_embedding = StandardScaler().fit_transform(results.enc_z.detach().cpu().numpy())
-    embedding = pd.DataFrame(reducer.fit_transform(scaled_embedding), columns=["x1", "x2"])
-    embedding["s"] = data.test_datatuple.s
-    embedding["y"] = data.test_datatuple.y
-    sns.scatterplot(data=embedding, x="x1", y="x2", hue="y", style="s")
-    wandb_logger.experiment.log({"embedding": wandb.Image(plt)})
+    make_umap(
+        results.x.detach().cpu().numpy(), data_name="Input", cfg=cfg, dm=data, logger=wandb_logger
+    )
+    make_umap(
+        results.enc_z.detach().cpu().numpy(),
+        data_name="Enc Embedding",
+        cfg=cfg,
+        dm=data,
+        logger=wandb_logger,
+    )
+    make_umap(
+        results.recon.detach().cpu().numpy(),
+        data_name="Enc Recon",
+        cfg=cfg,
+        dm=data,
+        logger=wandb_logger,
+    )
+    make_umap(
+        results.clf_z.detach().cpu().numpy(),
+        data_name="Clf Embedding",
+        cfg=cfg,
+        dm=data,
+        logger=wandb_logger,
+    )
 
     evaluate(
         cfg=cfg,
@@ -310,6 +328,18 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
     if not cfg.exp.log_offline and wandb_logger is not None:
         wandb_logger.experiment.finish()
+
+
+def make_umap(
+    data: np.ndarray, data_name: str, cfg: Config, dm: BaseDataModule, logger: pll.WandbLogger
+) -> None:
+    reducer = umap.UMAP(random_state=cfg.exp.seed)
+    scaled_embedding = StandardScaler().fit_transform(data)
+    embedding = pd.DataFrame(reducer.fit_transform(scaled_embedding), columns=["x1", "x2"])
+    embedding["s"] = dm.test_datatuple.s
+    embedding["y"] = dm.test_datatuple.y
+    sns.scatterplot(data=embedding, x="x1", y="x2", hue="y", style="s")
+    logger.experiment.log({f"{data_name}": wandb.Image(plt)})
 
 
 def evaluate(
