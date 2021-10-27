@@ -298,7 +298,8 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         (results.x.detach().cpu().numpy(), "Input"),
         (results.enc_z.detach().cpu().numpy(), "Enc Embedding"),
         (results.recon.detach().cpu().numpy(), "Enc Recon"),
-        (results.clf_z.detach().cpu().numpy(), "Clf Embedding"),
+        (results.clf_z0.detach().cpu().numpy(), "Clf Xs=0 Embedding"),
+        (results.clf_z1.detach().cpu().numpy(), "Clf Xs=1 Embedding"),
     ]:
         make_umap(
             arr,
