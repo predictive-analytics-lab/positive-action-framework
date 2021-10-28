@@ -4,7 +4,7 @@ import copy
 from dataclasses import dataclass
 from enum import Enum, auto
 import logging
-from typing import Any, Final, Optional
+from typing import Any, Final, List, Optional
 import warnings
 
 from conduit.hydra.conduit.fair.data.datamodules.conf import (  # type: ignore[import]
@@ -89,6 +89,7 @@ class ExpConfig:
     tags: str = ""
     model: ModelType = ModelType.PAF
     debug: bool = False
+    constrained: Optional[List[str]] = None
 
 
 @dataclass
@@ -162,6 +163,17 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     data: BaseDataModule = cfg.data
     data.prepare_data()
     data.setup()
+
+    indices = (
+        [
+            i
+            for i, col in enumerate(data.test_datatuple.x.columns)
+            for con in cfg.exp.constrained
+            if con in col
+        ]
+        if cfg.exp.constrained is not None
+        else []
+    )
 
     LOGGER.info(f"data_dim={data.size()}, num_s={data.card_s}")
 
@@ -246,6 +258,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
             feature_groups=data.feature_groups,
             outcome_cols=data.disc_features + data.cont_features,
             scaler=data.scaler,
+            indices=indices,
         )
 
         cfg.enc_trainer.callbacks += [

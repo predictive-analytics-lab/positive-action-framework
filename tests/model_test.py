@@ -17,6 +17,7 @@ SCHEMAS: Final[list[str]] = [
     "enc_trainer=unit_test",
     "clf_trainer=unit_test",
     "data=lill",
+    "exp.constrained=[potions]",
 ]
 
 

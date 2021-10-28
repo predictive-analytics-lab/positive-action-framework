@@ -79,6 +79,7 @@ class Loss:
         mmd_weight: float = 1.0,
         cycle_weight: float = 1.0,
         recon_weight: float = 1.0,
+        recon_indices: list[int] | None = None,
     ):
         self._recon_loss_fn = nn.MSELoss(reduction="mean")
         self.feature_groups = feature_groups if feature_groups is not None else {}
@@ -87,9 +88,10 @@ class Loss:
         self._cycle_weight = cycle_weight
         self._recon_weight = recon_weight
         self._cycle_loss_fn = nn.MSELoss(reduction="mean")
+        self._proxy_loss_fn = nn.MSELoss(reduction="none")
+        self.indices = recon_indices
 
     def recon_loss(self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample) -> Tensor:
-
         if self.feature_groups["discrete"]:
             recon_loss = batch.x.new_tensor(0.0)
             for i in range(
@@ -114,7 +116,12 @@ class Loss:
         else:
             recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
 
-        return recon_loss * self._recon_weight
+        _w = torch.zeros_like(batch.x)
+        _w[:, self.indices] += 1
+
+        proxy_loss = (_w * self._proxy_loss_fn(recons[0], recons[1])).mean()
+
+        return recon_loss * self._recon_weight + proxy_loss
 
     def adv_loss(self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample) -> Tensor:
         return (
@@ -203,6 +210,7 @@ class AE(CommonModel):
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
         scaler: MinMaxScaler,
+        indices: list[int],
     ) -> None:
         _ = (scaler, cf_available)
         self.data_cols = outcome_cols
@@ -236,6 +244,7 @@ class AE(CommonModel):
             mmd_weight=self._mmd_weight,
             cycle_weight=self._cycle_weight,
             recon_weight=self._recon_weight,
+            recon_indices=indices,
         )
         self.built = True
 
