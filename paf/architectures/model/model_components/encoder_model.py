@@ -89,9 +89,7 @@ class Loss:
         self._cycle_loss_fn = nn.MSELoss(reduction="mean")
         self._proxy_loss_fn = nn.MSELoss(reduction="none")
 
-    def recon_loss(
-        self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample, mask: Tensor | None
-    ) -> Tensor:
+    def recon_loss(self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample) -> Tensor:
         if self.feature_groups["discrete"]:
             recon_loss = batch.x.new_tensor(0.0)
             for i in range(
@@ -116,13 +114,19 @@ class Loss:
         else:
             recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
 
+        return recon_loss * self._recon_weight
+
+    def proxy_loss(
+        self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, mask: Tensor | None
+    ) -> Tensor:
+        _real = index_by_s(enc_fwd.x, batch.s)
+        _cf = index_by_s(enc_fwd.x, 1 - batch.s)
         proxy_loss = (
-            (mask * self._proxy_loss_fn(recons[0], recons[1])).mean()
+            (mask * self._proxy_loss_fn(_cf, _real.detach())).mean()
             if mask is not None
             else torch.tensor(0.0)
         )
-
-        return recon_loss * self._recon_weight + proxy_loss
+        return self._recon_weight * proxy_loss
 
     def adv_loss(self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample) -> Tensor:
         return (
@@ -158,6 +162,8 @@ class AE(CommonModel):
     decoders: nn.ModuleList
     loss: Loss
     indices: Tensor
+    feature_groups: dict[str, list[slice]]
+    data_dim: int
 
     @parsable
     def __init__(
@@ -217,6 +223,8 @@ class AE(CommonModel):
         _ = (scaler, cf_available)
         self.data_cols = outcome_cols
         self.indices = indices
+        self.feature_groups = feature_groups
+        self.data_dim = data_dim
 
         self.adv = Adversary(
             latent_dim=self.latent_dims,
@@ -225,7 +233,7 @@ class AE(CommonModel):
             hid_multiplier=self.latent_multiplier,
         )
         self.enc = Encoder(
-            in_size=data_dim + s_dim if self.s_as_input else data_dim,
+            in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
             latent_dim=self.latent_dims,
             blocks=self.encoder_blocks,
             hid_multiplier=self.latent_multiplier,
@@ -233,8 +241,8 @@ class AE(CommonModel):
         self.decoders = nn.ModuleList(
             [
                 Decoder(
-                    latent_dim=self.latent_dims + data_dim + s_dim,
-                    in_size=data_dim,
+                    latent_dim=self.latent_dims + self.data_dim + s_dim,
+                    in_size=self.data_dim,
                     blocks=self.decoder_blocks,
                     hid_multiplier=self.latent_multiplier,
                 )
@@ -242,7 +250,7 @@ class AE(CommonModel):
             ]
         )
         self.loss = Loss(
-            feature_groups=feature_groups,
+            feature_groups=self.feature_groups,
             adv_weight=self._adv_weight,
             mmd_weight=self._mmd_weight,
             cycle_weight=self._cycle_weight,
@@ -272,18 +280,36 @@ class AE(CommonModel):
         # cycle_dec = [dec(cycle_z) for dec in self.decoders]
         return EncFwd(z=z, s=s_pred, x=recons)  # , cyc_z=cycle_z, cyc_x=cycle_dec)
 
+    def make_mask(self) -> Tensor:
+
+        mask = []
+        for group in self.feature_groups["discrete"]:
+            prob = torch.bernoulli(torch.rand(1, device=self.device))
+            probs = torch.cat([prob for _ in range(group.start, group.stop)], dim=0)
+            mask.append(probs)
+        mask.append(
+            torch.bernoulli(
+                torch.rand(
+                    self.data_dim - self.feature_groups["discrete"][-1].stop, device=self.device
+                )
+            )
+        )
+        return torch.cat(mask, dim=0)
+
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
-        mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
-        enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=mask)
+        # constraint_mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
+        constraint_mask = torch.ones_like(batch.x) * self.make_mask()
+        enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
 
-        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch, mask=mask)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
+        proxy_loss = self.loss.proxy_loss(enc_fwd, batch=batch, mask=constraint_mask)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
-        loss = recon_loss + adv_loss + mmd_loss  # + cycle_loss
+        loss = recon_loss + adv_loss + mmd_loss + proxy_loss  # + cycle_loss
 
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
@@ -292,6 +318,7 @@ class AE(CommonModel):
             f"{Stage.fit}/enc/recon_loss": recon_loss,
             f"{Stage.fit}/enc/mmd_loss": mmd_loss,
             f"{Stage.fit}/enc/adv_loss": adv_loss,
+            f"{Stage.fit}/enc/adv_loss": proxy_loss,
             f"{Stage.fit}/enc/mse": self.fit_mse(
                 self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x
             ),
@@ -340,7 +367,7 @@ class AE(CommonModel):
         constraint_mask[:, self.indices] += 1
         enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
 
-        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch, mask=None)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
         # cycle_loss, _ = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)

@@ -26,7 +26,7 @@ def test_paf() -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=SCHEMAS,
+            overrides=SCHEMAS + ["data=ad"],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
