@@ -291,24 +291,25 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         model_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
     )
 
-    _s = data.test_datatuple.s.copy().to_numpy()
-    _y = data.test_datatuple.y.copy().to_numpy()
+    if isinstance(results, PafResults):
+        _s = data.test_datatuple.s.copy().to_numpy()
+        _y = data.test_datatuple.y.copy().to_numpy()
 
-    for arr, name in [
-        (results.x.detach().cpu().numpy(), "Input"),
-        (results.enc_z.detach().cpu().numpy(), "Enc Embedding"),
-        (results.recon.detach().cpu().numpy(), "Enc Recon"),
-        (results.clf_z0.detach().cpu().numpy(), "Clf Xs=0 Embedding"),
-        (results.clf_z1.detach().cpu().numpy(), "Clf Xs=1 Embedding"),
-    ]:
-        make_umap(
-            arr,
-            data_name=name,
-            cfg=cfg,
-            s=_s,
-            y=_y,
-            logger=wandb_logger,
-        )
+        for arr, name in [
+            (results.x.detach().cpu().numpy(), "Input"),
+            (results.enc_z.detach().cpu().numpy(), "Enc Embedding"),
+            (results.recon.detach().cpu().numpy(), "Enc Recon"),
+            (results.clf_z0.detach().cpu().numpy(), "Clf Xs=0 Embedding"),
+            (results.clf_z1.detach().cpu().numpy(), "Clf Xs=1 Embedding"),
+        ]:
+            make_umap(
+                arr,
+                data_name=name,
+                cfg=cfg,
+                s=_s,
+                y=_y,
+                logger=wandb_logger,
+            )
 
     evaluate(
         cfg=cfg,
