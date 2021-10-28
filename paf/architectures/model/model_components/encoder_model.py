@@ -278,7 +278,9 @@ class AE(CommonModel):
             f"{Stage.fit}/enc/recon_loss": recon_loss,
             f"{Stage.fit}/enc/mmd_loss": mmd_loss,
             f"{Stage.fit}/enc/adv_loss": adv_loss,
-            f"{Stage.fit}/enc/mse": self.fit_mse(index_by_s(enc_fwd.x, batch.s), batch.x),
+            f"{Stage.fit}/enc/mse": self.fit_mse(
+                self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x
+            ),
             f"{Stage.fit}/enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/enc/z_mean_abs_diff": (
                 enc_fwd.z[batch.s <= 0].detach().mean() - enc_fwd.z[batch.s > 0].detach().mean()
@@ -337,7 +339,9 @@ class AE(CommonModel):
         self.log(f"{stage}/enc/recon_loss", recon_loss)
         # self.log(f"{stage}/enc/cycle_loss", cycle_loss)
         self.log(f"{stage}/enc/mmd_loss", mmd_loss)
-        self.log(f"{stage}/enc/mse", mse(index_by_s(enc_fwd.x, batch.s), batch.x))
+        self.log(
+            f"{stage}/enc/mse", mse(self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x)
+        )
         self.log(f"{stage}/enc/recon_mmd", mmd_results.recon)
         self.log(f"{stage}/enc/cf_recon_mmd", mmd_results.cf_recon)
         self.log(f"{stage}/enc/s0_dist_mmd", mmd_results.s0_dist)
