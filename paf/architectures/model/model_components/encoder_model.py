@@ -275,7 +275,7 @@ class AE(CommonModel):
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
-        mask = torch.bernoulli(torch.rand_like(batch.x))
+        mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
         enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=mask)
 
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch, mask=mask)
