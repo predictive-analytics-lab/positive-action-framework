@@ -76,7 +76,9 @@ class PafModel(pl.LightningModule):
     @implements(pl.LightningModule)
     def predict_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> TestStepOut:
         if isinstance(self.enc, AE):
-            enc_fwd = self.enc.forward(x=batch.x, s=batch.s)
+            constraint_mask = torch.zeros_like(batch.x)
+            constraint_mask[:, self.enc.indices] += 1
+            enc_fwd = self.enc.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
             enc_z = enc_fwd.z
             enc_s_pred = enc_fwd.s
             recons = enc_fwd.x

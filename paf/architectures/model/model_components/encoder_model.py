@@ -79,7 +79,6 @@ class Loss:
         mmd_weight: float = 1.0,
         cycle_weight: float = 1.0,
         recon_weight: float = 1.0,
-        recon_indices: list[int] | None = None,
     ):
         self._recon_loss_fn = nn.MSELoss(reduction="mean")
         self.feature_groups = feature_groups if feature_groups is not None else {}
@@ -89,9 +88,10 @@ class Loss:
         self._recon_weight = recon_weight
         self._cycle_loss_fn = nn.MSELoss(reduction="mean")
         self._proxy_loss_fn = nn.MSELoss(reduction="none")
-        self.indices = recon_indices
 
-    def recon_loss(self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample) -> Tensor:
+    def recon_loss(
+        self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample, mask: Tensor | None
+    ) -> Tensor:
         if self.feature_groups["discrete"]:
             recon_loss = batch.x.new_tensor(0.0)
             for i in range(
@@ -116,10 +116,11 @@ class Loss:
         else:
             recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
 
-        _w = torch.zeros_like(batch.x)
-        _w[:, self.indices] += 1
-
-        proxy_loss = (_w * self._proxy_loss_fn(recons[0], recons[1])).mean()
+        proxy_loss = (
+            (mask * self._proxy_loss_fn(recons[0], recons[1])).mean()
+            if mask is not None
+            else torch.tensor(0.0)
+        )
 
         return recon_loss * self._recon_weight + proxy_loss
 
@@ -156,6 +157,7 @@ class AE(CommonModel):
     all_cf_pred: Tensor
     decoders: nn.ModuleList
     loss: Loss
+    indices: Tensor
 
     @parsable
     def __init__(
@@ -214,6 +216,7 @@ class AE(CommonModel):
     ) -> None:
         _ = (scaler, cf_available)
         self.data_cols = outcome_cols
+        self.indices = indices
 
         self.adv = Adversary(
             latent_dim=self.latent_dims,
@@ -230,7 +233,7 @@ class AE(CommonModel):
         self.decoders = nn.ModuleList(
             [
                 Decoder(
-                    latent_dim=self.latent_dims + s_dim,
+                    latent_dim=self.latent_dims + data_dim + s_dim,
                     in_size=data_dim,
                     blocks=self.decoder_blocks,
                     hid_multiplier=self.latent_multiplier,
@@ -244,18 +247,19 @@ class AE(CommonModel):
             mmd_weight=self._mmd_weight,
             cycle_weight=self._cycle_weight,
             recon_weight=self._recon_weight,
-            recon_indices=indices,
         )
         self.built = True
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, *, s: Tensor) -> EncFwd:
+    def forward(self, x: Tensor, *, s: Tensor, constraint_mask: Tensor | None = None) -> EncFwd:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc.forward(_x)
+
         s_pred = self.adv.forward(z)
+        _mask = torch.zeros_like(x) if constraint_mask is None else constraint_mask
         recons = [
-            dec(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
+            dec(torch.cat([z, _mask, torch.ones_like(s[..., None]) * i], dim=1))
             for i, dec in enumerate(self.decoders)
         ]
 
@@ -271,9 +275,10 @@ class AE(CommonModel):
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
-        enc_fwd = self.forward(x=batch.x, s=batch.s)
+        mask = torch.bernoulli(torch.rand_like(batch.x))
+        enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=mask)
 
-        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch, mask=mask)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
@@ -331,9 +336,11 @@ class AE(CommonModel):
         self, batch: Batch | CfBatch | TernarySample, *, stage: Stage
     ) -> SharedStepOut | CfSharedStepOut:
         assert self.built
-        enc_fwd = self.forward(x=batch.x, s=batch.s)
+        constraint_mask = torch.zeros_like(batch.x)
+        constraint_mask[:, self.indices] += 1
+        enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
 
-        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch, mask=None)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
         # cycle_loss, _ = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
