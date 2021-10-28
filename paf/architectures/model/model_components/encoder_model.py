@@ -300,7 +300,9 @@ class AE(CommonModel):
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
         # constraint_mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
-        constraint_mask = torch.ones_like(batch.x) * self.make_mask()
+        # constraint_mask = torch.ones_like(batch.x) * self.make_mask()
+        constraint_mask = torch.zeros_like(batch.x)
+        constraint_mask[:, self.indices] += 1
         enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
 
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
