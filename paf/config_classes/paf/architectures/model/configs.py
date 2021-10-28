@@ -12,6 +12,4 @@ class CycleGanConf:
     _target_: str = "paf.architectures.model.CycleGan"
     d_lr: float = 0.0002
     g_lr: float = 0.0002
-    beta_1: float = 0.5
-    beta_2: float = 0.999
     epoch_decay: int = 200
