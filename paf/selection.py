@@ -101,22 +101,23 @@ def produce_selection_groups(
 
     outcomes[GROUP_1] = facct_mapper(pd.Series(outcomes[GROUP_0]))
 
-    # if recon_1 is not None:
-    #     assert recon_0 is not None
-    #     assert recon_1 is not None
-    #     assert data is not None
-    #     analyse_selection_groups(
-    #         data=data,
-    #         selected=_to_return,
-    #         recon_0=recon_0,
-    #         recon_1=recon_1,
-    #         data_name=data_name,
-    #         logger=logger,
-    #     )
-
     outcomes[GROUP_2] = facct_mapper_2(pd.Series(outcomes[GROUP_1]))
 
     outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
+
+    if recon_1 is not None:
+        assert recon_0 is not None
+        assert recon_1 is not None
+        assert data is not None
+        analyse_selection_groups(
+            data=data,
+            selected=Prediction(hard=pd.Series(outcomes[GROUP_2])),
+            recon_0=recon_0,
+            recon_1=recon_1,
+            data_name=data_name,
+            logger=logger,
+        )
+
     if logger is not None:
         logger.experiment.log(
             {
@@ -162,7 +163,8 @@ def analyse_selection_groups(
             plt.xticks(rotation=90)
             plt.tight_layout()
             do_log(
-                f"{data_name}_selection_group_{selection_group}_feature_groups_0-1/{data.test_datatuple.x.columns[group_slice][0].split('_')[0]}",
+                f"{data_name}_selection_group_{selection_group}_feature_groups_0-1"
+                f"/{data.test_datatuple.x.columns[group_slice][0].split('_')[0]}",
                 wandb.Image(plt),
                 logger,
             )
