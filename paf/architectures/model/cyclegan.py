@@ -11,9 +11,8 @@ import numpy as np
 from ranzen import implements, parsable
 from sklearn.preprocessing import MinMaxScaler
 import torch
-from torch import Tensor, nn
+from torch import Tensor, nn, optim
 from torch.nn import Parameter
-from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
@@ -316,16 +315,12 @@ class CycleGan(CommonModel):
         self,
         d_lr: float = 2e-4,
         g_lr: float = 2e-4,
-        beta_1: float = 0.5,
-        beta_2: float = 0.999,
         epoch_decay: int = 200,
     ):
 
         super().__init__(name="CycleGan")
         self.d_lr = d_lr
         self.g_lr = g_lr
-        self.beta_1 = beta_1
-        self.beta_2 = beta_2
         self.epoch_decay = epoch_decay
 
         self.fake_pool_a = HistoryPool(pool_sz=50)
@@ -548,23 +543,19 @@ class CycleGan(CommonModel):
     def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> SharedStepOut:
         return self.shared_step(batch=batch, stage=Stage.test)
 
-    def lr_lambda(self, epoch: int) -> float:
-        fraction = (epoch - self.epoch_decay) / self.epoch_decay
-        return 1 if epoch < self.epoch_decay else 1 - fraction
-
     def configure_optimizers(
         self,
-    ) -> tuple[list[torch.optim.Optimizer], list[LambdaLR]]:
+    ) -> tuple[list[torch.optim.Optimizer], list[optim.lr_scheduler.ExponentialLR]]:
 
         # define the optimizers here
-        g_opt = torch.optim.Adam(self.g_params, lr=self.g_lr, betas=(self.beta_1, self.beta_2))
-        d_a_opt = torch.optim.Adam(self.d_a_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
-        d_b_opt = torch.optim.Adam(self.d_b_params, lr=self.d_lr, betas=(self.beta_1, self.beta_2))
+        g_opt = torch.optim.AdamW(self.g_params, lr=self.g_lr)
+        d_a_opt = torch.optim.AdamW(self.d_a_params, lr=self.d_lr)
+        d_b_opt = torch.optim.AdamW(self.d_b_params, lr=self.d_lr)
 
         # define the lr_schedulers here
-        g_sch = LambdaLR(g_opt, lr_lambda=self.lr_lambda)
-        d_a_sch = LambdaLR(d_a_opt, lr_lambda=self.lr_lambda)
-        d_b_sch = LambdaLR(d_b_opt, lr_lambda=self.lr_lambda)
+        g_sch = optim.lr_scheduler.ExponentialLR(g_opt, gamma=0.999)
+        d_a_sch = optim.lr_scheduler.ExponentialLR(d_a_opt, gamma=0.999)
+        d_b_sch = optim.lr_scheduler.ExponentialLR(d_b_opt, gamma=0.999)
 
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
