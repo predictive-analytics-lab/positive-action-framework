@@ -46,8 +46,8 @@ class PafModel(pl.LightningModule):
 
     def __init__(self, *, encoder: AE | CycleGan, classifier: Clf):
         super().__init__()
-        self.enc = encoder
-        self.clf = classifier
+        self.enc = encoder.eval().freeze()
+        self.clf = classifier.eval().freeze()
 
     @property
     def name(self) -> str:
