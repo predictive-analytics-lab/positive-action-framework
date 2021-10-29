@@ -80,6 +80,7 @@ def produce_selection_groups(
     recon_1: Tensor | None = None,
     logger: pll.WandbLogger | None = None,
     fair: bool = False,
+    debug: bool = False,
 ) -> Prediction:
     """Follow Selection rules."""
     # if logger is not None:
@@ -105,7 +106,7 @@ def produce_selection_groups(
 
     outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
 
-    if recon_1 is not None:
+    if recon_1 is not None and debug:
         assert recon_0 is not None
         assert recon_1 is not None
         assert data is not None

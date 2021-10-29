@@ -32,6 +32,7 @@ class PafResults(Results):
     preds_1_1: Tensor
     recon: Tensor
     cycle_loss: Tensor
+    cyc_vals: pd.DataFrame
 
 
 @dataclass

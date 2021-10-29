@@ -1,6 +1,5 @@
 """Main script."""
 from __future__ import annotations
-import copy
 from dataclasses import dataclass
 from enum import Enum, auto
 import logging
@@ -190,9 +189,6 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     cfg.enc_trainer.logger = wandb_logger
     cfg.clf_trainer.logger = wandb_logger
 
-    model_trainer: pl.Trainer = copy.deepcopy(cfg.enc_trainer)
-    _model_trainer: pl.Trainer = copy.deepcopy(cfg.enc_trainer)
-
     # make_data_plots(data, cfg.trainer.logger)
 
     if isinstance(cfg.clf, em.InAlgorithm):
@@ -299,10 +295,12 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
         model = NearestNeighbourModel(clf_model=classifier, data=data)
 
-    model_trainer.fit(model=model, datamodule=data)
+    # cfg.enc_trainer.fit(model=model, datamodule=data)
     results = model.collate_results(
-        model_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
+        cfg.enc_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
     )
+
+    wandb_logger.experiment.log(results.cyc_vals.mean(axis="rows").to_dict())
 
     if isinstance(results, PafResults):
         _s = data.test_datatuple.s.copy().to_numpy()
@@ -331,7 +329,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         data=data,
         encoder=encoder,
         classifier=classifier,
-        _model_trainer=_model_trainer,
+        _model_trainer=cfg.enc_trainer,
     )
 
     if not cfg.exp.log_offline and wandb_logger is not None:
@@ -425,6 +423,7 @@ def evaluate(
                 logger=wandb_logger,
                 data_name="Outcomes",
                 fair=fair_bool,
+                debug=cfg.exp.debug,
             )
         else:
             preds = baseline_selection_rules(
@@ -475,6 +474,7 @@ def evaluate(
             recon_1=_results.recons_1,
             logger=wandb_logger,
             data_name="Train",
+            debug=cfg.exp.debug,
         )
         # === === ===
 
