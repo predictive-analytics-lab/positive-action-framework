@@ -280,29 +280,30 @@ class AE(CommonModel):
         # cycle_dec = [dec(cycle_z) for dec in self.decoders]
         return EncFwd(z=z, s=s_pred, x=recons)  # , cyc_z=cycle_z, cyc_x=cycle_dec)
 
-    def make_mask(self) -> Tensor:
+    def make_mask(self, batch: TernarySample) -> Tensor:
 
         mask = []
         for group in self.feature_groups["discrete"]:
-            prob = torch.bernoulli(torch.rand(1, device=self.device))
-            probs = torch.cat([prob for _ in range(group.start, group.stop)], dim=0)
+            prob = torch.bernoulli(torch.rand((batch.x.shape[0], 1), device=self.device))
+            probs = torch.cat([prob for _ in range(group.start, group.stop)], dim=1)
             mask.append(probs)
         mask.append(
             torch.bernoulli(
                 torch.rand(
-                    self.data_dim - self.feature_groups["discrete"][-1].stop, device=self.device
+                    (batch.x.shape[0], self.data_dim - self.feature_groups["discrete"][-1].stop),
+                    device=self.device,
                 )
             )
         )
-        return torch.cat(mask, dim=0)
+        return torch.cat(mask, dim=1)
 
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
         # constraint_mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
-        # constraint_mask = torch.ones_like(batch.x) * self.make_mask()
-        constraint_mask = torch.zeros_like(batch.x)
-        constraint_mask[:, self.indices] += 1
+        constraint_mask = self.make_mask(batch)
+        # constraint_mask = torch.zeros_like(batch.x)
+        # constraint_mask[:, self.indices] += 1
         enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
 
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
