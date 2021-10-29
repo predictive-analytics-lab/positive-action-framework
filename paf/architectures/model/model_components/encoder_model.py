@@ -135,6 +135,9 @@ class Loss:
     def mmd_loss(
         self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, kernel: KernelType
     ) -> Tensor:
+        if self._mmd_weight == 0.0:
+            return torch.tensor(0.0)
+
         return (
             mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel) * self._mmd_weight
         )
