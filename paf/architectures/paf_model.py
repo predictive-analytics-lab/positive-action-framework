@@ -76,9 +76,9 @@ class PafModel(pl.LightningModule):
 
     @implements(pl.LightningModule)
     def predict_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> TestStepOut:
-        self.enc.eval()
         self.clf.eval()
         if isinstance(self.enc, AE):
+            self.enc.eval()
             constraint_mask = torch.zeros_like(batch.x)
             constraint_mask[:, self.enc.indices] += 1
             enc_fwd = self.enc.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
@@ -86,6 +86,7 @@ class PafModel(pl.LightningModule):
             enc_s_pred = enc_fwd.s
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
+            self.enc.eval()
             cyc_fwd = self.enc.forward(real_a=batch.x, real_b=batch.x)
             recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
             enc_z = torch.ones_like(batch.x)
@@ -109,7 +110,7 @@ class PafModel(pl.LightningModule):
             cycle_loss = mse_loss_fn(_og, batch.x)
             if i == 0:
                 _cyc_loss = cycle_loss
-            # self.log(f"Cycle_loss_{i}", cycle_loss)
+            self.log(f"Cycle_loss/{i}", cycle_loss)
             if isinstance(self.enc, AE):
                 _fwd = self.enc.forward(x=_og, s=1 - batch.s)
             else:
