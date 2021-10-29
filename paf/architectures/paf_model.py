@@ -46,14 +46,15 @@ class PafModel(pl.LightningModule):
 
     def __init__(self, *, encoder: AE | CycleGan, classifier: Clf):
         super().__init__()
-        self.enc = encoder.eval().freeze()
-        self.clf = classifier.eval().freeze()
+        self.enc = encoder
+        self.clf = classifier
 
     @property
     def name(self) -> str:
         return f"PAF_{self.enc.name}"
 
     @implements(nn.Module)
+    @torch.no_grad()
     def forward(self, *, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
         recons: list[Tensor] | None = None
         if isinstance(self.enc, AE):
@@ -75,6 +76,8 @@ class PafModel(pl.LightningModule):
 
     @implements(pl.LightningModule)
     def predict_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> TestStepOut:
+        self.enc.eval()
+        self.clf.eval()
         if isinstance(self.enc, AE):
             constraint_mask = torch.zeros_like(batch.x)
             constraint_mask[:, self.enc.indices] += 1
