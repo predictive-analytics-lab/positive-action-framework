@@ -196,6 +196,7 @@ def test_clfmod(dm_schema: str) -> None:
             feature_groups=data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
             scaler=cfg.data.scaler,
+            indices=None,
         )
         cfg.enc_trainer.fit(model=encoder, datamodule=data)
         cfg.enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)

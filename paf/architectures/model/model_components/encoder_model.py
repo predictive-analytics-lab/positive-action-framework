@@ -119,10 +119,9 @@ class Loss:
     def proxy_loss(
         self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, mask: Tensor | None
     ) -> Tensor:
-        _real = index_by_s(enc_fwd.x, batch.s)
-        _cf = index_by_s(enc_fwd.x, 1 - batch.s)
+        _ = (batch,)
         proxy_loss = (
-            (mask * self._proxy_loss_fn(_cf, _real.detach())).mean()
+            (mask * self._proxy_loss_fn(enc_fwd.x[0], enc_fwd.x[1])).mean()
             if mask is not None
             else torch.tensor(0.0)
         )
@@ -283,18 +282,24 @@ class AE(CommonModel):
     def make_mask(self, batch: TernarySample) -> Tensor:
 
         mask = []
-        for group in self.feature_groups["discrete"]:
-            prob = torch.bernoulli(torch.rand((batch.x.shape[0], 1), device=self.device))
-            probs = torch.cat([prob for _ in range(group.start, group.stop)], dim=1)
-            mask.append(probs)
-        mask.append(
-            torch.bernoulli(
-                torch.rand(
-                    (batch.x.shape[0], self.data_dim - self.feature_groups["discrete"][-1].stop),
-                    device=self.device,
+        if self.feature_groups["discrete"]:
+            for group in self.feature_groups["discrete"]:
+                prob = torch.bernoulli(torch.rand((batch.x.shape[0], 1), device=self.device))
+                probs = torch.cat([prob for _ in range(group.start, group.stop)], dim=1)
+                mask.append(probs)
+            mask.append(
+                torch.bernoulli(
+                    torch.rand(
+                        (
+                            batch.x.shape[0],
+                            self.data_dim - self.feature_groups["discrete"][-1].stop,
+                        ),
+                        device=self.device,
+                    )
                 )
             )
-        )
+        else:
+            mask.append(torch.bernoulli(torch.rand_like(batch.x)))
         return torch.cat(mask, dim=1)
 
     @implements(pl.LightningModule)
