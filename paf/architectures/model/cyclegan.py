@@ -339,8 +339,9 @@ class CycleGan(CommonModel):
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
         scaler: MinMaxScaler,
+        indices: list[str] | None,
     ) -> None:
-        _ = (num_s, s_dim, cf_available)
+        _ = (num_s, s_dim, cf_available, indices)
         self.loss = Loss(loss_type=LossType.MSE, lambda_=1, feature_groups=feature_groups)
         self.g_a2b = self.init_fn(Generator(in_dims=data_dim))
         self.g_b2a = self.init_fn(Generator(in_dims=data_dim))
