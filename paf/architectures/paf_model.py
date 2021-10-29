@@ -109,7 +109,7 @@ class PafModel(pl.LightningModule):
             cycle_loss = mse_loss_fn(_og, batch.x)
             if i == 0:
                 _cyc_loss = cycle_loss
-            cyc_dict[f"Cycle_loss/{i}"] = cycle_loss
+            cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().cpu()
             if isinstance(self.enc, AE):
                 _fwd = self.enc.forward(x=_og, s=1 - batch.s)
             else:
@@ -149,9 +149,9 @@ class PafModel(pl.LightningModule):
         preds = torch.cat([_r.preds for _r in outputs], 0)
         clf_z0 = torch.cat([_r.clf_z0 for _r in outputs], 0)
         clf_z1 = torch.cat([_r.clf_z1 for _r in outputs], 0)
-        cyc_dict = {}
-        for key in sorted(outputs[0].cyc_dict.keys()):
-            cyc_dict[key] = [_r.cyc_dict[key] for _r in outputs]
+        cyc_dict = {
+            key: [_r.cyc_dict[key] for _r in outputs] for key in sorted(outputs[0].cyc_dict.keys())
+        }
 
         return PafResults(
             enc_z=torch.cat([_r.enc_z for _r in outputs], 0),
