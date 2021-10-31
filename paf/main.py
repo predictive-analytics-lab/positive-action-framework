@@ -404,12 +404,12 @@ def evaluate(
     recon_mmd = mmd2(results.x, results.cf_x, kernel=KernelType.LINEAR)
     s0_dist_mmd = mmd2(
         results.x[results.s == 0],
-        results.cf_x[results.s == 1],
+        results.recons_0,
         kernel=KernelType.LINEAR,
     )
     s1_dist_mmd = mmd2(
         results.x[results.s == 1],
-        results.cf_x[results.s == 0],
+        results.recons_1,
         kernel=KernelType.LINEAR,
     )
 
