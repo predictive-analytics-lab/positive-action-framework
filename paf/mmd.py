@@ -147,11 +147,11 @@ def _mmd2(kernel: KernelOut, biased: bool = False) -> Tensor:
     else:
         trace_x = kernel.xx.trace()
         trace_y = kernel.yy.trace()
-    return torch.abs(
+    return (
         (kernel.xx.sum() - trace_x) / (dim_m * (dim_m - 1))
         + (kernel.yy.sum() - trace_y) / (dim_n * (dim_n - 1))
         - (2 * kernel.xy.sum() / (dim_m * dim_n))
-    )
+    ).norm()
 
 
 def mmd2(
