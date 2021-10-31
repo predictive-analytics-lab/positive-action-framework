@@ -319,9 +319,8 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         cfg.enc_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
     )
 
-    wandb_logger.experiment.log(results.cyc_vals.mean(axis="rows").to_dict())
-
     if isinstance(results, PafResults):
+        wandb_logger.experiment.log(results.cyc_vals.mean(axis="rows").to_dict())
         _s = data.test_datatuple.s.copy().to_numpy()
         _y = data.test_datatuple.y.copy().to_numpy()
 
