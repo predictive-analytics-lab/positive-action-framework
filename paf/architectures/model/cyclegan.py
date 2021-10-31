@@ -232,7 +232,7 @@ class ResBlock(nn.Module):
         """ResBlock."""
         super().__init__()
         conv = nn.Linear(in_channels, in_channels)
-        layers = [conv, nn.ReLU(True)]
+        layers = [conv, nn.LeakyReLU(), nn.BatchNorm1d(in_channels)]
         if apply_dp:
             layers += [nn.Dropout(0.5)]
         conv = nn.Linear(in_channels, in_channels)
@@ -274,14 +274,14 @@ class Discriminator(nn.Module):
         super().__init__()
         out_dims = in_dims * 3
         conv = nn.Linear(in_dims, out_dims)
-        layers = [conv, nn.LeakyReLU(0.2, True)]
+        layers = [conv, nn.LeakyReLU(), nn.BatchNorm1d(out_dims)]
 
         for _ in range(1, nb_layers):
             conv = nn.Linear(out_dims, out_dims)
-            layers += [conv, nn.LeakyReLU(0.2, True)]
+            layers += [conv, nn.LeakyReLU(), nn.BatchNorm1d(out_dims)]
 
         conv = nn.Linear(out_dims, out_dims)
-        layers += [conv, nn.LeakyReLU(0.2, True)]
+        layers += [conv, nn.LeakyReLU(), nn.BatchNorm1d(out_dims)]
 
         conv = nn.Linear(out_dims, 1)
         layers += [conv]
