@@ -147,36 +147,11 @@ def _mmd2(kernel: KernelOut, biased: bool = False) -> Tensor:
     else:
         trace_x = kernel.xx.trace()
         trace_y = kernel.yy.trace()
-    return abs(
+    return torch.abs(
         (kernel.xx.sum() - trace_x) / (dim_m * (dim_m - 1))
         + (kernel.yy.sum() - trace_y) / (dim_n * (dim_n - 1))
         - (2 * kernel.xy.sum() / (dim_m * dim_n))
     )
-
-
-def distmat(x: Tensor) -> Tensor:
-    """Distance matrix."""
-    r = torch.sum(x * x, 1)
-    r = r.view([-1, 1])
-    a = torch.mm(x, torch.transpose(x, 0, 1))
-    D = r.expand_as(a) - 2 * a + torch.transpose(r, 0, 1).expand_as(a)
-    D = torch.abs(D)
-    return D
-
-
-import numpy as np
-
-
-def sigma_estimation(x: Tensor, *, y: Tensor) -> Tensor:
-    """Sigma from median distance."""
-    D = distmat(torch.cat([x, y]))
-    D = D.detach().cpu().numpy()
-    itri = np.tril_indices(D.shape[0], -1)
-    tri = D[itri]
-    med = np.median(tri)
-    if med <= 0:
-        med = np.mean(tri)
-    return max(med, 1e-2)
 
 
 def mmd2(
@@ -189,33 +164,18 @@ def mmd2(
     add_dot: float = 0.0,
 ) -> Tensor:
     """MMD."""
-
-    dxx = distmat(x)
-    dyy = distmat(y)
-
-    sx = sigma_estimation(x, y=x)
-    sy = sigma_estimation(y, y=y)
-    sxy = sigma_estimation(x, y=y)
-    kx = torch.exp(-dxx / (2.0 * sx * sx))
-    ky = torch.exp(-dyy / (2.0 * sy * sy))
-    dxy = distmat(torch.cat([x, y]))
-    dxy = dxy[: x.size()[0], x.size()[0] :]
-    kxy = torch.exp(-dxy / (1.0 * sxy * sxy))
-
-    return torch.mean(kx) + torch.mean(ky) - 2 * torch.mean(kxy)
-
-    # if x.shape[0] < 2 or y.shape[0] < 2:
-    #     log.warning(
-    #         "Not enough samples in one group to perform MMD. "
-    #         "Returning 0 to not crash, but you should increase the batch size."
-    #     )
-    #     return torch.tensor(0.0)
-    # if kernel is KernelType.LINEAR:
-    #     kernel_out = _dot_kernel(x=x, y=y)
-    # elif kernel is KernelType.RBF:
-    #     kernel_out = _mix_rbf_kernel(x=x, y=y, scales=scales, wts=wts)
-    # elif kernel is KernelType.RQ:
-    #     kernel_out = _mix_rq_kernel(x=x, y=y, scales=scales, wts=wts, add_dot=add_dot)
-    # else:
-    #     raise NotImplementedError("Only RBF, Linear and RQ kernels implemented.")
-    # return _mmd2(kernel_out, biased)
+    if x.shape[0] < 2 or y.shape[0] < 2:
+        log.warning(
+            "Not enough samples in one group to perform MMD. "
+            "Returning 0 to not crash, but you should increase the batch size."
+        )
+        return torch.tensor(0.0)
+    if kernel is KernelType.LINEAR:
+        kernel_out = _dot_kernel(x=x, y=y)
+    elif kernel is KernelType.RBF:
+        kernel_out = _mix_rbf_kernel(x=x, y=y, scales=scales, wts=wts)
+    elif kernel is KernelType.RQ:
+        kernel_out = _mix_rq_kernel(x=x, y=y, scales=scales, wts=wts, add_dot=add_dot)
+    else:
+        raise NotImplementedError("Only RBF, Linear and RQ kernels implemented.")
+    return _mmd2(kernel_out, biased)
