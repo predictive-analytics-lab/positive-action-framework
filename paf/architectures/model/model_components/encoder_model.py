@@ -325,7 +325,7 @@ class AE(CommonModel):
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
-        loss = (recon_loss + adv_loss + mmd_loss + proxy_loss).norm()  # + cycle_loss
+        loss = recon_loss + adv_loss + mmd_loss + proxy_loss  # + cycle_loss
 
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
