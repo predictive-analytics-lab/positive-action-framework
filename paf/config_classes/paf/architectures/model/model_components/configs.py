@@ -23,6 +23,7 @@ class AEConf:
     mmd_weight: float = MISSING
     cycle_weight: float = MISSING
     target_weight: float = MISSING
+    proxy_weight: float = MISSING
     lr: float = MISSING
     mmd_kernel: KernelType = MISSING
     scheduler_rate: float = MISSING

@@ -79,6 +79,7 @@ class Loss:
         mmd_weight: float = 1.0,
         cycle_weight: float = 1.0,
         recon_weight: float = 1.0,
+        proxy_weight: float = 1.0,
     ):
         self._recon_loss_fn = nn.MSELoss(reduction="mean")
         self.feature_groups = feature_groups if feature_groups is not None else {}
@@ -86,6 +87,7 @@ class Loss:
         self._mmd_weight = mmd_weight
         self._cycle_weight = cycle_weight
         self._recon_weight = recon_weight
+        self._proxy_weight = proxy_weight
         self._cycle_loss_fn = nn.MSELoss(reduction="mean")
         self._proxy_loss_fn = nn.MSELoss(reduction="none")
 
@@ -125,7 +127,7 @@ class Loss:
             if mask is not None
             else torch.tensor(0.0)
         )
-        return self._recon_weight * proxy_loss
+        return self._proxy_weight * proxy_loss
 
     def adv_loss(self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample) -> Tensor:
         return (
@@ -180,6 +182,7 @@ class AE(CommonModel):
         mmd_weight: float,
         cycle_weight: float,
         target_weight: float,
+        proxy_weight: float,
         lr: float,
         mmd_kernel: KernelType,
         scheduler_rate: float,
@@ -192,6 +195,7 @@ class AE(CommonModel):
         self._mmd_weight = mmd_weight
         self._cycle_weight = cycle_weight
         self._recon_weight = target_weight
+        self._proxy_weight = proxy_weight
         self.learning_rate = lr
         self.s_as_input = s_as_input
         self.latent_dims = latent_dims
@@ -257,6 +261,7 @@ class AE(CommonModel):
             mmd_weight=self._mmd_weight,
             cycle_weight=self._cycle_weight,
             recon_weight=self._recon_weight,
+            proxy_weight=self._proxy_weight,
         )
         self.built = True
 
@@ -309,7 +314,7 @@ class AE(CommonModel):
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
         # constraint_mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
-        constraint_mask = self.make_mask(batch)
+        constraint_mask = self.make_mask(batch) if self._proxy_weight > 0.0 else None
         # constraint_mask = torch.zeros_like(batch.x)
         # constraint_mask[:, self.indices] += 1
         enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
