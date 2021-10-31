@@ -81,15 +81,15 @@ class Loss:
         recon_weight: float = 1.0,
         proxy_weight: float = 1.0,
     ):
-        self._recon_loss_fn = nn.MSELoss(reduction="mean")
+        self._recon_loss_fn = nn.L1Loss(reduction="mean")
         self.feature_groups = feature_groups if feature_groups is not None else {}
         self._adv_weight = adv_weight
         self._mmd_weight = mmd_weight
         self._cycle_weight = cycle_weight
         self._recon_weight = recon_weight
         self._proxy_weight = proxy_weight
-        self._cycle_loss_fn = nn.MSELoss(reduction="mean")
-        self._proxy_loss_fn = nn.MSELoss(reduction="none")
+        self._cycle_loss_fn = nn.L1Loss(reduction="mean")
+        self._proxy_loss_fn = nn.L1Loss(reduction="none")
 
     def recon_loss(self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample) -> Tensor:
         if self.feature_groups["discrete"]:
@@ -355,8 +355,6 @@ class AE(CommonModel):
                 cf_recon_loss = l1_loss(
                     index_by_s(enc_fwd.x, batch.cfs), batch.cfx, reduction="mean"
                 )
-                cf_loss = cf_recon_loss - 1e-6
-                to_log[f"{Stage.fit}/enc/cf_loss"] = cf_loss
                 to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
         self.log_dict(to_log, logger=True)
