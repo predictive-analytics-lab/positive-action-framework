@@ -405,10 +405,10 @@ class CycleGan(CommonModel):
             mmd_results = self.mmd_reporting(
                 gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch, train=True
             )
-            self.log(f"{Stage.fit}/recon_mmd", mmd_results.recon)
-            self.log(f"{Stage.fit}/cf_recon_mmd", mmd_results.cf_recon)
-            self.log(f"{Stage.fit}/s0_dist_mmd", mmd_results.s0_dist)
-            self.log(f"{Stage.fit}/s1_dist_mmd", mmd_results.s1_dist)
+            self.log(f"{Stage.fit}/enc/recon_mmd", mmd_results.recon)
+            self.log(f"{Stage.fit}/enc/cf_recon_mmd", mmd_results.cf_recon)
+            self.log(f"{Stage.fit}/enc/s0_dist_mmd", mmd_results.s0_dist)
+            self.log(f"{Stage.fit}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
             # No need to calculate the gradients for Discriminators' parameters
             self.set_requires_grad([self.d_a, self.d_b], requires_grad=False)
@@ -423,10 +423,10 @@ class CycleGan(CommonModel):
                 d_b_pred_fake_data=d_b_pred_fake_data,
             )
 
-            self.log(f"{Stage.fit}/g_tot_loss", gen_loss.tot)
-            self.log(f"{Stage.fit}/g_A2B_loss", gen_loss.a2b)
-            self.log(f"{Stage.fit}/g_B2A_loss", gen_loss.b2a)
-            self.log(f"{Stage.fit}/cycle_loss", gen_loss.cycle_loss)
+            self.log(f"{Stage.fit}/enc/g_tot_loss", gen_loss.tot)
+            self.log(f"{Stage.fit}/enc/g_A2B_loss", gen_loss.a2b)
+            self.log(f"{Stage.fit}/enc/g_B2A_loss", gen_loss.b2a)
+            self.log(f"{Stage.fit}/enc/cycle_loss", gen_loss.cycle_loss)
 
             return gen_loss.tot
 
@@ -440,7 +440,7 @@ class CycleGan(CommonModel):
                 dis_pred_real_data=dis_out.real, dis_pred_fake_data=dis_out.fake
             )
             self.log(
-                f"{Stage.fit}/d_A_loss",
+                f"{Stage.fit}/enc/d_A_loss",
                 d_a_loss,
                 on_step=True,
                 on_epoch=True,
@@ -460,7 +460,7 @@ class CycleGan(CommonModel):
                 dis_pred_real_data=dis_b_out.real, dis_pred_fake_data=dis_b_out.fake
             )
             self.log(
-                f"{Stage.fit}/d_B_loss",
+                f"{Stage.fit}/enc/d_B_loss",
                 d_b_loss,
                 on_step=True,
                 on_epoch=True,
@@ -503,17 +503,17 @@ class CycleGan(CommonModel):
         mmd_results = self.mmd_reporting(gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch)
 
         dict_ = {
-            f"{stage}/g_tot_loss": gen_losses.tot,
-            f"{stage}/g_A2B_loss": gen_losses.a2b,
-            f"{stage}/g_B2A_loss": gen_losses.b2a,
-            f"{stage}/d_A_loss": d_a_loss,
-            f"{stage}/d_B_loss": d_b_loss,
-            f"{stage}/loss": gen_losses.tot,
-            f"{stage}/cycle_loss": gen_losses.cycle_loss,
-            f"{stage}/recon_mmd": mmd_results.recon,
-            f"{stage}/cf_recon_mmd": mmd_results.cf_recon,
-            f"{stage}/s0_dist_mmd": mmd_results.s0_dist,
-            f"{stage}/s1_dist_mmd": mmd_results.s1_dist,
+            f"{stage}/enc/g_tot_loss": gen_losses.tot,
+            f"{stage}/enc/g_A2B_loss": gen_losses.a2b,
+            f"{stage}/enc/g_B2A_loss": gen_losses.b2a,
+            f"{stage}/enc/d_A_loss": d_a_loss,
+            f"{stage}/enc/d_B_loss": d_b_loss,
+            f"{stage}/enc/loss": gen_losses.tot,
+            f"{stage}/enc/cycle_loss": gen_losses.cycle_loss,
+            f"{stage}/enc/recon_mmd": mmd_results.recon,
+            f"{stage}/enc/cf_recon_mmd": mmd_results.cf_recon,
+            f"{stage}/enc/s0_dist_mmd": mmd_results.s0_dist,
+            f"{stage}/enc/s1_dist_mmd": mmd_results.s1_dist,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 

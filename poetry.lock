@@ -546,7 +546,7 @@ customplots = ["matplotlib (>=3.0.3)"]
 
 [[package]]
 name = "filelock"
-version = "3.3.1"
+version = "3.3.2"
 description = "A platform independent file lock."
 category = "main"
 optional = false
@@ -1455,14 +1455,14 @@ tests = ["fakeredis", "pytest"]
 
 [[package]]
 name = "packaging"
-version = "21.0"
+version = "21.2"
 description = "Core utilities for Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-pyparsing = ">=2.0.2"
+pyparsing = ">=2.0.2,<3"
 
 [[package]]
 name = "palkit"
@@ -1683,7 +1683,7 @@ tests = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "prometheus-client"
-version = "0.11.0"
+version = "0.12.0"
 description = "Python client for the Prometheus monitoring system."
 category = "main"
 optional = false
@@ -1948,14 +1948,11 @@ scipy = ">=1.0"
 
 [[package]]
 name = "pyparsing"
-version = "3.0.3"
+version = "2.4.7"
 description = "Python parsing module"
 category = "main"
 optional = false
-python-versions = ">=3.6"
-
-[package.extras]
-diagrams = ["jinja2", "railroad-diagrams"]
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "pyperclip"
@@ -2787,7 +2784,7 @@ typing-extensions = ">=3.7.4"
 
 [[package]]
 name = "umap-learn"
-version = "0.5.1"
+version = "0.5.2"
 description = "Uniform Manifold Approximation and Projection"
 category = "main"
 optional = false
@@ -2799,9 +2796,10 @@ numpy = ">=1.17"
 pynndescent = ">=0.5"
 scikit-learn = ">=0.22"
 scipy = ">=1.0"
+tqdm = "*"
 
 [package.extras]
-parametric_umap = ["tensorflow (>=2.1)"]
+parametric_umap = ["tensorflow (>=2.1)", "tensorflow-probability (>=0.10)"]
 plot = ["pandas", "matplotlib", "datashader", "bokeh", "holoviews", "colorcet", "seaborn", "scikit-image"]
 
 [[package]]
@@ -3292,8 +3290,8 @@ fairlearn = [
     {file = "fairlearn-0.4.6.tar.gz", hash = "sha256:c2082419a63c1e6cd1965736e4c65bf6cea8e1d04da835e6b2d1db0c422b929b"},
 ]
 filelock = [
-    {file = "filelock-3.3.1-py3-none-any.whl", hash = "sha256:2b5eb3589e7fdda14599e7eb1a50e09b4cc14f34ed98b8ba56d33bfaafcbef2f"},
-    {file = "filelock-3.3.1.tar.gz", hash = "sha256:34a9f35f95c441e7b38209775d6e0337f9a3759f3565f6c5798f19618527c76f"},
+    {file = "filelock-3.3.2-py3-none-any.whl", hash = "sha256:bb2a1c717df74c48a2d00ed625e5a66f8572a3a30baacb7657add1d7bac4097b"},
+    {file = "filelock-3.3.2.tar.gz", hash = "sha256:7afc856f74fa7006a289fd10fa840e1eebd8bbff6bffb69c26c54a0512ea8cf8"},
 ]
 flake8 = [
     {file = "flake8-2.3.0-py2.py3-none-any.whl", hash = "sha256:c99cc9716d6655d9c8bcb1e77632b8615bf0abd282d7abd9f5c2148cad7fc669"},
@@ -3942,8 +3940,8 @@ optuna = [
     {file = "optuna-2.10.0.tar.gz", hash = "sha256:04c3100a4fe88a71dc72f69d8a10ec9db7c9a0c884feaf932b68632b00686a8d"},
 ]
 packaging = [
-    {file = "packaging-21.0-py3-none-any.whl", hash = "sha256:c86254f9220d55e31cc94d69bade760f0847da8000def4dfe1c6b872fd14ff14"},
-    {file = "packaging-21.0.tar.gz", hash = "sha256:7dc96269f53a4ccec5c0670940a4281106dd0bb343f47b7471f779df49c2fbe7"},
+    {file = "packaging-21.2-py3-none-any.whl", hash = "sha256:14317396d1e8cdb122989b916fa2c7e9ca8e2be9e8060a6eff75b6b7b4d8a7e0"},
+    {file = "packaging-21.2.tar.gz", hash = "sha256:096d689d78ca690e4cd8a89568ba06d07ca097e3306a4381635073ca91479966"},
 ]
 palkit = [
     {file = "palkit-0.4.2-py3-none-any.whl", hash = "sha256:08f904164e851ca02a1b65a48c57b6f467162d69f039f86a922f5e3b5591f531"},
@@ -4074,8 +4072,8 @@ prettytable = [
     {file = "prettytable-2.2.1.tar.gz", hash = "sha256:6d465005573a5c058d4ca343449a5b28c21252b86afcdfa168cdc6a440f0b24c"},
 ]
 prometheus-client = [
-    {file = "prometheus_client-0.11.0-py2.py3-none-any.whl", hash = "sha256:b014bc76815eb1399da8ce5fc84b7717a3e63652b0c0f8804092c9363acab1b2"},
-    {file = "prometheus_client-0.11.0.tar.gz", hash = "sha256:3a8baade6cb80bcfe43297e33e7623f3118d660d41387593758e2fb1ea173a86"},
+    {file = "prometheus_client-0.12.0-py2.py3-none-any.whl", hash = "sha256:317453ebabff0a1b02df7f708efbab21e3489e7072b61cb6957230dd004a0af0"},
+    {file = "prometheus_client-0.12.0.tar.gz", hash = "sha256:1b12ba48cee33b9b0b9de64a1047cbd3c5f2d0ab6ebcead7ddda613a750ec3c5"},
 ]
 promise = [
     {file = "promise-2.3.tar.gz", hash = "sha256:dfd18337c523ba4b6a58801c164c1904a9d4d1b1747c7d5dbf45b693a49d93d0"},
@@ -4228,8 +4226,8 @@ pynndescent = [
     {file = "pynndescent-0.5.5.tar.gz", hash = "sha256:7a7df8412b19cfb3596060faf5a8c5d0bf5b3bd504f8efd900fc4e3918c6f882"},
 ]
 pyparsing = [
-    {file = "pyparsing-3.0.3-py3-none-any.whl", hash = "sha256:f8d3fe9fc404576c5164f0f0c4e382c96b85265e023c409c43d48f65da9d60d0"},
-    {file = "pyparsing-3.0.3.tar.gz", hash = "sha256:9e3511118010f112a4b4b435ae50e1eaa610cda191acb9e421d60cf5fde83455"},
+    {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},
+    {file = "pyparsing-2.4.7.tar.gz", hash = "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1"},
 ]
 pyperclip = [
     {file = "pyperclip-1.8.2.tar.gz", hash = "sha256:105254a8b04934f0bc84e9c24eb360a591aaf6535c9def5f29d92af107a9bf57"},
@@ -4809,7 +4807,7 @@ typing-inspect = [
     {file = "typing_inspect-0.7.1.tar.gz", hash = "sha256:047d4097d9b17f46531bf6f014356111a1b6fb821a24fe7ac909853ca2a782aa"},
 ]
 umap-learn = [
-    {file = "umap-learn-0.5.1.tar.gz", hash = "sha256:3e3e5e526109866012a9da79f423c922edc379c6cac9bf65ea08fbb9dd93ff3a"},
+    {file = "umap-learn-0.5.2.tar.gz", hash = "sha256:0ede8921c3ef0e1976cdc91b533b2bce82471c87dbb9fad447f617ca5b881d52"},
 ]
 urllib3 = [
     {file = "urllib3-1.26.7-py2.py3-none-any.whl", hash = "sha256:c4fdf4019605b6e5423637e01bc9fe4daef873709a7973e195ceba0a62bbc844"},
