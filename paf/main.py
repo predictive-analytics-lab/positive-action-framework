@@ -208,7 +208,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
                 test_predictions=erm_model.run(data.train_datatuple, data.test_datatuple),
                 test=data.test_datatuple,
             )
-        dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
+        dp_model = em.Kamiran(seed=cfg.exp.seed)
         dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
 
         matches = {
