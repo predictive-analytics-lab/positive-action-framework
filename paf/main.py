@@ -240,25 +240,25 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
                 logger=wandb_logger,
                 debug=cfg.exp.debug,
             )
-        if isinstance(data, BaseDataModule) and data.cf_available:
-            assert data.true_data_group is not None
-            multiple_metrics(
-                preds=preds,
-                target=data.true_test_datatuple,
-                name=f"TrueLabels-{fair_bool=}",
-                logger=wandb_logger,
-                debug=cfg.exp.debug,
-            )
-            get_full_breakdown(
-                target_info=f"Stats/{fair_bool=}",
-                acceptance=em.DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=preds.hard.to_frame().copy(),
-                ),
-                graduated=data.true_test_datatuple,
-                logger=wandb_logger,
-            )
+            if isinstance(data, BaseDataModule) and data.cf_available:
+                assert data.true_data_group is not None
+                multiple_metrics(
+                    preds=preds,
+                    target=data.true_test_datatuple,
+                    name=f"TrueLabels-{fair_bool=}",
+                    logger=wandb_logger,
+                    debug=cfg.exp.debug,
+                )
+                get_full_breakdown(
+                    target_info=f"Stats/{fair_bool=}",
+                    acceptance=em.DataTuple(
+                        x=data.test_datatuple.x.copy(),
+                        s=data.test_datatuple.s.copy(),
+                        y=preds.hard.to_frame().copy(),
+                    ),
+                    graduated=data.true_test_datatuple,
+                    logger=wandb_logger,
+                )
         return
 
     encoder: AE | CycleGan | None = None
