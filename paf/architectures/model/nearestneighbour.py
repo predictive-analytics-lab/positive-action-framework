@@ -74,7 +74,7 @@ class NearestNeighbour(CommonModel):
             .to(self.device)
         )
         self.train_labels = (
-            nn.Parameter(self.train_labels.detach(), requires_grad=False).float().to(device)
+            nn.Parameter(self.train_labels.detach(), requires_grad=False).float().to(self.device)
         )
 
     def forward(self, *, x: Tensor, s: Tensor) -> NnFwd:
