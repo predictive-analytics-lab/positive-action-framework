@@ -136,8 +136,8 @@ def test_enc(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
-            scaler=cfg.data.scaler,
             indices=None,
+            data=cfg.data,
         )
         cfg.enc_trainer.fit(model=encoder, datamodule=cfg.data)
         cfg.enc_trainer.test(model=encoder, ckpt_path=None, datamodule=cfg.data)
@@ -165,7 +165,7 @@ def test_clf(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
-            scaler=cfg.data.scaler,
+            data=cfg.data,
         )
         cfg.clf_trainer.fit(model=classifier, datamodule=cfg.data)
         cfg.clf_trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
@@ -196,8 +196,8 @@ def test_clfmod(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
-            scaler=cfg.data.scaler,
             indices=None,
+            data=data,
         )
         cfg.enc_trainer.fit(model=encoder, datamodule=data)
         cfg.enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
@@ -210,7 +210,7 @@ def test_clfmod(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
-            scaler=cfg.data.scaler,
+            data=data,
         )
         cfg.clf_trainer.fit(model=classifier, datamodule=data)
         cfg.clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)

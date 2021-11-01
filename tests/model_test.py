@@ -110,7 +110,8 @@ def test_erm_dp(model: str, dm_schema: str) -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=SCHEMAS + [f"exp.model={model}", f"data={dm_schema}"],
+            overrides=SCHEMAS
+            + [f"exp.model={model}", f"data={dm_schema}", "clf_trainer.max_epochs=1"],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
