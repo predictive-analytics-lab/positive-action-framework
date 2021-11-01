@@ -120,7 +120,7 @@ class PafModel(pl.LightningModule):
             vals.update({f"preds_{i}_{j}": self.clf.threshold(clf_out.y[j]) for j in range(2)})
         return TestStepOut(**vals)
 
-    def collate_results(self, outputs: list[TestStepOut]) -> PafResults:
+    def collate_results(self, outputs: list[TestStepOut], *, cycle_steps: int = 0) -> PafResults:
         preds_0_0 = torch.cat([_r.preds_0_0 for _r in outputs], 0)
         preds_0_1 = torch.cat([_r.preds_0_1 for _r in outputs], 0)
         preds_1_0 = torch.cat([_r.preds_1_0 for _r in outputs], 0)
@@ -139,7 +139,7 @@ class PafModel(pl.LightningModule):
         _recons = [recons_0.clone(), recons_1.clone()]
         torch.tensor(0.0)
         cyc_dict = {}
-        for i in tqdm(range(100), desc="Cycle Measure"):
+        for i in tqdm(range(cycle_steps), desc="Cycle Measure"):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - s), x)
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - s)

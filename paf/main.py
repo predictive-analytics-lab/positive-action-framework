@@ -310,7 +310,8 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
     # cfg.enc_trainer.fit(model=model, datamodule=data)
     results = model.collate_results(
-        cfg.enc_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
+        cfg.enc_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None),
+        cycle_steps=100,
     )
 
     if isinstance(results, PafResults) and cfg.exp.debug:
@@ -391,9 +392,6 @@ def evaluate(
     classifier: pl.LightningModule,
     _model_trainer: pl.Trainer,
 ) -> None:
-
-    if isinstance(results, PafResults):
-        do_log("eval/cycle_loss", results.cycle_loss, wandb_logger)
 
     recon_mmd = mmd2(results.x, results.cf_x, kernel=KernelType.LINEAR)
     s0_dist_mmd = mmd2(
