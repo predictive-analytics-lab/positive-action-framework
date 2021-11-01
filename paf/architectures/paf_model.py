@@ -135,11 +135,11 @@ class PafModel(pl.LightningModule):
         recons_0 = torch.cat([_r.recons_0 for _r in outputs], 0)
         recons_1 = torch.cat([_r.recons_1 for _r in outputs], 0)
 
-        mse_loss_fn = nn.MSELoss(reduction="mean")
+        mse_loss_fn = nn.MSELoss(reduction="none")
         _recons = [recons_0.clone(), recons_1.clone()]
         torch.tensor(0.0)
         cyc_dict = {}
-        for i in tqdm(range(10), desc="Cycle Measure"):
+        for i in tqdm(range(1), desc="Cycle Measure"):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - s), x)
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - s)
@@ -149,7 +149,7 @@ class PafModel(pl.LightningModule):
             cycle_loss = mse_loss_fn(_og, x)
             if i == 0:
                 pass
-            cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().cpu()
+            cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().mean(dim=-1).cpu().tonumpy()
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 _fwd = self.enc.forward(x=_og, s=1 - s)
             else:
@@ -192,5 +192,5 @@ class PafModel(pl.LightningModule):
                 columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
             ),
             cycle_loss=cycle_loss,
-            cyc_vals=pd.DataFrame.from_dict(cyc_dict) / len(preds),
+            cyc_vals=pd.DataFrame.from_dict(cyc_dict),
         )
