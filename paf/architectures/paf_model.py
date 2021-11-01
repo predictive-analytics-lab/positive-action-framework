@@ -59,7 +59,7 @@ class PafModel(pl.LightningModule):
         recons: list[Tensor] | None = None
         if isinstance(self.enc, AE):
             enc_fwd = self.enc.forward(x=x, s=s)
-            recons = enc_fwd.x
+            recons = [enc_fwd.recon.index_by_s(s, value=0), enc_fwd.recon.index_by_s(s, value=1)]
         elif isinstance(self.enc, CycleGan):
             cyc_fwd = self.enc.forward(real_a=x, real_b=x)
             recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
@@ -76,6 +76,7 @@ class PafModel(pl.LightningModule):
 
     @implements(pl.LightningModule)
     def predict_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> TestStepOut:
+        assert isinstance(batch.x, Tensor)
         self.clf.eval()
         if isinstance(self.enc, AE):
             self.enc.eval()
@@ -84,38 +85,36 @@ class PafModel(pl.LightningModule):
             enc_fwd = self.enc.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
             enc_z = enc_fwd.z
             enc_s_pred = enc_fwd.s
-            recons = enc_fwd.x
-        elif isinstance(self.enc, CycleGan):
-            self.enc.eval()
-            cyc_fwd = self.enc.forward(real_a=batch.x, real_b=batch.x)
-            recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
-            enc_z = torch.ones_like(batch.x)
-            enc_s_pred = torch.ones_like(batch.s)
+            recons = enc_fwd.recon
+        # elif isinstance(self.enc, CycleGan):
+        #     self.enc.eval()
+        #     cyc_fwd = self.enc.forward(real_a=batch.x, real_b=batch.x)
+        #     recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
+        #     enc_z = torch.ones_like(batch.x)
+        #     enc_s_pred = torch.ones_like(batch.s)
         else:
             raise NotImplementedError()
         augmented_recons = augment_recons(
-            batch.x, self.enc.invert(index_by_s(recons, 1 - batch.s), batch.x), batch.s
+            batch.x, self.enc.invert(recons.counterfactual, batch.x), batch.s
         )
 
         mse_loss_fn = nn.MSELoss(reduction="mean")
-        _recons = recons.copy()
         _cyc_loss = torch.tensor(0.0)
         for i in range(1):
-            _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
+            _cfx = self.enc.invert(recons.counterfactual, batch.x)
             if isinstance(self.enc, AE):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - batch.s)
             else:
                 cf_fwd = self.enc.forward(real_a=_cfx, real_b=_cfx)  # type: ignore[assignment]
-            _og = self.enc.invert(index_by_s(cf_fwd.x, batch.s), batch.x)
+            _og = self.enc.invert(cf_fwd.recon.factual, batch.x)
             cycle_loss = mse_loss_fn(_og, batch.x)
             if i == 0:
                 _cyc_loss = cycle_loss
-            self.log(f"Cycle_loss/{i}", cycle_loss)
-            if isinstance(self.enc, AE):
-                _fwd = self.enc.forward(x=_og, s=1 - batch.s)
-            else:
-                _fwd = self.enc.forward(real_a=_og, real_b=_og)  # type: ignore[assignment]
-            _recons = _fwd.x
+            # self.log(f"Cycle_loss/{i}", cycle_loss)
+            # if isinstance(self.enc, AE):
+            #     _fwd = self.enc.forward(x=_og, s=1 - batch.s)
+            # else:
+            #     _fwd = self.enc.forward(real_a=_og, real_b=_og)  # type: ignore[assignment]
 
         vals: Dict[str, Tensor] = {
             "enc_z": enc_z,

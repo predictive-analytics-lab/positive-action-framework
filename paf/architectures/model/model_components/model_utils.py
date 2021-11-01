@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import torch
-from torch import Tensor, arange, autograd, nn, stack
+from torch import Tensor, autograd, nn
 import torch.nn.functional as F
 
 __all__ = [
@@ -23,12 +23,13 @@ def init_weights(module: nn.Module) -> None:
 
 def index_by_s(recons: list[Tensor], s: Tensor) -> Tensor:
     """Get recon by the index of S."""
-    _recons = stack(recons, dim=1)
-    return _recons[arange(_recons.shape[0]), s.long()]
+
+    _recons = torch.stack(recons, dim=1)
+    return _recons[torch.arange(_recons.shape[0]), s.long()]
 
 
 def augment_recons(x: Tensor, cf_x: Tensor, s: Tensor) -> list[Tensor]:
-    """Given real data and counterfactuial data, return in recon format based on S index."""
+    """Given real data and counterfactual data, return in recon format based on S index."""
     aug_list = [(x[i], cf_x[i]) if _s == 0 else (cf_x[i], x[i]) for i, _s in enumerate(s)]
     return list((torch.stack([d[0] for d in aug_list]), torch.stack([d[1] for d in aug_list])))
 
@@ -48,7 +49,7 @@ class GradReverse(autograd.Function):
     def forward(ctx: autograd.Function, x: Tensor, lambda_: float) -> Tensor:  # type: ignore[override]
         """Do GRL."""
         ctx.lambda_ = lambda_
-        return x.view_as(x)
+        return x
 
     @staticmethod
     def backward(ctx: autograd.Function, grad_output: Tensor) -> tuple[Tensor, Tensor | None]:  # type: ignore[override]
