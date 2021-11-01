@@ -16,7 +16,7 @@ __all__ = ["PafModel", "TestStepOut"]
 from paf.base_templates import Batch, CfBatch
 
 from . import PafResults
-from .model import CycleGan
+from .model import CycleGan, NearestNeighbour
 from .model.model_components import AE, Clf, augment_recons, index_by_s
 
 
@@ -89,6 +89,10 @@ class PafModel(pl.LightningModule):
             recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
             enc_z = torch.ones_like(batch.x)
             enc_s_pred = torch.ones_like(batch.s)
+        elif isinstance(self.enc, NearestNeighbour):
+            recons = self.enc.forward(x=batch.x, s=batch.s).x
+            enc_z = torch.ones_like(batch.x)
+            enc_s_pred = torch.ones_like(batch.s)
         else:
             raise NotImplementedError()
         augmented_recons = augment_recons(
@@ -101,7 +105,7 @@ class PafModel(pl.LightningModule):
         cyc_dict = {}
         for i in range(100):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
-            if isinstance(self.enc, AE):
+            if isinstance(self.enc, (AE, NearestNeighbour)):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - batch.s)
             else:
                 cf_fwd = self.enc.forward(real_a=_cfx, real_b=_cfx)  # type: ignore[assignment]
@@ -110,7 +114,7 @@ class PafModel(pl.LightningModule):
             if i == 0:
                 _cyc_loss = cycle_loss
             cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().cpu()
-            if isinstance(self.enc, AE):
+            if isinstance(self.enc, (AE, NearestNeighbour)):
                 _fwd = self.enc.forward(x=_og, s=1 - batch.s)
             else:
                 _fwd = self.enc.forward(real_a=_og, real_b=_og)  # type: ignore[assignment]

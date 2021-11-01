@@ -2,15 +2,17 @@
 from __future__ import annotations
 from abc import abstractmethod
 
+from conduit.fair.data import EthicMlDataModule
 import numpy as np
 import pytorch_lightning as pl
 from ranzen import implements
-from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 
 __all__ = ["CommonModel", "BaseModel", "Encoder", "Adversary", "Decoder"]
+
+from paf.base_templates import BaseDataModule
 
 from .blocks import block, mid_blocks
 from .model_utils import grad_reverse, to_discrete
@@ -56,7 +58,8 @@ class CommonModel(pl.LightningModule):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
-        scaler: MinMaxScaler | None,
+        data: BaseDataModule | EthicMlDataModule,
+        indices: list[str],
     ) -> None:
         """Build the network using data not available in advance."""
 

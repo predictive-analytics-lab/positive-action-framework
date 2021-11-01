@@ -29,9 +29,7 @@ from sklearn.preprocessing import StandardScaler
 import umap
 
 from paf.architectures import PafModel, PafResults, Results
-from paf.architectures.model import CycleGan, NearestNeighbourModel
 from paf.architectures.model.model_components import AE
-from paf.architectures.model.naive import NaiveModel
 from paf.base_templates.base_module import BaseDataModule
 from paf.callbacks.callbacks import L1Logger
 from paf.config_classes.ethicml.configs import (  # type: ignore[import]
@@ -45,6 +43,7 @@ from paf.config_classes.ethicml.configs import (  # type: ignore[import]
 )
 from paf.config_classes.paf.architectures.model.configs import (  # type: ignore[import]
     CycleGanConf,
+    NearestNeighbourConf,
 )
 from paf.config_classes.paf.architectures.model.model_components.configs import (  # type: ignore[import]
     AEConf,
@@ -127,6 +126,7 @@ ENC_PKG: Final[str] = "enc"
 ENC_GROUP: Final[str] = "schema/enc"
 CS.store(name="enc_schema", node=AEConf, package=ENC_PKG, group=ENC_GROUP)
 CS.store(name="cyclegan", node=CycleGanConf, package=ENC_PKG, group=ENC_GROUP)
+CS.store(name="nearestneighbour", node=NearestNeighbourConf, package=ENC_PKG, group=ENC_GROUP)
 
 DATA_PKG: Final[str] = "data"  # package:dir_within_config_path
 DATA_GROUP: Final[str] = "schema/data"  # group
@@ -261,58 +261,49 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
                 )
         return
 
-    encoder: AE | CycleGan | None = None
-    if cfg.exp.model is ModelType.PAF:
-        encoder = cfg.enc
-        assert encoder is not None
-        encoder.build(
-            num_s=data.card_s,
-            data_dim=data.size()[0],
-            s_dim=data.dim_s[0],
-            cf_available=data.cf_available if hasattr(data, "cf_available") else False,
-            feature_groups=data.feature_groups,
-            outcome_cols=data.disc_features + data.cont_features,
-            scaler=data.scaler,
-            indices=indices,
-        )
+    encoder = cfg.enc
+    assert encoder is not None
+    encoder.build(
+        num_s=data.card_s,
+        data_dim=data.size()[0],
+        s_dim=data.dim_s[0],
+        cf_available=data.cf_available if hasattr(data, "cf_available") else False,
+        feature_groups=data.feature_groups,
+        outcome_cols=data.disc_features + data.cont_features,
+        indices=indices,
+        data=data,
+    )
 
-        cfg.enc_trainer.callbacks += [
-            L1Logger(),
-            # MmdLogger(),
-            # FeaturePlots()
-        ]
-        cfg.enc_trainer.fit(
-            model=encoder,
-            train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
-            val_dataloaders=data.val_dataloader(),
-        )
-        cfg.enc_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
+    cfg.enc_trainer.callbacks += [
+        L1Logger(),
+        # MmdLogger(),
+        # FeaturePlots()
+    ]
+    cfg.enc_trainer.fit(
+        model=encoder,
+        train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
+        val_dataloaders=data.val_dataloader(),
+    )
+    cfg.enc_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
 
-        classifier = cfg.clf
-        classifier.build(
-            num_s=data.card_s,
-            data_dim=data.size()[0],
-            s_dim=data.dim_s[0],
-            cf_available=data.cf_available if hasattr(data, "cf_available") else False,
-            feature_groups=data.feature_groups,
-            outcome_cols=data.disc_features + data.cont_features,
-            scaler=None,
-        )
-        cfg.clf_trainer.fit(
-            model=classifier,
-            train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
-            val_dataloaders=data.val_dataloader(),
-        )
-        cfg.clf_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
+    classifier = cfg.clf
+    classifier.build(
+        num_s=data.card_s,
+        data_dim=data.size()[0],
+        s_dim=data.dim_s[0],
+        cf_available=data.cf_available if hasattr(data, "cf_available") else False,
+        feature_groups=data.feature_groups,
+        outcome_cols=data.disc_features + data.cont_features,
+        scaler=None,
+    )
+    cfg.clf_trainer.fit(
+        model=classifier,
+        train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
+        val_dataloaders=data.val_dataloader(),
+    )
+    cfg.clf_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
 
-        model = PafModel(encoder=encoder, classifier=classifier)
-
-    elif cfg.exp.model == ModelType.NN:
-        classifier = NaiveModel(in_size=cfg.data.size()[0])
-        cfg.clf_trainer.tune(model=classifier, datamodule=data)
-        cfg.clf_trainer.fit(model=classifier, datamodule=data)
-
-        model = NearestNeighbourModel(clf_model=classifier, data=data)
+    model = PafModel(encoder=encoder, classifier=classifier)
 
     # cfg.enc_trainer.fit(model=model, datamodule=data)
     results = model.collate_results(

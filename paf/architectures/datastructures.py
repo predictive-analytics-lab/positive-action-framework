@@ -4,7 +4,7 @@ from typing import NamedTuple
 import pandas as pd
 from torch import Tensor
 
-__all__ = ["Results", "PafResults", "NnResults", "MmdReportingResults"]
+__all__ = ["Results", "PafResults", "MmdReportingResults"]
 
 
 @dataclass
@@ -33,11 +33,6 @@ class PafResults(Results):
     recon: Tensor
     cycle_loss: Tensor
     cyc_vals: pd.DataFrame
-
-
-@dataclass
-class NnResults(Results):
-    cf_preds: Tensor
 
 
 class MmdReportingResults(NamedTuple):

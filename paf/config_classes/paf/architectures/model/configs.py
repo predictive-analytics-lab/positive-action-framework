@@ -13,3 +13,8 @@ class CycleGanConf:
     d_lr: float = 0.0002
     g_lr: float = 0.0002
     epoch_decay: int = 200
+
+
+@dataclass
+class NearestNeighbourConf:
+    _target_: str = "paf.architectures.model.NearestNeighbour"
