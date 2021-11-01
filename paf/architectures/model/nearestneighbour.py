@@ -79,7 +79,7 @@ class NearestNeighbour(CommonModel):
 
         for point, s_label in zip(x, s):
             sim = point @ self.train_features[(self.train_sens != s_label).squeeze(-1)].t().to(
-                self.device
+                point.device
             )
             features.append(
                 self.train_features[(self.train_sens != s_label).squeeze(-1)][sim.argmax(-1)]
