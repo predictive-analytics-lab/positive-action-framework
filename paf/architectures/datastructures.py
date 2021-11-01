@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import NamedTuple
 
@@ -31,7 +32,7 @@ class PafResults(Results):
     preds_1_0: Tensor
     preds_1_1: Tensor
     recon: Tensor
-    cycle_loss: Tensor
+    cycle_loss: Tensor | None
     cyc_vals: pd.DataFrame
 
 

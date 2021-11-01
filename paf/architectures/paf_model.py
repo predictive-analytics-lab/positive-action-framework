@@ -139,6 +139,7 @@ class PafModel(pl.LightningModule):
         _recons = [recons_0.clone(), recons_1.clone()]
         torch.tensor(0.0)
         cyc_dict = {}
+        cycle_loss = None
         for i in tqdm(range(cycle_steps), desc="Cycle Measure"):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - s), x)
             if isinstance(self.enc, (AE, NearestNeighbour)):
