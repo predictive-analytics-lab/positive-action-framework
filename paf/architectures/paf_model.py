@@ -139,7 +139,7 @@ class PafModel(pl.LightningModule):
         _recons = [recons_0.clone(), recons_1.clone()]
         torch.tensor(0.0)
         cyc_dict = {}
-        for i in tqdm(range(1), desc="Cycle Measure"):
+        for i in tqdm(range(100), desc="Cycle Measure"):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - s), x)
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - s)
@@ -147,9 +147,7 @@ class PafModel(pl.LightningModule):
                 cf_fwd = self.enc.forward(real_a=_cfx, real_b=_cfx)  # type: ignore[assignment]
             _og = self.enc.invert(index_by_s(cf_fwd.x, s), x)
             cycle_loss = mse_loss_fn(_og, x)
-            if i == 0:
-                pass
-            cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().mean(dim=-1).cpu().tonumpy()
+            cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().mean(dim=-1).cpu().numpy().tolist()
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 _fwd = self.enc.forward(x=_og, s=1 - s)
             else:
