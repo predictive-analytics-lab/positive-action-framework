@@ -132,12 +132,14 @@ class PafModel(pl.LightningModule):
         clf_z1 = torch.cat([_r.clf_z1 for _r in outputs], 0)
 
         recons = torch.cat([_r.recon for _r in outputs], 0)
+        recons_0 = torch.cat([_r.recons_0 for _r in outputs], 0)
+        recons_1 = torch.cat([_r.recons_1 for _r in outputs], 0)
 
         mse_loss_fn = nn.MSELoss(reduction="mean")
-        _recons = recons.copy()
-        _cyc_loss = torch.tensor(0.0)
+        _recons = [recons_0.clone(), recons_1.clone()]
+        torch.tensor(0.0)
         cyc_dict = {}
-        for i in tqdm(range(1), desc="Cycle Measure"):
+        for i in tqdm(range(10), desc="Cycle Measure"):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - s), x)
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - s)
@@ -146,7 +148,7 @@ class PafModel(pl.LightningModule):
             _og = self.enc.invert(index_by_s(cf_fwd.x, s), x)
             cycle_loss = mse_loss_fn(_og, x)
             if i == 0:
-                _cyc_loss = cycle_loss
+                pass
             cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().cpu()
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 _fwd = self.enc.forward(x=_og, s=1 - s)
@@ -169,8 +171,8 @@ class PafModel(pl.LightningModule):
             y=torch.cat([_r.y for _r in outputs], 0),
             recon=recons,
             cf_x=torch.cat([_r.cf_recon for _r in outputs], 0),
-            recons_0=torch.cat([_r.recons_0 for _r in outputs], 0),
-            recons_1=torch.cat([_r.recons_1 for _r in outputs], 0),
+            recons_0=recons_0,
+            recons_1=recons_1,
             preds=preds,
             preds_0_0=preds_0_0,
             preds_0_1=preds_0_1,
