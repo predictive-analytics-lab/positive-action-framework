@@ -156,10 +156,6 @@ class PafModel(pl.LightningModule):
                 _fwd = self.enc.forward(real_a=_og, real_b=_og)  # type: ignore[assignment]
             _recons = _fwd.x
 
-        cyc_dict = {
-            key: [_r.cyc_dict[key] for _r in outputs] for key in sorted(outputs[0].cyc_dict.keys())
-        }
-
         return PafResults(
             enc_z=torch.cat([_r.enc_z for _r in outputs], 0),
             enc_s_pred=torch.cat([_r.enc_s_pred for _r in outputs], 0),
