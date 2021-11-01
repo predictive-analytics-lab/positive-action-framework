@@ -5,6 +5,7 @@ import logging
 from typing import Any, NamedTuple
 
 from conduit.data import TernarySample
+from conduit.fair.data import EthicMlDataModule
 from conduit.types import Stage
 import numpy as np
 import pytorch_lightning as pl
@@ -17,6 +18,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from torchmetrics import MeanSquaredError
 
+from paf.base_templates import BaseDataModule
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
@@ -223,10 +225,10 @@ class AE(CommonModel):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
-        scaler: MinMaxScaler,
+        data: BaseDataModule | EthicMlDataModule,
         indices: list[int],
     ) -> None:
-        _ = (scaler, cf_available)
+        _ = (cf_available, data)
         self.data_cols = outcome_cols
         self.indices = indices
         self.feature_groups = feature_groups

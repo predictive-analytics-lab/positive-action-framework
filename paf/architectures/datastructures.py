@@ -1,10 +1,11 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import NamedTuple
 
 import pandas as pd
 from torch import Tensor
 
-__all__ = ["Results", "PafResults", "NnResults", "MmdReportingResults"]
+__all__ = ["Results", "PafResults", "MmdReportingResults"]
 
 
 @dataclass
@@ -31,13 +32,8 @@ class PafResults(Results):
     preds_1_0: Tensor
     preds_1_1: Tensor
     recon: Tensor
-    cycle_loss: Tensor
+    cycle_loss: Tensor | None
     cyc_vals: pd.DataFrame
-
-
-@dataclass
-class NnResults(Results):
-    cf_preds: Tensor
 
 
 class MmdReportingResults(NamedTuple):

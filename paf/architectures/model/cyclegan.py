@@ -6,10 +6,10 @@ import logging
 from typing import Any, Iterator, NamedTuple
 
 from conduit.data import TernarySample
+from conduit.fair.data import EthicMlDataModule
 from conduit.types import Stage
 import numpy as np
 from ranzen import implements, parsable
-from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn, optim
 from torch.nn import Parameter
@@ -35,6 +35,7 @@ __all__ = [
 ]
 
 from .. import MmdReportingResults
+from ...base_templates import BaseDataModule
 from ...mmd import KernelType, mmd2
 
 logger = logging.getLogger(__name__)
@@ -302,7 +303,6 @@ class CycleGan(CommonModel):
     d_b_params: Iterator[Parameter]
     g_params: Iterator[Parameter]
     data_cols: list[str]
-    scaler: MinMaxScaler
     example_input_array: dict[str, Tensor]
     built: bool
     all_x: Tensor
@@ -338,10 +338,10 @@ class CycleGan(CommonModel):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
-        scaler: MinMaxScaler,
+        data: BaseDataModule | EthicMlDataModule,
         indices: list[str] | None,
     ) -> None:
-        _ = (num_s, s_dim, cf_available, indices)
+        _ = (num_s, s_dim, cf_available, indices, data)
         self.loss = Loss(loss_type=LossType.MSE, lambda_=1, feature_groups=feature_groups)
         self.g_a2b = self.init_fn(Generator(in_dims=data_dim))
         self.g_b2a = self.init_fn(Generator(in_dims=data_dim))
@@ -351,7 +351,6 @@ class CycleGan(CommonModel):
         self.d_b_params = self.d_b.parameters()
         self.g_params = itertools.chain([*self.g_a2b.parameters(), *self.g_b2a.parameters()])
         self.data_cols = outcome_cols
-        self.scaler = scaler
         self.example_input_array = {
             "real_a": torch.rand(33, data_dim, device=self.device),
             "real_b": torch.rand(33, data_dim, device=self.device),

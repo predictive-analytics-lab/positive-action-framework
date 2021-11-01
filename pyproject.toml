@@ -19,6 +19,7 @@ attrs = "^21.2.0"
 conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", rev = "8531f579e4c1f03e813d5eb4a2fa25ac8f26a56e"}
 hydra-core = "^1.1.1"
 umap-learn = "^0.5.1"
+faiss-cpu = "^1.7.1"
 
 [tool.poetry.dev-dependencies]
 black = "^21.7b0"
@@ -65,7 +66,7 @@ exclude = '''
 '''
 
 [tool.isort]
-known_third_party = ["conduit", "ethicml", "hydra", "matplotlib", "numpy", "omegaconf", "pandas", "pytest", "pytorch_lightning", "ranzen", "scipy", "seaborn", "sklearn", "torch", "torchmetrics", "typer", "typing_extensions", "umap"]
+known_third_party = ["attr", "conduit", "ethicml", "hydra", "matplotlib", "numpy", "omegaconf", "pandas", "pytest", "pytorch_lightning", "ranzen", "scipy", "seaborn", "sklearn", "torch", "torchmetrics", "tqdm", "typer", "typing_extensions", "umap"]
 known_future_library = []
 extra_standard_library = ["dataclasses", "__future__", "typing_extensions"]
 line_length = 88

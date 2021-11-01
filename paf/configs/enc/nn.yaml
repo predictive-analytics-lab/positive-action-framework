@@ -1,0 +1,4 @@
+defaults:
+  - /schema/enc: nearestneighbour
+  - _self_
+

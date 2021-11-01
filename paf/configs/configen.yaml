@@ -39,6 +39,7 @@ configen:
     - name: paf.architectures.model
       classes:
         - CycleGan
+        - NearestNeighbour
     - name: pytorch_lightning.trainer
       classes:
         - Trainer

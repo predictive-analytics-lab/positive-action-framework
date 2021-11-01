@@ -88,18 +88,18 @@ def test_clf(dm_schema: str) -> None:
         cfg.clf_trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
 
 
-@pytest.mark.parametrize("dm_schema", ["ad", "law", "lill"])
-def test_nn(dm_schema: str) -> None:
-    """Quick run on models to check nothing's broken."""
-    with initialize(config_path=CFG_PTH):
-        # config is relative to a module
-        hydra_cfg = compose(
-            config_name="base_conf",
-            overrides=SCHEMAS + ["exp.model=NN", f"data={dm_schema}"],
-        )
-
-        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
-        run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
+# @pytest.mark.parametrize("dm_schema", ["ad", "law", "lill"])
+# def test_nn(dm_schema: str) -> None:
+#     """Quick run on models to check nothing's broken."""
+#     with initialize(config_path=CFG_PTH):
+#         # config is relative to a module
+# hydra_cfg = compose(
+#     config_name="base_conf",
+#     overrides=SCHEMAS + ["exp.model=NN", f"data={dm_schema}"],
+# )
+#
+# cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+# run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
 
 
 @pytest.mark.parametrize("model", ["ERM_DP", "EQ_DP"])
@@ -110,7 +110,8 @@ def test_erm_dp(model: str, dm_schema: str) -> None:
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=SCHEMAS + [f"exp.model={model}", f"data={dm_schema}"],
+            overrides=SCHEMAS
+            + [f"exp.model={model}", f"data={dm_schema}", "clf_trainer.max_epochs=1"],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
@@ -118,13 +119,14 @@ def test_erm_dp(model: str, dm_schema: str) -> None:
 
 
 @pytest.mark.parametrize("dm_schema", ["ad", "law", "lill"])
-def test_cyclegan(dm_schema: str) -> None:
+@pytest.mark.parametrize("model", ["nn", "cyc"])
+def test_model_type(model: str, dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
     with initialize(config_path=CFG_PTH):
         # config is relative to a module
         hydra_cfg = compose(
             config_name="base_conf",
-            overrides=SCHEMAS + ["enc=cyc", f"data={dm_schema}"],
+            overrides=SCHEMAS + [f"enc={model}", f"data={dm_schema}"],
         )
 
         cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
