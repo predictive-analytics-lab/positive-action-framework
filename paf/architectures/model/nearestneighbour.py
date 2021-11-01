@@ -64,12 +64,14 @@ class NearestNeighbour(CommonModel):
         indices: list[str] | None,
     ) -> None:
         _ = (num_s, data_dim, s_dim, cf_available, feature_groups, outcome_cols, indices)
-        self.train_features = torch.tensor(data.train_datatuple.x.values).to(self.device)
+        self.train_features = torch.tensor(data.train_datatuple.x.values)
         self.train_sens = torch.tensor(data.train_datatuple.s.values).to(self.device)
 
-        self.train_features = nn.Parameter(
-            F.normalize(self.train_features.detach(), dim=1, p=2), requires_grad=False
-        ).float()
+        self.train_features = (
+            nn.Parameter(F.normalize(self.train_features.detach(), dim=1, p=2), requires_grad=False)
+            .float()
+            .to(self.device)
+        )
 
     def forward(self, *, x: Tensor, s: Tensor) -> NnFwd:
         x = F.normalize(x, dim=1, p=2)
@@ -79,7 +81,7 @@ class NearestNeighbour(CommonModel):
         for point, s_label in zip(x, s):
             print(f"{point.device=}")
             print(f"{self.train_features.device=}")
-            print(f"{self.traine_sens.device=}")
+            print(f"{self.train_sens.device=}")
             print(f"{s_label.device=}")
             sim = point @ self.train_features[(self.train_sens != s_label).squeeze(-1)].t()
             features.append(
