@@ -1,5 +1,8 @@
 """Main script."""
 from __future__ import annotations
+
+if 1:
+    import faiss  # noqa
 from dataclasses import dataclass
 from enum import Enum, auto
 import logging
