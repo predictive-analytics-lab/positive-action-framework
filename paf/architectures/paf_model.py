@@ -13,6 +13,8 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 __all__ = ["PafModel", "TestStepOut"]
 
+from tqdm import tqdm
+
 from paf.base_templates import Batch, CfBatch
 
 from . import PafResults
@@ -103,7 +105,7 @@ class PafModel(pl.LightningModule):
         _recons = recons.copy()
         _cyc_loss = torch.tensor(0.0)
         cyc_dict = {}
-        for i in range(100):
+        for i in tqdm(range(100), desc="Cycle Measure"):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - batch.s)

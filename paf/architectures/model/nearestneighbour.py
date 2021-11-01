@@ -2,11 +2,10 @@ from __future__ import annotations
 
 if 1:
     import faiss  # noqa
+
 from abc import abstractmethod
-import math
-
-
 from dataclasses import dataclass
+import math
 from typing import Any, Literal, NamedTuple, overload
 
 import attr
@@ -209,16 +208,16 @@ class NearestNeighbour(CommonModel):
         # self.train_features = nn.Parameter(
         #     F.normalize(self.train_features.detach(), dim=1, p=2), requires_grad=False
         # ).float()
-        self.knn = KnnExact(k=1, normalize=False)
 
     def forward(self, *, x: Tensor, s: Tensor) -> NnFwd:
         # x = F.normalize(x, dim=1, p=2)
+        knn = KnnExact(k=1, normalize=False)
 
         features = torch.empty_like(x)
         for s_val in range(2):
             mask = (self.train_sens != s_val).squeeze()
             mask_inds = mask.nonzero(as_tuple=False).squeeze()
-            knn_inds = self.knn(x=x[(s_val == s).squeeze()], y=self.train_features[mask_inds])
+            knn_inds = knn(x=x[(s_val == s).squeeze()], y=self.train_features[mask_inds])
             abs_indices = mask_inds[knn_inds].squeeze()
             features[(s_val == s).squeeze()] = self.train_features[abs_indices]
 
