@@ -221,24 +221,25 @@ class NearestNeighbour(CommonModel):
             abs_indices = mask_inds[knn_inds].squeeze()
             features[(s_val == s).squeeze()] = self.train_features[abs_indices]
 
-        return NnFwd(x=augment_recons(x=x, cf_x=features, s=s))
+        _x = augment_recons(x=x, cf_x=features, s=s)
+        return NnFwd(x=[index_by_s(_x, torch.zeros_like(s)), index_by_s(_x, torch.ones_like(s))])
 
-        _ = self.knn(x=self.train_features[self.train_sens == 0], y=x[s == 1].nonzero())
+        # _ = self.knn(x=self.train_features[self.train_sens == 0], y=x[s == 1].nonzero())
         # ^^ set of x_s=1
         # repeat and get another set x_s=0
         # sets dont have order
         # result_0 == x_0
 
-        for point, s_label in zip(x, s):
-            print(f"{point.device=}")
-            print(f"{self.train_features.device=}")
-            print(f"{self.train_sens.device=}")
-            print(f"{s_label.device=}")
-            sim = point @ self.train_features[(self.train_sens != s_label).squeeze(-1)].t()
-            features.append(
-                self.train_features[(self.train_sens != s_label).squeeze(-1)][sim.argmax(-1)]
-            )
-        return NnFwd(x=augment_recons(x, torch.stack(features, dim=0), s))
+        # for point, s_label in zip(x, s):
+        # print(f"{point.device=}")
+        # print(f"{self.train_features.device=}")
+        # print(f"{self.train_sens.device=}")
+        # print(f"{s_label.device=}")
+        # sim = point @ self.train_features[(self.train_sens != s_label).squeeze(-1)].t()
+        # features.append(
+        #     self.train_features[(self.train_sens != s_label).squeeze(-1)][sim.argmax(-1)]
+        # )
+        # return NnFwd(x=augment_recons(x, torch.stack(features, dim=0), s))
 
     def training_step(self, *_: Any) -> plut.STEP_OUTPUT:
         ...
