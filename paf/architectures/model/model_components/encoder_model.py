@@ -249,7 +249,7 @@ class AE(CommonModel):
         self.decoders = nn.ModuleList(
             [
                 Decoder(
-                    latent_dim=self.latent_dims + self.data_dim + s_dim,
+                    latent_dim=self.latent_dims,
                     in_size=self.data_dim,
                     blocks=self.decoder_blocks,
                     hid_multiplier=self.latent_multiplier,
@@ -274,9 +274,9 @@ class AE(CommonModel):
         z = self.enc.forward(_x)
 
         s_pred = self.adv.forward(z)
-        _mask = torch.zeros_like(x) if constraint_mask is None else constraint_mask
+        # _mask = torch.zeros_like(x) if constraint_mask is None else constraint_mask
         recons = [
-            dec(torch.cat([z, _mask, torch.ones_like(s[..., None]) * i], dim=1))
+            dec(z)  # torch.cat([z, _mask, torch.ones_like(s[..., None]) * i], dim=1))
             for i, dec in enumerate(self.decoders)
         ]
 
@@ -322,12 +322,12 @@ class AE(CommonModel):
         enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
 
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
-        proxy_loss = self.loss.proxy_loss(enc_fwd, batch=batch, mask=constraint_mask)
+        # proxy_loss = self.loss.proxy_loss(enc_fwd, batch=batch, mask=constraint_mask)
         adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
         mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
-        loss = recon_loss + adv_loss + mmd_loss + proxy_loss  # + cycle_loss
+        loss = recon_loss + adv_loss + mmd_loss  # + proxy_loss  # + cycle_loss
 
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
@@ -336,7 +336,7 @@ class AE(CommonModel):
             f"{Stage.fit}/enc/recon_loss": recon_loss,
             f"{Stage.fit}/enc/mmd_loss": mmd_loss,
             f"{Stage.fit}/enc/adv_loss": adv_loss,
-            f"{Stage.fit}/enc/proxy_loss": proxy_loss,
+            # f"{Stage.fit}/enc/proxy_loss": proxy_loss,
             f"{Stage.fit}/enc/mse": self.fit_mse(
                 self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x
             ),
@@ -543,7 +543,7 @@ class AE(CommonModel):
                     kernel=self.mmd_kernel,
                 )
             else:
-                cf_mmd = None
+                cf_mmd = torch.tensor(-10)
 
             s0_dist_mmd = mmd2(
                 batch.x[batch.s == 0],

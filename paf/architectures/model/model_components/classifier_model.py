@@ -165,7 +165,7 @@ class Clf(CommonModel):
         self.decoders = nn.ModuleList(
             [
                 Decoder(
-                    latent_dim=self.latent_dims + s_dim,
+                    latent_dim=self.latent_dims,
                     in_size=1,
                     blocks=self.decoder_blocks,
                     hid_multiplier=self.latent_multiplier,
@@ -183,7 +183,7 @@ class Clf(CommonModel):
         s_pred = self.adv.forward(z)
         # preds = [dec(z) for dec in self.decoders]
         preds = [
-            dec(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
+            dec(z)  # torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
             for i, dec in enumerate(self.decoders)
         ]
         return ClfFwd(z=z, s=s_pred, y=preds)
