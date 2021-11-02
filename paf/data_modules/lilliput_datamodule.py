@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 
 import pytorch_lightning as pl
 from ranzen import implements, parsable
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
 from paf.base_templates.base_module import BaseDataModule, CfOutcomes
@@ -32,7 +32,7 @@ class LilliputDataModule(BaseDataModule):
         super().__init__(
             cf_available=cf_available,
             seed=seed,
-            scaler=MinMaxScaler(),
+            scaler=StandardScaler(),
         )
         self.alpha = alpha
         self.gamma = gamma

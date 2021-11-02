@@ -80,7 +80,7 @@ class CommonModel(pl.LightningModule):
                         :, i
                     ] = k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
                         :, i
-                    ].sigmoid()
+                    ]  # .sigmoid()
             for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
                 if i in []:  # [2, 4]: Features to transplant
                     k[:, group_slice] = x[:, group_slice]
@@ -88,7 +88,7 @@ class CommonModel(pl.LightningModule):
                     one_hot = to_discrete(inputs=k[:, group_slice])
                     k[:, group_slice] = one_hot
         else:
-            k = k.sigmoid()
+            k = k  # .sigmoid()
 
         return k
 
@@ -133,17 +133,26 @@ class Encoder(BaseModel):
 class Adversary(BaseModel):
     """AE Adversary head."""
 
-    def __init__(self, *, latent_dim: int, out_size: int, blocks: int, hid_multiplier: int):
+    def __init__(
+        self,
+        *,
+        latent_dim: int,
+        out_size: int,
+        blocks: int,
+        hid_multiplier: int,
+        weight: float = 1.0,
+    ):
         super().__init__(
             in_size=latent_dim,
             hid_size=latent_dim * hid_multiplier,
             out_size=out_size,
             blocks=blocks,
         )
+        self.weight = weight
 
     @implements(nn.Module)
     def forward(self, input_: Tensor) -> Tensor:
-        z_rev = grad_reverse(input_)
+        z_rev = grad_reverse(input_, lambda_=self.weight)
         return super().forward(z_rev)
 
 

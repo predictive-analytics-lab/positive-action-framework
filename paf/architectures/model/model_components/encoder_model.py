@@ -104,7 +104,9 @@ class Loss:
                 recon_loss += self._recon_loss_fn(
                     index_by_s(recons, batch.s)[
                         :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
-                    ][:, i].sigmoid(),
+                    ][
+                        :, i
+                    ],  # .sigmoid(),
                     batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])][
                         :, i
                     ],
@@ -116,7 +118,7 @@ class Loss:
                     reduction="mean",
                 )
         else:
-            recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
+            recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s), batch.x)
 
         return recon_loss * self._recon_weight
 
@@ -132,9 +134,9 @@ class Loss:
         return self._proxy_weight * proxy_loss
 
     def adv_loss(self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample) -> Tensor:
-        return (
-            binary_cross_entropy_with_logits(enc_fwd.s.squeeze(-1), batch.s, reduction="mean")
-        ) * self._adv_weight
+        return binary_cross_entropy_with_logits(
+            enc_fwd.s.squeeze(-1), batch.s, reduction="mean"
+        )  # * self._adv_weight
 
     def mmd_loss(
         self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, kernel: KernelType
@@ -239,6 +241,7 @@ class AE(CommonModel):
             out_size=1,
             blocks=self.adv_blocks,
             hid_multiplier=self.latent_multiplier,
+            weight=self._adv_weight,
         )
         self.enc = Encoder(
             in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
