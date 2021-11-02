@@ -353,7 +353,7 @@ class AE(CommonModel):
 
         if isinstance(batch, CfBatch):
             with no_grad():
-                enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
+                # enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
                 cf_recon_loss = l1_loss(
                     index_by_s(enc_fwd.x, batch.cfs), batch.cfx, reduction="mean"
                 )
@@ -536,21 +536,24 @@ class AE(CommonModel):
                 kernel=self.mmd_kernel,
             )
 
-            cf_mmd = mmd2(
-                batch.x,
-                self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.x),
-                kernel=self.mmd_kernel,
-            )
+            if isinstance(batch, CfBatch):
+                cf_mmd = mmd2(
+                    batch.x,
+                    self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.cfx),
+                    kernel=self.mmd_kernel,
+                )
+            else:
+                cf_mmd = None
 
             s0_dist_mmd = mmd2(
                 batch.x[batch.s == 0],
-                self.invert(index_by_s(enc_fwd.x, torch.zeros_like(batch.s)), batch.x),
+                self.invert(enc_fwd.x[0], batch.x),
                 kernel=self.mmd_kernel,
                 biased=True,
             )
             s1_dist_mmd = mmd2(
                 batch.x[batch.s == 1],
-                self.invert(index_by_s(enc_fwd.x, torch.ones_like(batch.s)), batch.x),
+                self.invert(enc_fwd.x[1], batch.x),
                 kernel=self.mmd_kernel,
                 biased=True,
             )
