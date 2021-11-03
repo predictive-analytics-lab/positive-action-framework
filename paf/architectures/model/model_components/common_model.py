@@ -110,7 +110,7 @@ class BaseModel(nn.Module):
             )
             self.hid = nn.Sequential(*_blocks)
             self.out = nn.Linear(hid_size, out_size)
-        nn.init.xavier_normal_(self.out.weight)
+        nn.init.xavier_uniform_(self.out.weight)
 
     @implements(nn.Module)
     def forward(self, input_: Tensor) -> Tensor:
