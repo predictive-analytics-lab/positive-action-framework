@@ -73,9 +73,9 @@ class Loss:
     def adv_loss(
         self, clf_fwd: ClfFwd, batch: Batch | TernarySample, weight: Tensor | None
     ) -> Tensor:
-        return self._adv_weight * self._adv_loss_fn(reduction="mean", weight=weight)(
+        return self._adv_loss_fn(reduction="mean", weight=weight)(
             clf_fwd.s.squeeze(-1), batch.s
-        )
+        )  # * self._adv_weight
 
 
 class Clf(CommonModel):
@@ -126,6 +126,8 @@ class Clf(CommonModel):
         self.val_acc = Accuracy()
         self.test_acc = Accuracy()
 
+        self._adv_weight = adv_weight
+
         self.loss = Loss(
             adv_weight=adv_weight,
             pred_weight=pred_weight,
@@ -161,6 +163,7 @@ class Clf(CommonModel):
             out_size=1,
             blocks=self.adv_blocks,
             hid_multiplier=self.latent_multiplier,
+            weight=self._adv_weight,
         )
         self.decoders = nn.ModuleList(
             [
