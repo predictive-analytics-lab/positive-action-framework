@@ -87,8 +87,8 @@ class CommonModel(pl.LightningModule):
                 else:
                     one_hot = to_discrete(inputs=k[:, group_slice])
                     k[:, group_slice] = one_hot
-        else:
-            k = k  # .sigmoid()
+        # else:
+        #     k = k  # .sigmoid()
 
         return k
 
