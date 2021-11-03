@@ -15,7 +15,7 @@ __all__ = ["CommonModel", "BaseModel", "Encoder", "Adversary", "Decoder"]
 from paf.base_templates import BaseDataModule
 
 from .blocks import block, mid_blocks
-from .model_utils import grad_reverse, to_discrete
+from .model_utils import grad_reverse, init_weights, to_discrete
 
 
 class CommonModel(pl.LightningModule):
@@ -110,7 +110,8 @@ class BaseModel(nn.Module):
             )
             self.hid = nn.Sequential(*_blocks)
             self.out = nn.Linear(hid_size, out_size)
-        nn.init.xavier_uniform_(self.out.weight)
+        self.apply(init_weights)
+        # nn.init.xavier_uniform_(self.out.weight)
 
     @implements(nn.Module)
     def forward(self, input_: Tensor) -> Tensor:

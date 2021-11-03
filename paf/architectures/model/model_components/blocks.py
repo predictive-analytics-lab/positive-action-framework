@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from torch import nn
 
-from .model_utils import init_weights
-
 __all__ = ["block", "mid_blocks"]
 
 
@@ -14,7 +12,7 @@ def block(*, in_dim: int, out_dim: int) -> nn.Module:
     relu = nn.GELU()
     b_norm = nn.BatchNorm1d(out_dim)
     seq = nn.Sequential(linear, relu, b_norm)
-    seq.apply(init_weights)
+    # seq.apply(init_weights)
     return seq
 
 
