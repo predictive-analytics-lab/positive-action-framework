@@ -357,7 +357,7 @@ class AE(CommonModel):
             with no_grad():
                 # enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
                 cf_recon_loss = l1_loss(
-                    index_by_s(enc_fwd.x, batch.cfs), batch.cfx, reduction="mean"
+                    index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
                 )
                 to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
