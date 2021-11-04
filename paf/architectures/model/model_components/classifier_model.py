@@ -250,7 +250,7 @@ class Clf(CommonModel):
 
         self.log(
             f"{Stage.validate}/clf/acc",
-            self.val_acc(index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y.int()),
+            self.val_acc(self.threshold(index_by_s(clf_out.y, batch.s).squeeze(-1)), batch.y.int()),
         )
 
         return ClfInferenceOut(
@@ -272,7 +272,9 @@ class Clf(CommonModel):
         clf_out = self.forward(x=batch.x, s=batch.s)
         self.log(
             f"{Stage.test}/clf/acc",
-            self.test_acc(index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y.int()),
+            self.test_acc(
+                self.threshold(index_by_s(clf_out.y, batch.s).squeeze(-1)), batch.y.int()
+            ),
         )
 
         return ClfInferenceOut(
@@ -359,5 +361,5 @@ class Clf(CommonModel):
         for i, rec in enumerate(recons):
             z, s_pred, preds = self.forward(x=rec, s=torch.ones_like(rec[:, 0]) * i)
             for _s in range(2):
-                preds_dict[f"{i}_{_s}"] = (z, s_pred, preds[_s])
+                preds_dict[f"{i}_{_s}"] = (z, s_pred, self.threshold(preds[_s]))
         return preds_dict
