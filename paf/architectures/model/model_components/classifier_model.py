@@ -124,6 +124,7 @@ class Clf(CommonModel):
         self.debug = debug
 
         self.fit_acc = Accuracy()
+        self.fit_cf_acc = Accuracy()
         self.val_acc = Accuracy()
         self.test_acc = Accuracy()
 
@@ -204,7 +205,7 @@ class Clf(CommonModel):
 
         to_log = {
             f"{Stage.fit}/clf/acc": self.fit_acc(
-                index_by_s(clf_out.y, batch.s).squeeze(-1), batch.y.int()
+                index_by_s(clf_out.y, batch.s).squeeze(-1).sigmoid(), batch.y.int()
             ),
             f"{Stage.fit}/clf/loss": loss,
             f"{Stage.fit}/clf/pred_loss": pred_loss,
@@ -215,6 +216,16 @@ class Clf(CommonModel):
                 clf_out.z[batch.s <= 0].detach().mean() - clf_out.z[batch.s > 0].detach().mean()
             ).abs(),
         }
+
+        if isinstance(batch, CfBatch):
+            with torch.no_grad():
+                to_log[f"{Stage.fit}/clf/cf_acc"] = self.cf_fit_acc(
+                    index_by_s(clf_out.y, batch.cfs).squeeze(-1).sigmoid(), batch.cfy.int()
+                )
+                # cf_recon_loss = l1_loss(
+                #     index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
+                # )
+                # to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
         self.log_dict(to_log, logger=True)
 
