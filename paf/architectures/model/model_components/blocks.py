@@ -11,9 +11,8 @@ def block(*, in_dim: int, out_dim: int) -> nn.Module:
     linear = nn.Linear(in_dim, out_dim)
     relu = nn.GELU()
     b_norm = nn.BatchNorm1d(out_dim)
-    seq = nn.Sequential(linear, relu, b_norm)
     # seq.apply(init_weights)
-    return seq
+    return nn.Sequential(linear, relu, b_norm)
 
 
 def mid_blocks(*, latent_dim: int, blocks: int) -> list[nn.Module]:

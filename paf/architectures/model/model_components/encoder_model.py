@@ -15,6 +15,7 @@ import torch
 from torch import Tensor, nn, no_grad, optim
 from torch.nn.functional import binary_cross_entropy_with_logits, cross_entropy, l1_loss
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 from torchmetrics import MeanSquaredError
 
@@ -476,9 +477,9 @@ class AE(CommonModel):
     @implements(pl.LightningModule)
     def configure_optimizers(
         self,
-    ) -> tuple[list[optim.Optimizer], list[optim.lr_scheduler.ExponentialLR]]:
+    ) -> tuple[list[optim.Optimizer], list[ExponentialLR]]:
         opt = AdamW(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
-        sched = optim.lr_scheduler.ExponentialLR(opt, gamma=0.999)
+        sched = ExponentialLR(opt, gamma=self.scheduler_rate)
         return [opt], [sched]
 
     @implements(CommonModel)

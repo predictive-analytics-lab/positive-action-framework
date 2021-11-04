@@ -10,7 +10,8 @@ from ranzen import implements, parsable, str_to_enum
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
-from torch.optim import Adam
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
 __all__ = ["BaseModel", "Adversary", "Clf", "ClfInferenceOut", "ClfFwd"]
@@ -312,8 +313,10 @@ class Clf(CommonModel):
                 make_plot(x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=["preds"])
 
     @implements(pl.LightningModule)
-    def configure_optimizers(self) -> Adam:
-        return Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+    def configure_optimizers(self) -> tuple[list[AdamW], list[ExponentialLR]]:
+        opt = AdamW(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        sched = ExponentialLR(opt, gamma=self.scheduler_rate)
+        return [opt], [sched]
 
     @implements(CommonModel)
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
