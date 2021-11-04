@@ -105,9 +105,7 @@ class Loss:
                 recon_loss += self._recon_loss_fn(
                     index_by_s(recons, batch.s)[
                         :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
-                    ][
-                        :, i
-                    ],  # .sigmoid(),
+                    ][:, i].sigmoid(),
                     batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])][
                         :, i
                     ],
@@ -119,7 +117,7 @@ class Loss:
                     reduction="mean",
                 )
         else:
-            recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s), batch.x)
+            recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
 
         return recon_loss * self._recon_weight
 

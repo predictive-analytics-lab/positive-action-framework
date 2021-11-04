@@ -80,15 +80,15 @@ class CommonModel(pl.LightningModule):
                         :, i
                     ] = k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
                         :, i
-                    ]  # .sigmoid()
+                    ].sigmoid()
             for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
                 if i in []:  # [2, 4]: Features to transplant
                     k[:, group_slice] = x[:, group_slice]
                 else:
                     one_hot = to_discrete(inputs=k[:, group_slice])
                     k[:, group_slice] = one_hot
-        # else:
-        #     k = k  # .sigmoid()
+        else:
+            k = k.sigmoid()
 
         return k
 
