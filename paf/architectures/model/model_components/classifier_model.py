@@ -219,7 +219,7 @@ class Clf(CommonModel):
 
         if isinstance(batch, CfBatch):
             with torch.no_grad():
-                to_log[f"{Stage.fit}/clf/cf_acc"] = self.cf_fit_acc(
+                to_log[f"{Stage.fit}/clf/cf_acc"] = self.fit_cf_acc(
                     index_by_s(clf_out.y, batch.cfs).squeeze(-1).sigmoid(), batch.cfy.int()
                 )
                 # cf_recon_loss = l1_loss(
