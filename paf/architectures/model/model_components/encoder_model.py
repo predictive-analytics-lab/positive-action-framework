@@ -336,7 +336,8 @@ class AE(CommonModel):
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + mmd_loss  # + proxy_loss  # + cycle_loss
-
+        loss += mmd2(enc_fwd.x[0][batch.s == 0], enc_fwd.x[0][batch.s == 1], kernel=KernelType.RBF)
+        loss += mmd2(enc_fwd.x[1][batch.s == 0], enc_fwd.x[1][batch.s == 1], kernel=KernelType.RBF)
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         to_log = {
