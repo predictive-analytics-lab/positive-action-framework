@@ -167,6 +167,20 @@ class Clf(CommonModel):
             hid_multiplier=self.latent_multiplier,
             weight=self._adv_weight,
         )
+        self.in_adv0 = Adversary(
+            latent_dim=1,
+            out_size=1,
+            blocks=self.adv_blocks,
+            hid_multiplier=self.latent_multiplier,
+            weight=0.1,
+        )
+        self.in_adv1 = Adversary(
+            latent_dim=1,
+            out_size=1,
+            blocks=self.adv_blocks,
+            hid_multiplier=self.latent_multiplier,
+            weight=0.1,
+        )
         self.decoders = nn.ModuleList(
             [
                 Decoder(
@@ -209,6 +223,28 @@ class Clf(CommonModel):
         mmd_loss = self.loss.mmd_loss(clf_out, batch)
         loss = pred_loss + adv_loss + mmd_loss
 
+        x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+            torch.cat(
+                [
+                    self.in_adv0(clf_out.y[0][batch.s == 0].detach()).squeeze(-1),
+                    self.in_adv0(clf_out.y[0][batch.s == 1]).squeeze(-1),
+                ],
+                dim=0,
+            ),
+            torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
+        )
+        x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+            torch.cat(
+                [
+                    self.in_adv1(clf_out.y[1][batch.s == 0]).squeeze(-1),
+                    self.in_adv1(clf_out.y[1][batch.s == 1].detach()).squeeze(-1),
+                ],
+                dim=0,
+            ),
+            torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
+        )
+        loss += x0_adv + x1_adv
+
         to_log = {
             f"{Stage.fit}/clf/acc": self.fit_acc(
                 index_by_s(clf_out.y, batch.s).squeeze(-1).sigmoid(), batch.y.int()
@@ -216,6 +252,8 @@ class Clf(CommonModel):
             f"{Stage.fit}/clf/loss": loss,
             f"{Stage.fit}/clf/pred_loss": pred_loss,
             f"{Stage.fit}/clf/adv_loss": adv_loss,
+            f"{Stage.fit}/clf/y0_adv_loss": x0_adv,
+            f"{Stage.fit}/clf/y1_adv_loss": x1_adv,
             f"{Stage.fit}/clf/mmd_loss": mmd_loss,
             f"{Stage.fit}/clf/z_norm": clf_out.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/clf/z_mean_abs_diff": (
