@@ -423,6 +423,19 @@ def evaluate(
         logger=wandb_logger,
     )
 
+    do_log(
+        name="OT/P(Y=1|Sx=0,Sy=0", val=results.pd_results["s1_0_s2_0"].mean(), logger=wandb_logger
+    )
+    do_log(
+        name="OT/P(Y=1|Sx=0,Sy=1", val=results.pd_results["s1_0_s2_1"].mean(), logger=wandb_logger
+    )
+    do_log(
+        name="OT/P(Y=1|Sx=1,Sy=0", val=results.pd_results["s1_1_s2_0"].mean(), logger=wandb_logger
+    )
+    do_log(
+        name="OT/P(Y=1|Sx=1,Sy=1", val=results.pd_results["s1_1_s2_1"].mean(), logger=wandb_logger
+    )
+
     for fair_bool in (True, False):
         if cfg.exp.model == ModelType.PAF:
             preds = produce_selection_groups(
