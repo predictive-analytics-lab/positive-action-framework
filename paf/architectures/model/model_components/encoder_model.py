@@ -497,18 +497,18 @@ class AE(CommonModel):
             )
 
         if isinstance(output_results[0], CfSharedStepOut):
-            all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)  # type: ignore[union-attr]
-            cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)  # type: ignore[union-attr]
+            self.all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)  # type: ignore[union-attr]
+            self.cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)  # type: ignore[union-attr]
             if self.debug:
                 make_plot(
-                    x=all_cf_x.clone(),
+                    x=self.all_cf_x.clone(),
                     s=self.all_s.clone(),
                     logger=self.logger,
                     name=f"{stage}_true_counterfactual",
                     cols=self.data_cols,
                 )
                 make_plot(
-                    x=cf_recon.clone(),
+                    x=self.cf_recon.clone(),
                     s=self.all_s.clone(),
                     logger=self.logger,
                     name=f"{stage}_cf_recons",
