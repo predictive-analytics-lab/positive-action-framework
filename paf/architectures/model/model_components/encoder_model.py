@@ -248,14 +248,14 @@ class AE(CommonModel):
             out_size=1,
             blocks=self.adv_blocks,
             hid_multiplier=self.latent_multiplier,
-            weight=1.0,
+            weight=0.1,
         )
         self.in_adv1 = Adversary(
             latent_dim=self.data_dim,
             out_size=1,
             blocks=self.adv_blocks,
             hid_multiplier=self.latent_multiplier,
-            weight=1.0,
+            weight=0.1,
         )
         self.enc = Encoder(
             in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
