@@ -242,6 +242,21 @@ class AE(CommonModel):
             hid_multiplier=self.latent_multiplier,
             weight=self._adv_weight,
         )
+
+        self.in_adv0 = Adversary(
+            latent_dim=self.data_dim,
+            out_size=1,
+            blocks=self.adv_blocks,
+            hid_multiplier=self.latent_multiplier,
+            weight=1.0,
+        )
+        self.in_adv1 = Adversary(
+            latent_dim=self.data_dim,
+            out_size=1,
+            blocks=self.adv_blocks,
+            hid_multiplier=self.latent_multiplier,
+            weight=1.0,
+        )
         self.enc = Encoder(
             in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
             latent_dim=self.latent_dims,
@@ -336,8 +351,13 @@ class AE(CommonModel):
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + mmd_loss  # + proxy_loss  # + cycle_loss
-        loss += mmd2(enc_fwd.x[0][batch.s == 0], enc_fwd.x[0][batch.s == 1], kernel=KernelType.RBF)
-        loss += mmd2(enc_fwd.x[1][batch.s == 0], enc_fwd.x[1][batch.s == 1], kernel=KernelType.RBF)
+        x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+            self.in_adv0(enc_fwd.x[0]).squeeze(-1), batch.s
+        )
+        x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+            self.in_adv1(enc_fwd.x[1]).squeeze(-1), batch.s
+        )
+        loss += x0_adv + x1_adv
         mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         to_log = {
@@ -345,6 +365,8 @@ class AE(CommonModel):
             f"{Stage.fit}/enc/recon_loss": recon_loss,
             f"{Stage.fit}/enc/mmd_loss": mmd_loss,
             f"{Stage.fit}/enc/adv_loss": adv_loss,
+            f"{Stage.fit}/enc/x0_adv_loss": x0_adv,
+            f"{Stage.fit}/enc/x1_adv_loss": x1_adv,
             # f"{Stage.fit}/enc/proxy_loss": proxy_loss,
             f"{Stage.fit}/enc/mse": self.fit_mse(
                 self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x
