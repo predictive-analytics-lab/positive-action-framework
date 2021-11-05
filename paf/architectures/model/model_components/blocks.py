@@ -9,8 +9,8 @@ __all__ = ["block", "mid_blocks"]
 def block(*, in_dim: int, out_dim: int) -> nn.Module:
     """Make a simple block."""
     linear = nn.Linear(in_dim, out_dim)
-    relu = nn.GELU()
-    b_norm = nn.BatchNorm1d(out_dim)
+    relu = nn.SELU()
+    b_norm = nn.LayerNorm(out_dim)
     # seq.apply(init_weights)
     return nn.Sequential(linear, relu, b_norm)
 
