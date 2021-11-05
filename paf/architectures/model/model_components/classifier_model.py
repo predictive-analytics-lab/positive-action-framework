@@ -71,10 +71,8 @@ class Loss:
             clf_fwd.z[batch.s == 0], clf_fwd.z[batch.s == 1], kernel=self._kernel
         )
 
-    def adv_loss(
-        self, clf_fwd: ClfFwd, batch: Batch | TernarySample, weight: Tensor | None
-    ) -> Tensor:
-        return self._adv_loss_fn(reduction="mean", weight=weight)(
+    def adv_loss(self, clf_fwd: ClfFwd, batch: Batch | TernarySample) -> Tensor:
+        return self._adv_loss_fn(reduction="mean")(
             clf_fwd.s.squeeze(-1), batch.s
         )  # * self._adv_weight
 
