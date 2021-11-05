@@ -248,23 +248,23 @@ class AE(CommonModel):
             blocks=self.encoder_blocks,
             hid_multiplier=self.latent_multiplier,
         )
-        # self.decoders = nn.ModuleList(
-        #     [
-        #         Decoder(
-        #             latent_dim=self.latent_dims,
-        #             in_size=self.data_dim,
-        #             blocks=self.decoder_blocks,
-        #             hid_multiplier=self.latent_multiplier,
-        #         )
-        #         for _ in range(num_s)
-        #     ]
-        # )
-        self.decoders = Decoder(
-            latent_dim=self.latent_dims + s_dim,
-            in_size=self.data_dim,
-            blocks=self.decoder_blocks,
-            hid_multiplier=self.latent_multiplier,
+        self.decoders = nn.ModuleList(
+            [
+                Decoder(
+                    latent_dim=self.latent_dims,
+                    in_size=self.data_dim,
+                    blocks=self.decoder_blocks,
+                    hid_multiplier=self.latent_multiplier,
+                )
+                for _ in range(num_s)
+            ]
         )
+        # self.decoders = Decoder(
+        #     latent_dim=self.latent_dims + s_dim,
+        #     in_size=self.data_dim,
+        #     blocks=self.decoder_blocks,
+        #     hid_multiplier=self.latent_multiplier,
+        # )
         self.loss = Loss(
             feature_groups=self.feature_groups,
             adv_weight=self._adv_weight,
@@ -284,8 +284,8 @@ class AE(CommonModel):
         s_pred = self.adv.forward(z)
         # _mask = torch.zeros_like(x) if constraint_mask is None else constraint_mask
         recons = [
-            self.decoders(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
-            for i in range(2)
+            dec(z)  # self.decoders(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
+            for i, dec in enumerate(self.decoders)
         ]
 
         # cycle_x = (

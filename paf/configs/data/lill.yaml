@@ -7,5 +7,5 @@ num_workers: 0
 seed: ${exp.seed}
 
 alpha: 0.5
-gamma: 0.01
+gamma: 0.02
 num_samples: 20_000

@@ -237,14 +237,16 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         0.4 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
         + 0.4 * ((data["video_bane"] + data["video_wolf"]) / 2)
         + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
-        + gamma * ((2 * data["sens"]) - 1)
+        # + gamma * ((2 * data["sens"]) - 1)
+        # + gamma * data["sens"]
     ).round(2)
 
     cf_data["admittance_score"] = (
         0.4 * ((cf_data["potions_bane"] + cf_data["potions_wolf"]) / 2)
         + 0.4 * ((cf_data["video_bane"] + cf_data["video_wolf"]) / 2)
         + 0.2 * ((cf_data["essay_bane"] + cf_data["essay_wolf"]) / 2)
-        + gamma * ((2 * cf_data["sens"]) - 1)
+        # + gamma * ((2 * cf_data["sens"]) - 1)
+        # + gamma * cf_data["sens"]
     ).round(2)
     SY0_AD_SCORE = "Sy=0_admittance_score"
     SY1_AD_SCORE = "Sy=1_admittance_score"
@@ -253,6 +255,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         + 0.4 * ((data_all_0["video_bane"] + data_all_0["video_wolf"]) / 2)
         + 0.2 * ((data_all_0["essay_bane"] + data_all_0["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_0["sens"]) - 1)
+        # + gamma * data_all_0["sens"]
     ).round(2)
 
     data_all_0[SY1_AD_SCORE] = (
@@ -260,6 +263,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         + 0.4 * ((data_all_0["video_bane"] + data_all_0["video_wolf"]) / 2)
         + 0.2 * ((data_all_0["essay_bane"] + data_all_0["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_1["sens"]) - 1)
+        # + gamma * data_all_1["sens"]
     ).round(2)
 
     data_all_1[SY0_AD_SCORE] = (
@@ -267,6 +271,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         + 0.4 * ((data_all_1["video_bane"] + data_all_1["video_wolf"]) / 2)
         + 0.2 * ((data_all_1["essay_bane"] + data_all_1["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_0["sens"]) - 1)
+        # + gamma * data_all_0["sens"]
     ).round(2)
 
     data_all_1[SY1_AD_SCORE] = (
@@ -274,6 +279,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         + 0.4 * ((data_all_1["video_bane"] + data_all_1["video_wolf"]) / 2)
         + 0.2 * ((data_all_1["essay_bane"] + data_all_1["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_1["sens"]) - 1)
+        # + gamma * data_all_1["sens"]
     ).round(2)
 
     graduation = []
@@ -315,12 +321,12 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
     data_all_1 = pd.concat([data_all_1, g_all_1], axis=1)
     cf_data = pd.concat([cf_data, cf_g], axis=1)
 
-    passed_initial_screening = data.nlargest(n=int(data.shape[0] * 0.2), columns='admittance_score')
+    passed_initial_screening = data.nlargest(n=int(data.shape[0] * 0.2), columns="admittance_score")
     cf_passed_initial_screening = cf_data.nlargest(
-        n=int(cf_data.shape[0] * 0.2), columns='admittance_score'
+        n=int(cf_data.shape[0] * 0.2), columns="admittance_score"
     )
 
-    passed_threshold = data.nlargest(n=int(data.shape[0] * 0.2), columns='admittance_score')[
+    passed_threshold = data.nlargest(n=int(data.shape[0] * 0.2), columns="admittance_score")[
         "admittance_score"
     ].min()
 
