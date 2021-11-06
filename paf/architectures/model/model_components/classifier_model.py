@@ -7,6 +7,7 @@ from conduit.types import Stage
 import numpy as np
 import pytorch_lightning as pl
 from ranzen import implements, parsable, str_to_enum
+from ranzen.torch.transforms import RandomMixUp
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
@@ -135,6 +136,10 @@ class Clf(CommonModel):
             kernel=str_to_enum(mmd_kernel, enum=KernelType),
         )
 
+        self.mixup = RandomMixUp(
+            lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
+        )
+
         self.built = False
 
     @implements(CommonModel)
@@ -219,7 +224,14 @@ class Clf(CommonModel):
         pred_loss = self.loss.pred_loss(clf_out, batch, weight=_iw)
         adv_loss = self.loss.adv_loss(clf_out, batch)
         mmd_loss = self.loss.mmd_loss(clf_out, batch)
-        loss = pred_loss + adv_loss + mmd_loss
+
+        mixed = self.mixup(batch.x, targets=batch.y.long())
+        mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(batch.s))
+        mixed_pred_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+            index_by_s(mixed_out.y, batch.s).squeeze(), mixed.targets[:, 1]
+        )
+
+        loss = pred_loss + adv_loss + mmd_loss + mixed_pred_loss
 
         x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
