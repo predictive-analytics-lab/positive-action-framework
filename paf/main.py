@@ -462,6 +462,16 @@ def evaluate(
             logger=wandb_logger,
             debug=cfg.exp.debug,
         )
+        get_full_breakdown(
+            target_info=f"Post-Selection-{fair_bool=}",
+            acceptance=em.DataTuple(
+                x=data.test_datatuple.x.copy(),
+                s=data.test_datatuple.s.copy(),
+                y=preds.hard.to_frame().copy(),
+            ),
+            graduated=None,
+            logger=wandb_logger,
+        )
         if isinstance(data, BaseDataModule) and data.cf_available:
             assert data.true_data_group is not None
             multiple_metrics(
