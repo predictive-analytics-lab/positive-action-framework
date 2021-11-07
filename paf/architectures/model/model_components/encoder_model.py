@@ -372,7 +372,7 @@ class AE(CommonModel):
             torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
         )
         loss += x0_adv + x1_adv
-        mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
+        # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         to_log = {
             f"{Stage.fit}/enc/loss": loss,
@@ -390,10 +390,10 @@ class AE(CommonModel):
                 enc_fwd.z[batch.s <= 0].detach().mean() - enc_fwd.z[batch.s > 0].detach().mean()
             ).abs(),
             # f"{Stage.fit}/enc/cycle_loss": report_of_cyc_loss,
-            f"{Stage.fit}/enc/recon_mmd": mmd_results.recon,
-            f"{Stage.fit}/enc/cf_recon_mmd": mmd_results.cf_recon,
-            f"{Stage.fit}/enc/s0_dist_mmd": mmd_results.s0_dist,
-            f"{Stage.fit}/enc/s1_dist_mmd": mmd_results.s1_dist,
+            # f"{Stage.fit}/enc/recon_mmd": mmd_results.recon,
+            # f"{Stage.fit}/enc/cf_recon_mmd": mmd_results.cf_recon,
+            # f"{Stage.fit}/enc/s0_dist_mmd": mmd_results.s0_dist,
+            # f"{Stage.fit}/enc/s1_dist_mmd": mmd_results.s1_dist,
         }
 
         if isinstance(batch, CfBatch):
