@@ -372,8 +372,7 @@ class AE(CommonModel):
             f"{Stage.fit}/enc/recon_loss": recon_loss,
             f"{Stage.fit}/enc/mmd_loss": mmd_loss,
             f"{Stage.fit}/enc/adv_loss": adv_loss,
-            f"{Stage.fit}/enc/x0_adv_loss": x0_adv,
-            f"{Stage.fit}/enc/x1_adv_loss": x1_adv,
+            f"{Stage.fit}/enc/x_adv_loss": x_adv,
             # f"{Stage.fit}/enc/proxy_loss": proxy_loss,
             f"{Stage.fit}/enc/mse": self.fit_mse(
                 self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x
