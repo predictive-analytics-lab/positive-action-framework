@@ -184,23 +184,23 @@ class Clf(CommonModel):
             hid_multiplier=self.latent_multiplier,
             weight=0.1,
         )
-        # self.decoders = nn.ModuleList(
-        #     [
-        #         Decoder(
-        #             latent_dim=self.latent_dims,
-        #             in_size=1,
-        #             blocks=self.decoder_blocks,
-        #             hid_multiplier=self.latent_multiplier,
-        #         )
-        #         for _ in range(num_s)
-        #     ]
-        # )
-        self.decoders = Decoder(
-            latent_dim=self.latent_dims + s_dim,
-            in_size=1,
-            blocks=self.decoder_blocks,
-            hid_multiplier=self.latent_multiplier,
+        self.decoders = nn.ModuleList(
+            [
+                Decoder(
+                    latent_dim=self.latent_dims,
+                    in_size=1,
+                    blocks=self.decoder_blocks,
+                    hid_multiplier=self.latent_multiplier,
+                )
+                for _ in range(num_s)
+            ]
         )
+        # self.decoders = Decoder(
+        #     latent_dim=self.latent_dims + s_dim,
+        #     in_size=1,
+        #     blocks=self.decoder_blocks,
+        #     hid_multiplier=self.latent_multiplier,
+        # )
         self.built = True
 
     @implements(nn.Module)
@@ -209,11 +209,11 @@ class Clf(CommonModel):
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc.forward(_x)
         s_pred = self.adv.forward(z)
-        # preds = [dec(z) for dec in self.decoders]
-        preds = [
-            self.decoders(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
-            for i in range(2)
-        ]
+        preds = [dec(z) for dec in self.decoders]
+        # preds = [
+        #     self.decoders(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
+        #     for i in range(2)
+        # ]
         return ClfFwd(z=z, s=s_pred, y=preds)
 
     @implements(pl.LightningModule)
