@@ -364,7 +364,6 @@ class AE(CommonModel):
                 dim=0,
             ),
         )
-        )
         loss += x_adv
         # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
