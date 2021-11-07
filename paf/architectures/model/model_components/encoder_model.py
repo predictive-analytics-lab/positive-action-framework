@@ -243,14 +243,7 @@ class AE(CommonModel):
             weight=self._adv_weight,
         )
 
-        self.in_adv0 = Adversary(
-            latent_dim=self.data_dim,
-            out_size=1,
-            blocks=self.adv_blocks,
-            hid_multiplier=self.latent_multiplier,
-            weight=0.1,
-        )
-        self.in_adv1 = Adversary(
+        self.in_adv = Adversary(
             latent_dim=self.data_dim,
             out_size=1,
             blocks=self.adv_blocks,
@@ -351,27 +344,28 @@ class AE(CommonModel):
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + mmd_loss  # + proxy_loss  # + cycle_loss
-        x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+        x_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
                 [
-                    self.in_adv0(enc_fwd.x[0][batch.s == 0].detach()).squeeze(-1),
-                    self.in_adv0(enc_fwd.x[0][batch.s == 1]).squeeze(-1),
+                    self.in_adv(enc_fwd.x[0][batch.s == 0].detach()).squeeze(-1),
+                    self.in_adv(enc_fwd.x[0][batch.s == 1]).squeeze(-1),
+                    self.in_adv(enc_fwd.x[1][batch.s == 0]).squeeze(-1),
+                    self.in_adv(enc_fwd.x[1][batch.s == 1].detach()).squeeze(-1),
                 ],
                 dim=0,
             ),
-            torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
-        )
-        x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
                 [
-                    self.in_adv1(enc_fwd.x[1][batch.s == 0]).squeeze(-1),
-                    self.in_adv1(enc_fwd.x[1][batch.s == 1].detach()).squeeze(-1),
+                    batch.s[batch.s == 0],
+                    batch.s[batch.s == 1],
+                    batch.s[batch.s == 0],
+                    batch.s[batch.s == 1],
                 ],
                 dim=0,
             ),
-            torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
         )
-        loss += x0_adv + x1_adv
+        )
+        loss += x_adv
         # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         to_log = {
