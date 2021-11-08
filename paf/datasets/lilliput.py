@@ -289,7 +289,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
     for (c, p, v, e) in zip(
         data["sens"], data["potions_score"], data["video_score"], data["essay_score"]
     ):
-        graduation.append(round(0.4 * p + 0.25 * v + 0.45 * e, 2))
+        # graduation.append(round(0.4 * p + 0.25 * v + 0.45 * e, 2))
         if c == 0:
             graduation.append(round(0.3 * p + 0.25 * v + 0.45 * e, 2))
         else:
