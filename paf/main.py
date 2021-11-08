@@ -595,6 +595,17 @@ def baseline_models(
     multiple_metrics(
         preds=results, target=data.test_datatuple, name="Results", logger=logger, debug=debug
     )
+    get_full_breakdown(
+        target_info="Stats",
+        acceptance=em.DataTuple(
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=data.test_datatuple.y.copy(),
+        ),
+        graduated=None,
+        logger=logger,
+    )
+
     if isinstance(data, BaseDataModule):
         LOGGER.info(f"=== {model.name} and 'True' Data ===")
         results = model.run(data.train_datatuple, data.test_datatuple)
