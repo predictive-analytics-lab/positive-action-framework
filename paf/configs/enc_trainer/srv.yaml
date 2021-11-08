@@ -2,5 +2,5 @@ defaults:
   - base
   - _self_
 
-max_epochs: 50
+max_epochs: 100
 gpus: 1
