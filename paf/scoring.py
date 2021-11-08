@@ -132,6 +132,8 @@ def get_full_breakdown(
     num_s1 = data.y[data.s[data.s.columns[0]] == 1].shape[0]
 
     if data_y_true is not None:
+        if ty_denotation is None:
+            ty_denotation = "G"
         sum_y_is_ty = sum((data.y.values - data_y_true.y.values) == 0)[0]  # type: ignore[index]
         do_log(f"{target_info}/P({y_denotation}={ty_denotation})", sum_y_is_ty / num_points, logger)
         sum_y_is_ty_given_s0 = sum(  # type: ignore[index]
