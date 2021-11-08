@@ -262,6 +262,16 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
                     graduated=data.true_test_datatuple,
                     logger=wandb_logger,
                 )
+
+        if isinstance(data, BaseDataModule) and data.cf_available:
+            assert data.true_data_group is not None
+            multiple_metrics(
+                preds=first_results,
+                target=data.true_test_datatuple,
+                name="Real-World-Preds-TrueLabels",
+                logger=wandb_logger,
+                debug=cfg.exp.debug,
+            )
         return
 
     encoder = cfg.enc
