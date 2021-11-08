@@ -45,18 +45,18 @@ def baseline_selection_rules(
     conditions = [
         (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 0),
         (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 1),
-        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 0),
-        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 1),
         (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 0),
         (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 1),
         (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 0),
         (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 1),
+        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 0),
+        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 1),
     ]
 
     values = [0, 1, 2, 3, 4, 5, 6, 7]
     outcomes[GROUP_1] = np.select(conditions, values, -1)
 
-    lookup = {0: 0, 1: 0, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 7: 0}
+    lookup = {0: 0, 1: 0, 2: 2, 3: 0, 4: 1, 5: 1, 6: 1, 7: 1}
     outcomes[GROUP_2] = pd.Series({i: lookup[d] for i, d in enumerate(outcomes[GROUP_1])})
 
     outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
