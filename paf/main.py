@@ -538,6 +538,15 @@ def evaluate(
             graduated=data.true_test_datatuple if hasattr(data, "true_test_datatuple") else None,
             logger=wandb_logger,
         )
+        if isinstance(data, BaseDataModule) and data.cf_available:
+            assert data.true_data_group is not None
+            multiple_metrics(
+                preds=our_clf_preds,
+                target=data.true_test_datatuple,
+                name="Real-World-Preds-TrueLabels",
+                logger=wandb_logger,
+                debug=cfg.exp.debug,
+            )
         if isinstance(cfg.enc, AE) and cfg.enc_trainer.max_epochs > 1:
             produce_baselines(
                 encoder=encoder,
