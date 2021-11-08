@@ -286,45 +286,26 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
     ).round(2)
 
     graduation = []
-    for (c, p, cf_p, v, cf_v, e, cf_e) in zip(
-        data["sens"],
-        data["potions_score"],
-        cf_data["potions_score"],
-        data["video_score"],
-        cf_data["video_score"],
-        data["essay_score"],
-        cf_data["essay_score"],
+    for (c, p, v, e) in zip(
+        data["sens"], data["potions_score"], data["video_score"], data["essay_score"]
     ):
+        graduation.append(round(0.4 * p + 0.25 * v + 0.45 * e, 2))
         if c == 0:
-            # graduation.append(round(0.3 * p + 0.25 * v + 0.45 * e, 2))
-            graduation.append(round(0.4 * p + 0.4 * v + 0.3 * e, 2))
+            graduation.append(round(0.3 * p + 0.25 * v + 0.45 * e, 2))
         else:
-            # graduation.append(round(0.1 * p + 0.7 * v + 0.2 * e, 2))
-            graduation.append(round(0.4 * cf_p + 0.4 * cf_v + 0.2 * cf_e, 2))
-    graduation_all_0 = round(
-        0.4 * data_all_0["potions_score"]
-        + 0.4 * data_all_0["video_score"]
-        + 0.2 * data_all_0["essay_score"],
+            graduation.append(round(0.1 * p + 0.7 * v + 0.2 * e, 2))
+    graduation_all_0 = round(  # type: ignore[call-overload]
+        0.3 * data_all_0["potions_score"]
+        + 0.25 * data_all_0["video_score"]
+        + 0.45 * data_all_0["essay_score"],
         2,
     )
-    graduation_all_1 = round(
+    graduation_all_1 = round(  # type: ignore[call-overload]
         0.1 * data_all_1["potions_score"]
         + 0.7 * data_all_1["video_score"]
         + 0.2 * data_all_1["essay_score"],
         2,
     )
-    # graduation_all_0 = round(  # type: ignore[call-overload]
-    #     0.3 * data_all_0["potions_score"]
-    #     + 0.25 * data_all_0["video_score"]
-    #     + 0.45 * data_all_0["essay_score"],
-    #     2,
-    # )
-    # graduation_all_1 = round(  # type: ignore[call-overload]
-    #     0.1 * data_all_1["potions_score"]
-    #     + 0.7 * data_all_1["video_score"]
-    #     + 0.2 * data_all_1["essay_score"],
-    #     2,
-    # )
 
     cf_graduation = []
     for (c, p, v, e) in zip(
@@ -457,7 +438,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         data_true_outcome=DataTuple(
             x=data[dataset.discrete_features + dataset.continuous_features],
             s=data[dataset.sens_attrs],
-            y=data[[GRAD_MT_60]],
+            y=data_all_1[[GRAD_MT_60]],  # data[[GRAD_MT_60]],
         ),
         cf_groups=best_aim,
         data_xs0_ys0=DataTuple(
