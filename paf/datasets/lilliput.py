@@ -438,7 +438,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         data_true_outcome=DataTuple(
             x=data[dataset.discrete_features + dataset.continuous_features],
             s=data[dataset.sens_attrs],
-            y=data_all_1[[GRAD_MT_60]],  # data[[GRAD_MT_60]],
+            y=data_all_0[[GRAD_MT_60]],  # data[[GRAD_MT_60]],
         ),
         cf_groups=best_aim,
         data_xs0_ys0=DataTuple(
