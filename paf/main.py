@@ -245,6 +245,16 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
                 logger=wandb_logger,
                 debug=cfg.exp.debug,
             )
+            get_full_breakdown(
+                target_info=f"Post-Selection/{fair_bool=}",
+                acceptance=em.DataTuple(
+                    x=data.test_datatuple.x.copy(),
+                    s=data.test_datatuple.s.copy(),
+                    y=preds.hard.to_frame().copy(),
+                ),
+                graduated=None,
+                logger=wandb_logger,
+            )
             if isinstance(data, BaseDataModule) and data.cf_available:
                 assert data.true_data_group is not None
                 multiple_metrics(
@@ -596,11 +606,11 @@ def baseline_models(
         preds=results, target=data.test_datatuple, name="Results", logger=logger, debug=debug
     )
     get_full_breakdown(
-        target_info="Stats",
+        target_info="Results",
         acceptance=em.DataTuple(
             x=data.test_datatuple.x.copy(),
             s=data.test_datatuple.s.copy(),
-            y=data.test_datatuple.y.copy(),
+            y=results.hard.to_frame(),
         ),
         graduated=None,
         logger=logger,
