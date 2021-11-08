@@ -1,6 +1,8 @@
 """Main script."""
 from __future__ import annotations
 
+from ranzen import str_to_enum
+
 if 1:
     import faiss  # noqa
 from dataclasses import dataclass
@@ -324,26 +326,28 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         cycle_steps=100,
     )
 
-    if isinstance(results, PafResults) and cfg.exp.debug:
+    if isinstance(results, PafResults):
         wandb_logger.experiment.log(results.cyc_vals.mean(axis="rows").to_dict())
-        _s = data.test_datatuple.s.copy().to_numpy()
-        _y = data.test_datatuple.y.copy().to_numpy()
 
-        for arr, name in [
-            (results.x.detach().cpu().numpy(), "Input"),
-            (results.enc_z.detach().cpu().numpy(), "Enc Embedding"),
-            (results.recon.detach().cpu().numpy(), "Enc Recon"),
-            (results.clf_z0.detach().cpu().numpy(), "Clf Xs=0 Embedding"),
-            (results.clf_z1.detach().cpu().numpy(), "Clf Xs=1 Embedding"),
-        ]:
-            make_umap(
-                arr,
-                data_name=name,
-                cfg=cfg,
-                s=_s,
-                y=_y,
-                logger=wandb_logger,
-            )
+        if cfg.exp.debug:
+            _s = data.test_datatuple.s.copy().to_numpy()
+            _y = data.test_datatuple.y.copy().to_numpy()
+
+            for arr, name in [
+                (results.x.detach().cpu().numpy(), "Input"),
+                (results.enc_z.detach().cpu().numpy(), "Enc Embedding"),
+                (results.recon.detach().cpu().numpy(), "Enc Recon"),
+                (results.clf_z0.detach().cpu().numpy(), "Clf Xs=0 Embedding"),
+                (results.clf_z1.detach().cpu().numpy(), "Clf Xs=1 Embedding"),
+            ]:
+                make_umap(
+                    arr,
+                    data_name=name,
+                    cfg=cfg,
+                    s=_s,
+                    y=_y,
+                    logger=wandb_logger,
+                )
 
     evaluate(
         cfg=cfg,
@@ -403,20 +407,31 @@ def evaluate(
     _model_trainer: pl.Trainer,
 ) -> None:
 
-    recon_mmd = mmd2(results.x, results.cf_x, kernel=KernelType.LINEAR)
+    x2cf_mmd = mmd2(
+        results.recon, results.cf_x, kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType)
+    )
+    recon_mmd = mmd2(
+        results.recon, results.x, kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType)
+    )
     s0_dist_mmd = mmd2(
         results.x[results.s == 0],
         results.recons_0,
-        kernel=KernelType.LINEAR,
+        kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType),
     )
     s1_dist_mmd = mmd2(
         results.x[results.s == 1],
         results.recons_1,
-        kernel=KernelType.LINEAR,
+        kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType),
     )
 
     do_log(
-        name="Logging/MMD",
+        name="Logging/MMD X vs Cf",
+        val=round(x2cf_mmd.item(), 5),
+        logger=wandb_logger,
+    )
+
+    do_log(
+        name="Logging/MMD X vs X^",
         val=round(recon_mmd.item(), 5),
         logger=wandb_logger,
     )
