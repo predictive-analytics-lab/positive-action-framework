@@ -147,6 +147,11 @@ CS.store(name="synth", node=SimpleXDataModuleConf, package=DATA_PKG, group=DATA_
 CS.store(name="third", node=ThirdWayDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 
 
+PS: Final[str] = "PostSelection"
+TL: Final[str] = "Truelabels"
+RW: Final[str] = "RealWorld"
+
+
 @hydra.main(config_path="configs", config_name="base_conf")
 def launcher(hydra_config: DictConfig) -> None:
     """Instantiate with hydra and get the experiments running!"""
@@ -201,89 +206,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         return
 
     if cfg.exp.model in (ModelType.ERM_DP, ModelType.EQ_DP):
-        if cfg.exp.model is ModelType.ERM_DP:
-            first_model = em.LRCV(seed=cfg.exp.seed)
-            first_results = first_model.run(data.train_datatuple, data.test_datatuple)
-        else:
-            erm_model = em.LRCV(seed=cfg.exp.seed)
-            first_model = em.Hardt(seed=cfg.exp.seed)
-            first_results = first_model.run(
-                train_predictions=erm_model.run(data.train_datatuple, data.train_datatuple),
-                train=data.train_datatuple,
-                test_predictions=erm_model.run(data.train_datatuple, data.test_datatuple),
-                test=data.test_datatuple,
-            )
-        dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
-        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
-
-        matches = {
-            f"{c}": first_results.hard[
-                pd.concat([dp_results.hard, first_results.hard], axis=1).sum(axis=1) == c
-            ].count()
-            for c in range(3)
-        }
-        print(matches)
-        df = pd.DataFrame.from_dict(
-            {
-                "s1_0_s2_0": first_results.hard.values,
-                "s1_1_s2_1": dp_results.hard.values,
-                "true_s": data.test_datatuple.s.copy().values[:, 0],
-            }
-        )
-
-        for fair_bool in (True, False):
-            preds = baseline_selection_rules(
-                outcomes=df,
-                logger=wandb_logger,
-                fair=fair_bool,
-                data_name="Outcomes",
-            )
-            multiple_metrics(
-                preds=preds,
-                target=data.test_datatuple,
-                name=f"Post-Selection-{fair_bool=}",
-                logger=wandb_logger,
-                debug=cfg.exp.debug,
-            )
-            get_full_breakdown(
-                target_info=f"Post-Selection/{fair_bool=}",
-                acceptance=em.DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=preds.hard.to_frame().copy(),
-                ),
-                graduated=None,
-                logger=wandb_logger,
-            )
-            if isinstance(data, BaseDataModule) and data.cf_available:
-                assert data.true_data_group is not None
-                multiple_metrics(
-                    preds=preds,
-                    target=data.true_test_datatuple,
-                    name=f"TrueLabels-{fair_bool=}",
-                    logger=wandb_logger,
-                    debug=cfg.exp.debug,
-                )
-                get_full_breakdown(
-                    target_info=f"Stats/{fair_bool=}",
-                    acceptance=em.DataTuple(
-                        x=data.test_datatuple.x.copy(),
-                        s=data.test_datatuple.s.copy(),
-                        y=preds.hard.to_frame().copy(),
-                    ),
-                    graduated=data.true_test_datatuple,
-                    logger=wandb_logger,
-                )
-
-        if isinstance(data, BaseDataModule) and data.cf_available:
-            assert data.true_data_group is not None
-            multiple_metrics(
-                preds=first_results,
-                target=data.true_test_datatuple,
-                name="Real-World-Preds-TrueLabels",
-                logger=wandb_logger,
-                debug=cfg.exp.debug,
-            )
+        two_model_approach()
         return
 
     encoder = cfg.enc
@@ -434,42 +357,21 @@ def evaluate(
         kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType),
     )
 
-    do_log(
-        name="Logging/MMD X vs Cf",
-        val=round(x2cf_mmd.item(), 5),
-        logger=wandb_logger,
-    )
-
-    do_log(
-        name="Logging/MMD X vs X^",
-        val=round(recon_mmd.item(), 5),
-        logger=wandb_logger,
-    )
-
-    do_log(
-        name="Logging/MMD S0 vs Cf",
-        val=round(s0_dist_mmd.item(), 5),
-        logger=wandb_logger,
-    )
-
-    do_log(
-        name="Logging/MMD S1 vs Cf",
-        val=round(s1_dist_mmd.item(), 5),
-        logger=wandb_logger,
-    )
-
-    do_log(
-        name="OT/P(Y=1|Sx=0,Sy=0", val=results.pd_results["s1_0_s2_0"].mean(), logger=wandb_logger
-    )
-    do_log(
-        name="OT/P(Y=1|Sx=0,Sy=1", val=results.pd_results["s1_0_s2_1"].mean(), logger=wandb_logger
-    )
-    do_log(
-        name="OT/P(Y=1|Sx=1,Sy=0", val=results.pd_results["s1_1_s2_0"].mean(), logger=wandb_logger
-    )
-    do_log(
-        name="OT/P(Y=1|Sx=1,Sy=1", val=results.pd_results["s1_1_s2_1"].mean(), logger=wandb_logger
-    )
+    for title, val in [
+        ("MMD X vs Cf", x2cf_mmd.item()),
+        ("MMD X vs X^", recon_mmd.item()),
+        ("MMD S0 vs Cf", s0_dist_mmd.item()),
+        ("MMD S1 vs Cf", s1_dist_mmd.item()),
+        ("P(Y=1|Sx=0,Sy=0", results.pd_results["s1_0_s2_0"].mean()),
+        ("P(Y=1|Sx=0,Sy=1", results.pd_results["s1_0_s2_1"].mean()),
+        ("P(Y=1|Sx=1,Sy=0", results.pd_results["s1_1_s2_0"].mean()),
+        ("P(Y=1|Sx=1,Sy=1", results.pd_results["s1_1_s2_1"].mean()),
+    ]:
+        do_log(
+            name="Logging/" + title,
+            val=round(val, 5),
+            logger=wandb_logger,
+        )
 
     for fair_bool in (True, False):
         if cfg.exp.model == ModelType.PAF:
@@ -490,41 +392,30 @@ def evaluate(
                 fair=fair_bool,
                 data_name="Outcomes",
             )
-        multiple_metrics(
+        metrics_and_breakdown(
             preds=preds,
             target=data.test_datatuple,
-            name=f"Post-Selection-{fair_bool=}",
+            name=f"{PS}/{fair_bool=}",
             logger=wandb_logger,
             debug=cfg.exp.debug,
-        )
-        get_full_breakdown(
-            target_info=f"Post-Selection-{fair_bool=}",
-            acceptance=em.DataTuple(
-                x=data.test_datatuple.x.copy(),
-                s=data.test_datatuple.s.copy(),
-                y=preds.hard.to_frame().copy(),
-            ),
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=preds.hard.to_frame().copy(),
             graduated=None,
-            logger=wandb_logger,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
             assert data.true_data_group is not None
-            multiple_metrics(
+
+            metrics_and_breakdown(
                 preds=preds,
                 target=data.true_test_datatuple,
-                name=f"TrueLabels-{fair_bool=}",
+                name=f"{PS}/{TL}/{fair_bool=}",
                 logger=wandb_logger,
                 debug=cfg.exp.debug,
-            )
-            get_full_breakdown(
-                target_info=f"Stats/{fair_bool=}",
-                acceptance=em.DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=preds.hard.to_frame().copy(),
-                ),
+                x=data.test_datatuple.x.copy(),
+                s=data.test_datatuple.s.copy(),
+                y=preds.hard.to_frame().copy(),
                 graduated=data.true_test_datatuple,
-                logger=wandb_logger,
             )
 
     if cfg.exp.model == ModelType.PAF:
@@ -549,38 +440,29 @@ def evaluate(
         our_clf_preds = em.Prediction(
             hard=pd.Series(results.preds.squeeze(-1).detach().cpu().numpy())
         )
-        multiple_metrics(
+        metrics_and_breakdown(
             preds=our_clf_preds,
             target=data.test_datatuple,
-            name="Real-World-Preds",
+            name=f"{RW}",
             logger=wandb_logger,
             debug=cfg.exp.debug,
-        )
-        multiple_metrics(
-            preds=our_clf_preds,
-            target=data.test_datatuple,
-            name="Real-World-Preds",
-            logger=wandb_logger,
-            debug=cfg.exp.debug,
-        )
-        get_full_breakdown(
-            target_info="Stats/Real-World-Preds",
-            acceptance=em.DataTuple(
-                x=data.test_datatuple.x.copy(),
-                s=data.test_datatuple.s.copy(),
-                y=our_clf_preds.hard.to_frame(),
-            ),
-            graduated=data.true_test_datatuple if hasattr(data, "true_test_datatuple") else None,
-            logger=wandb_logger,
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=our_clf_preds.hard.to_frame().copy(),
+            graduated=None,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
             assert data.true_data_group is not None
-            multiple_metrics(
+            metrics_and_breakdown(
                 preds=our_clf_preds,
                 target=data.true_test_datatuple,
-                name="Real-World-Preds-TrueLabels",
+                name=f"{RW}/{TL}",
                 logger=wandb_logger,
                 debug=cfg.exp.debug,
+                x=data.test_datatuple.x.copy(),
+                s=data.test_datatuple.s.copy(),
+                y=our_clf_preds.hard.to_frame().copy(),
+                graduated=data.true_test_datatuple,
             )
         if isinstance(cfg.enc, AE) and cfg.enc_trainer.max_epochs > 1:
             produce_baselines(
@@ -602,40 +484,33 @@ def baseline_models(
 ) -> None:
     LOGGER.info(f"=== {model.name} ===")
     results = model.run(data.train_datatuple, data.test_datatuple)
-    multiple_metrics(
-        preds=results, target=data.test_datatuple, name="Results", logger=logger, debug=debug
-    )
-    get_full_breakdown(
-        target_info="Results",
-        acceptance=em.DataTuple(
-            x=data.test_datatuple.x.copy(),
-            s=data.test_datatuple.s.copy(),
-            y=results.hard.to_frame(),
-        ),
-        graduated=None,
+    metrics_and_breakdown(
+        preds=results,
+        target=data.test_datatuple,
+        name=f"{RW}",
         logger=logger,
+        debug=debug,
+        x=data.test_datatuple.x.copy(),
+        s=data.test_datatuple.s.copy(),
+        y=results.hard.to_frame().copy(),
+        graduated=None,
     )
 
     if isinstance(data, BaseDataModule):
         LOGGER.info(f"=== {model.name} and 'True' Data ===")
         results = model.run(data.train_datatuple, data.test_datatuple)
         assert data.true_test_datatuple is not None
-        multiple_metrics(
+
+        metrics_and_breakdown(
             preds=results,
             target=data.true_test_datatuple,
-            name="Results-TrueLabels",
+            name=f"{RW}/{TL}",
             logger=logger,
             debug=debug,
-        )
-        get_full_breakdown(
-            target_info="Stats",
-            acceptance=em.DataTuple(
-                x=data.test_datatuple.x.copy(),
-                s=data.test_datatuple.s.copy(),
-                y=results.hard.to_frame(),
-            ),
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=results.hard.to_frame().copy(),
             graduated=data.true_test_datatuple,
-            logger=logger,
         )
 
 
@@ -662,6 +537,105 @@ def multiple_metrics(
     )
     for key, value in results.items():
         do_log(f"{name}/{key.replace('/', '%')}", value, logger)
+
+
+def two_model_approach(cfg: Config, data: BaseDataModule, logger: pll.WandbLogger) -> None:
+    if cfg.exp.model is ModelType.ERM_DP:
+        first_model = em.LRCV(seed=cfg.exp.seed)
+        first_results = first_model.run(data.train_datatuple, data.test_datatuple)
+    else:
+        erm_model = em.LRCV(seed=cfg.exp.seed)
+        first_model = em.Hardt(seed=cfg.exp.seed)
+        first_results = first_model.run(
+            train_predictions=erm_model.run(data.train_datatuple, data.train_datatuple),
+            train=data.train_datatuple,
+            test_predictions=erm_model.run(data.train_datatuple, data.test_datatuple),
+            test=data.test_datatuple,
+        )
+    dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
+    dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+
+    matches = {
+        f"{c}": first_results.hard[
+            pd.concat([dp_results.hard, first_results.hard], axis=1).sum(axis=1) == c
+        ].count()
+        for c in range(3)
+    }
+    print(matches)
+    df = pd.DataFrame.from_dict(
+        {
+            "s1_0_s2_0": first_results.hard.values,
+            "s1_1_s2_1": dp_results.hard.values,
+            "true_s": data.test_datatuple.s.copy().values[:, 0],
+        }
+    )
+
+    for fair_bool in (True, False):
+        preds = baseline_selection_rules(
+            outcomes=df,
+            logger=logger,
+            fair=fair_bool,
+            data_name="Outcomes",
+        )
+        metrics_and_breakdown(
+            preds=preds,
+            target=data.test_datatuple,
+            name=f"{PS}/{fair_bool=}",
+            logger=logger,
+            debug=cfg.exp.debug,
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=preds.hard.to_frame().copy(),
+            graduated=None,
+        )
+        if isinstance(data, BaseDataModule) and data.cf_available:
+            assert data.true_data_group is not None
+            metrics_and_breakdown(
+                preds=preds,
+                target=data.test_datatuple,
+                name=f"{TL}/{fair_bool=}",
+                logger=logger,
+                debug=cfg.exp.debug,
+                x=data.test_datatuple.x.copy(),
+                s=data.test_datatuple.s.copy(),
+                y=preds.hard.to_frame().copy(),
+                graduated=data.true_test_datatuple,
+            )
+
+    if isinstance(data, BaseDataModule) and data.cf_available:
+        assert data.true_data_group is not None
+        metrics_and_breakdown(
+            preds=first_results,
+            target=data.test_datatuple,
+            name=f"{RW}/{TL}",
+            logger=logger,
+            debug=cfg.exp.debug,
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=preds.hard.to_frame().copy(),
+            graduated=data.true_test_datatuple,
+        )
+
+
+def metrics_and_breakdown(
+    preds: em.Prediction,
+    *,
+    target: em.DataTuple,
+    name: str,
+    logger: pll.WandbLogger,
+    debug: bool,
+    x: pd.DataFrame,
+    s: pd.DataFrame,
+    y: pd.DataFrame,
+    graduated: em.DataTuple | None,
+) -> None:
+    multiple_metrics(preds=preds, target=target, name=name, logger=logger, debug=debug)
+    get_full_breakdown(
+        target_info="Stats/" + name,
+        acceptance=em.DataTuple(x=x, s=s, y=y),
+        graduated=graduated,
+        logger=logger,
+    )
 
 
 if __name__ == "__main__":
