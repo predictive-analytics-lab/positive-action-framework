@@ -207,7 +207,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         return
 
     if cfg.exp.model in (ModelType.ERM_DP, ModelType.EQ_DP):
-        two_model_approach()
+        two_model_approach(cfg=cfg, data=data, logger=wandb_logger)
         return
 
     encoder = cfg.enc
