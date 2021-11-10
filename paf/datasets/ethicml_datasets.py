@@ -39,7 +39,7 @@ def adult_data(*, sens: str, bin_nationality: bool, bin_race: bool) -> tuple[Dat
 
         dt = dataset.load()
 
-        dt.s['marital-status'] = (dt.s['marital-status'] < 3).astype(int)
+        dt.s["marital-status"] = (dt.s["marital-status"] < 3).astype(int)
 
         datatuple = dt
     else:

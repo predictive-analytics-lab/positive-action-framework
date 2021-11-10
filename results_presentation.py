@@ -21,7 +21,7 @@ def main(raw_csv: Path) -> None:
     )
 
     data.columns = pd.MultiIndex.from_tuples(
-        [col.split('/') for col in data.columns], names=("group", "model", "metric")
+        [col.split("/") for col in data.columns], names=("group", "model", "metric")
     )
 
     data = data.T
@@ -49,21 +49,21 @@ def main(raw_csv: Path) -> None:
             "P(Ty=1)",
             "P(Y=0)",
             "P(Y=1)",
-            'P(Ty=1|S=0,Y=1)',
-            'P(Ty=1|S=1,Y=1)',
-            'P(Ty=1|S=0,Y=0)',
-            'P(Ty=1|S=1,Y=0)',
-            'P(Ty=0|S=0,Y=0)',
-            'P(Ty=0|S=0,Y=1)',
-            'P(Ty=0|S=1,Y=0)',
-            'P(Ty=0|S=1,Y=1)',
-            'Accuracy',
-            'TPR-sens_0',
-            'TPR-sens_1',
-            'TNR-sens_0',
-            'TNR-sens_1',
-            'prob_pos-sens_0',
-            'prob_pos-sens_1',
+            "P(Ty=1|S=0,Y=1)",
+            "P(Ty=1|S=1,Y=1)",
+            "P(Ty=1|S=0,Y=0)",
+            "P(Ty=1|S=1,Y=0)",
+            "P(Ty=0|S=0,Y=0)",
+            "P(Ty=0|S=0,Y=1)",
+            "P(Ty=0|S=1,Y=0)",
+            "P(Ty=0|S=1,Y=1)",
+            "Accuracy",
+            "TPR-sens_0",
+            "TPR-sens_1",
+            "TNR-sens_0",
+            "TNR-sens_1",
+            "prob_pos-sens_0",
+            "prob_pos-sens_1",
             "FID",
             "prob_pos-Abs-Diff-sens_0-sens_1",
             # "MMD",
@@ -77,7 +77,7 @@ def main(raw_csv: Path) -> None:
         ]
     ]
 
-    data.dropna(axis=0, how="all").transpose().to_csv('./show.csv')
+    data.dropna(axis=0, how="all").transpose().to_csv("./show.csv")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 """The hand crafted synthetic data."""
 from __future__ import annotations
+import logging
 from typing import NamedTuple
 
 from ethicml import Dataset, DataTuple, Prediction
@@ -8,7 +9,6 @@ import numpy.typing as npt
 import pandas as pd
 import scipy
 from scipy import stats
-import logging
 
 from paf.selection import produce_selection_groups
 
