@@ -408,24 +408,6 @@ def evaluate(
             )
 
     if cfg.exp.model == ModelType.PAF:
-        # === This is only for reporting ====
-        _model = PafModel(encoder=encoder, classifier=classifier)
-        _results = _model.collate_results(
-            _model_trainer.predict(
-                model=_model, ckpt_path=None, dataloaders=data.train_dataloader()
-            )
-        )
-        produce_selection_groups(
-            outcomes=_results.pd_results,
-            data=data,
-            recon_0=_results.recons_0,
-            recon_1=_results.recons_1,
-            logger=wandb_logger,
-            data_name="Train",
-            debug=cfg.exp.debug,
-        )
-        # === === ===
-
         our_clf_preds = em.Prediction(
             hard=pd.Series(results.preds.squeeze(-1).detach().cpu().numpy())
         )
@@ -466,6 +448,24 @@ def evaluate(
                 logger=wandb_logger,
                 test_mode=cfg.clf_trainer.fast_dev_run,
             )
+
+        # === This is only for reporting ====
+        _model = PafModel(encoder=encoder, classifier=classifier)
+        _results = _model.collate_results(
+            _model_trainer.predict(
+                model=_model, ckpt_path=None, dataloaders=data.train_dataloader()
+            )
+        )
+        produce_selection_groups(
+            outcomes=_results.pd_results,
+            data=data,
+            recon_0=_results.recons_0,
+            recon_1=_results.recons_1,
+            logger=wandb_logger,
+            data_name="Train",
+            debug=cfg.exp.debug,
+        )
+        # === === ===
 
 
 def baseline_models(
@@ -582,7 +582,7 @@ def two_model_approach(cfg: Config, data: BaseDataModule, logger: pll.WandbLogge
             metrics_and_breakdown(
                 preds=preds,
                 target=data.test_datatuple,
-                name=f"{TL}/{fair_bool=}",
+                name=f"{PS}/{TL}/{fair_bool=}",
                 logger=logger,
                 debug=cfg.exp.debug,
                 x=data.test_datatuple.x.copy(),
@@ -591,17 +591,28 @@ def two_model_approach(cfg: Config, data: BaseDataModule, logger: pll.WandbLogge
                 graduated=data.true_test_datatuple,
             )
 
+    metrics_and_breakdown(
+        preds=first_results,
+        target=data.test_datatuple,
+        name=f"{RW}",
+        logger=logger,
+        debug=cfg.exp.debug,
+        x=data.test_datatuple.x.copy(),
+        s=data.test_datatuple.s.copy(),
+        y=first_results.hard.to_frame().copy(),
+        graduated=None,
+    )
     if isinstance(data, BaseDataModule) and data.cf_available:
         assert data.true_data_group is not None
         metrics_and_breakdown(
             preds=first_results,
-            target=data.test_datatuple,
+            target=data.true_test_datatuple,
             name=f"{RW}/{TL}",
             logger=logger,
             debug=cfg.exp.debug,
             x=data.test_datatuple.x.copy(),
             s=data.test_datatuple.s.copy(),
-            y=preds.hard.to_frame().copy(),
+            y=first_results.hard.to_frame().copy(),
             graduated=data.true_test_datatuple,
         )
 
