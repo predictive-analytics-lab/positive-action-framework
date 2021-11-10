@@ -150,6 +150,7 @@ CS.store(name="third", node=ThirdWayDataModuleConf, package=DATA_PKG, group=DATA
 PS: Final[str] = "PostSelection"
 TL: Final[str] = "Truelabels"
 RW: Final[str] = "RealWorld"
+EVAL_KERNEL: Final[KernelType] = KernelType.RBF
 
 
 @hydra.main(config_path="configs", config_name="base_conf")
@@ -340,22 +341,10 @@ def evaluate(
     _model_trainer: pl.Trainer,
 ) -> None:
 
-    x2cf_mmd = mmd2(
-        results.recon, results.cf_x, kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType)
-    )
-    recon_mmd = mmd2(
-        results.recon, results.x, kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType)
-    )
-    s0_dist_mmd = mmd2(
-        results.x[results.s == 0],
-        results.recons_0,
-        kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType),
-    )
-    s1_dist_mmd = mmd2(
-        results.x[results.s == 1],
-        results.recons_1,
-        kernel=str_to_enum(cfg.enc.mmd_kernel, enum=KernelType),
-    )
+    x2cf_mmd = mmd2(results.recon, results.cf_x, kernel=EVAL_KERNEL)
+    recon_mmd = mmd2(results.recon, results.x, kernel=EVAL_KERNEL)
+    s0_dist_mmd = mmd2(results.x[results.s == 0], results.recons_0, kernel=EVAL_KERNEL)
+    s1_dist_mmd = mmd2(results.x[results.s == 1], results.recons_1, kernel=EVAL_KERNEL)
 
     for title, val in [
         ("MMD X vs Cf", x2cf_mmd.item()),
