@@ -345,10 +345,10 @@ def evaluate(
     x2cf_mmd = mmd2(results.recon.clone(), results.cf_x.clone(), kernel=EVAL_KERNEL)
     recon_mmd = mmd2(results.recon.clone(), results.x.clone(), kernel=EVAL_KERNEL)
     s0_dist_mmd = mmd2(
-        results.x[results.s == 0].clone(), results.recons_0.clone(), kernel=EVAL_KERNEL
+        results.x[results.s == 0].clone(), results.recons_0.clone(), kernel=EVAL_KERNEL, biased=True
     )
     s1_dist_mmd = mmd2(
-        results.x[results.s == 1].clone(), results.recons_1.clone(), kernel=EVAL_KERNEL
+        results.x[results.s == 1].clone(), results.recons_1.clone(), kernel=EVAL_KERNEL, biased=True
     )
 
     for title, val in [
