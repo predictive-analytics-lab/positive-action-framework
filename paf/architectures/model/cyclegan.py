@@ -401,13 +401,13 @@ class CycleGan(CommonModel):
                 real_a=real_a, real_b=real_b, fake_a=cyc_out.fake_a, fake_b=cyc_out.fake_b
             )
 
-            mmd_results = self.mmd_reporting(
-                gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch, train=True
-            )
-            self.log(f"{Stage.fit}/enc/recon_mmd", mmd_results.recon)
-            self.log(f"{Stage.fit}/enc/cf_recon_mmd", mmd_results.cf_recon)
-            self.log(f"{Stage.fit}/enc/s0_dist_mmd", mmd_results.s0_dist)
-            self.log(f"{Stage.fit}/enc/s1_dist_mmd", mmd_results.s1_dist)
+            # mmd_results = self.mmd_reporting(
+            #     gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch, train=True
+            # )
+            # self.log(f"{Stage.fit}/enc/recon_mmd", mmd_results.recon)
+            # self.log(f"{Stage.fit}/enc/cf_recon_mmd", mmd_results.cf_recon)
+            # self.log(f"{Stage.fit}/enc/s0_dist_mmd", mmd_results.s0_dist)
+            # self.log(f"{Stage.fit}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
             # No need to calculate the gradients for Discriminators' parameters
             self.set_requires_grad([self.d_a, self.d_b], requires_grad=False)
@@ -499,7 +499,7 @@ class CycleGan(CommonModel):
             dis_pred_real_data=dis_out_b.real, dis_pred_fake_data=dis_out_b.fake
         )
 
-        mmd_results = self.mmd_reporting(gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch)
+        # mmd_results = self.mmd_reporting(gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch)
 
         dict_ = {
             f"{stage}/enc/g_tot_loss": gen_losses.tot,
@@ -509,10 +509,10 @@ class CycleGan(CommonModel):
             f"{stage}/enc/d_B_loss": d_b_loss,
             f"{stage}/enc/loss": gen_losses.tot,
             f"{stage}/enc/cycle_loss": gen_losses.cycle_loss,
-            f"{stage}/enc/recon_mmd": mmd_results.recon,
-            f"{stage}/enc/cf_recon_mmd": mmd_results.cf_recon,
-            f"{stage}/enc/s0_dist_mmd": mmd_results.s0_dist,
-            f"{stage}/enc/s1_dist_mmd": mmd_results.s1_dist,
+            # f"{stage}/enc/recon_mmd": mmd_results.recon,
+            # f"{stage}/enc/cf_recon_mmd": mmd_results.cf_recon,
+            # f"{stage}/enc/s0_dist_mmd": mmd_results.s0_dist,
+            # f"{stage}/enc/s1_dist_mmd": mmd_results.s1_dist,
         }
         self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
@@ -564,68 +564,68 @@ class CycleGan(CommonModel):
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         raise NotImplementedError("This shouldn't be called. Only implementing for the abc.")
 
-    def mmd_reporting(
-        self,
-        *,
-        gen_fwd: GenFwd,
-        enc_fwd: CycleFwd,
-        batch: Batch | CfBatch | TernarySample,
-        train: bool = False,
-    ) -> MmdReportingResults:
-        with torch.no_grad():
-            if train:
-                x = torch.cat([gen_fwd.idt_a, gen_fwd.idt_b], dim=0)
-                cf_x = torch.cat([enc_fwd.fake_a, enc_fwd.fake_b], dim=0)
-                recon_mmd = mmd2(
-                    batch.x,
-                    self.invert(x, batch.x),
-                    kernel=KernelType.LINEAR,
-                )
-                cf_mmd = mmd2(
-                    batch.x,
-                    self.invert(cf_x, batch.x),
-                    kernel=KernelType.LINEAR,
-                )
-                s0_dist_mmd = mmd2(
-                    batch.x[batch.s == 0],
-                    self.invert(enc_fwd.fake_a, batch.x),
-                    kernel=KernelType.LINEAR,
-                    biased=True,
-                )
-                s1_dist_mmd = mmd2(
-                    batch.x[batch.s == 1],
-                    self.invert(enc_fwd.fake_b, batch.x),
-                    kernel=KernelType.LINEAR,
-                    biased=True,
-                )
-            else:
-                x = [enc_fwd.fake_a, enc_fwd.fake_b]
-                recon_mmd = mmd2(
-                    batch.x,
-                    self.invert(index_by_s(x, batch.s), batch.x),
-                    kernel=KernelType.LINEAR,
-                )
-                cf_mmd = mmd2(
-                    batch.x,
-                    self.invert(index_by_s(x, 1 - batch.s), batch.x),
-                    kernel=KernelType.LINEAR,
-                )
-                s0_dist_mmd = mmd2(
-                    batch.x[batch.s == 0],
-                    self.invert(index_by_s(x, torch.zeros_like(batch.s)), batch.x),
-                    kernel=KernelType.LINEAR,
-                    biased=True,
-                )
-                s1_dist_mmd = mmd2(
-                    batch.x[batch.s == 1],
-                    self.invert(index_by_s(x, torch.ones_like(batch.s)), batch.x),
-                    kernel=KernelType.LINEAR,
-                    biased=True,
-                )
-
-        return MmdReportingResults(
-            recon=recon_mmd, cf_recon=cf_mmd, s0_dist=s0_dist_mmd, s1_dist=s1_dist_mmd
-        )
+    # def mmd_reporting(
+    #     self,
+    #     *,
+    #     gen_fwd: GenFwd,
+    #     enc_fwd: CycleFwd,
+    #     batch: Batch | CfBatch | TernarySample,
+    #     train: bool = False,
+    # ) -> MmdReportingResults:
+    #     with torch.no_grad():
+    #         if train:
+    #             x = torch.cat([gen_fwd.idt_a, gen_fwd.idt_b], dim=0)
+    #             cf_x = torch.cat([enc_fwd.fake_a, enc_fwd.fake_b], dim=0)
+    #             recon_mmd = mmd2(
+    #                 batch.x,
+    #                 self.invert(x, batch.x),
+    #                 kernel=KernelType.LINEAR,
+    #             )
+    #             cf_mmd = mmd2(
+    #                 batch.x,
+    #                 self.invert(cf_x, batch.x),
+    #                 kernel=KernelType.LINEAR,
+    #             )
+    #             s0_dist_mmd = mmd2(
+    #                 batch.x[batch.s == 0],
+    #                 self.invert(enc_fwd.fake_a, batch.x),
+    #                 kernel=KernelType.LINEAR,
+    #                 biased=True,
+    #             )
+    #             s1_dist_mmd = mmd2(
+    #                 batch.x[batch.s == 1],
+    #                 self.invert(enc_fwd.fake_b, batch.x),
+    #                 kernel=KernelType.LINEAR,
+    #                 biased=True,
+    #             )
+    #         else:
+    #             x = [enc_fwd.fake_a, enc_fwd.fake_b]
+    #             recon_mmd = mmd2(
+    #                 batch.x,
+    #                 self.invert(index_by_s(x, batch.s), batch.x),
+    #                 kernel=KernelType.LINEAR,
+    #             )
+    #             cf_mmd = mmd2(
+    #                 batch.x,
+    #                 self.invert(index_by_s(x, 1 - batch.s), batch.x),
+    #                 kernel=KernelType.LINEAR,
+    #             )
+    #             s0_dist_mmd = mmd2(
+    #                 batch.x[batch.s == 0],
+    #                 self.invert(index_by_s(x, torch.zeros_like(batch.s)), batch.x),
+    #                 kernel=KernelType.LINEAR,
+    #                 biased=True,
+    #             )
+    #             s1_dist_mmd = mmd2(
+    #                 batch.x[batch.s == 1],
+    #                 self.invert(index_by_s(x, torch.ones_like(batch.s)), batch.x),
+    #                 kernel=KernelType.LINEAR,
+    #                 biased=True,
+    #             )
+    #
+    #     return MmdReportingResults(
+    #         recon=recon_mmd, cf_recon=cf_mmd, s0_dist=s0_dist_mmd, s1_dist=s1_dist_mmd
+    #     )
 
 
 class GenFwd(NamedTuple):

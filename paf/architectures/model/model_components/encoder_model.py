@@ -435,7 +435,7 @@ class AE(CommonModel):
 
         loss = recon_loss + adv_loss + mmd_loss  # + cycle_loss
 
-        mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
+        # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         mse = self.val_mse if stage is Stage.validate else self.test_mse
 
@@ -446,10 +446,10 @@ class AE(CommonModel):
         self.log(
             f"{stage}/enc/mse", mse(self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x)
         )
-        self.log(f"{stage}/enc/recon_mmd", mmd_results.recon)
-        self.log(f"{stage}/enc/cf_recon_mmd", mmd_results.cf_recon)
-        self.log(f"{stage}/enc/s0_dist_mmd", mmd_results.s0_dist)
-        self.log(f"{stage}/enc/s1_dist_mmd", mmd_results.s1_dist)
+        # self.log(f"{stage}/enc/recon_mmd", mmd_results.recon)
+        # self.log(f"{stage}/enc/cf_recon_mmd", mmd_results.cf_recon)
+        # self.log(f"{stage}/enc/s0_dist_mmd", mmd_results.s0_dist)
+        # self.log(f"{stage}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
         to_return = SharedStepOut(
             x=batch.x,
@@ -571,37 +571,37 @@ class AE(CommonModel):
         _labels = torch.cat(labels, dim=0)
         return RunThroughOut(x=_recons.detach(), s=_sens.detach(), y=_labels.detach())
 
-    def mmd_reporting(
-        self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample
-    ) -> MmdReportingResults:
-        with torch.no_grad():
-            recon_mmd = mmd2(
-                batch.x,
-                self.invert(index_by_s(enc_fwd.x, batch.s), batch.x),
-                kernel=self.mmd_kernel,
-            )
-
-            if isinstance(batch, CfBatch):
-                cf_mmd = mmd2(
-                    batch.x,
-                    self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.cfx),
-                    kernel=self.mmd_kernel,
-                )
-            else:
-                cf_mmd = torch.tensor(-10)
-
-            s0_dist_mmd = mmd2(
-                batch.x[batch.s == 0],
-                self.invert(enc_fwd.x[0], batch.x),
-                kernel=self.mmd_kernel,
-                biased=True,
-            )
-            s1_dist_mmd = mmd2(
-                batch.x[batch.s == 1],
-                self.invert(enc_fwd.x[1], batch.x),
-                kernel=self.mmd_kernel,
-                biased=True,
-            )
-        return MmdReportingResults(
-            recon=recon_mmd, cf_recon=cf_mmd, s0_dist=s0_dist_mmd, s1_dist=s1_dist_mmd
-        )
+    # def mmd_reporting(
+    #     self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample
+    # ) -> MmdReportingResults:
+    #     with torch.no_grad():
+    #         recon_mmd = mmd2(
+    #             batch.x,
+    #             self.invert(index_by_s(enc_fwd.x, batch.s), batch.x),
+    #             kernel=self.mmd_kernel,
+    #         )
+    #
+    #         if isinstance(batch, CfBatch):
+    #             cf_mmd = mmd2(
+    #                 batch.x,
+    #                 self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.cfx),
+    #                 kernel=self.mmd_kernel,
+    #             )
+    #         else:
+    #             cf_mmd = torch.tensor(-10)
+    #
+    #         s0_dist_mmd = mmd2(
+    #             batch.x[batch.s == 0],
+    #             self.invert(enc_fwd.x[0], batch.x),
+    #             kernel=self.mmd_kernel,
+    #             biased=True,
+    #         )
+    #         s1_dist_mmd = mmd2(
+    #             batch.x[batch.s == 1],
+    #             self.invert(enc_fwd.x[1], batch.x),
+    #             kernel=self.mmd_kernel,
+    #             biased=True,
+    #         )
+    #     return MmdReportingResults(
+    #         recon=recon_mmd, cf_recon=cf_mmd, s0_dist=s0_dist_mmd, s1_dist=s1_dist_mmd
+    #     )
