@@ -32,6 +32,21 @@ SCHEMAS: Final[list[str]] = [
 ]
 
 
+@pytest.mark.parametrize("seed", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+def test_get_value_counts(seed: int):
+    with initialize(config_path="../paf/configs"):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=["data=lill", f"exp.seed={seed}"] + SCHEMAS,
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        pl.seed_everything(seed)
+
+        cfg.data.prepare_data()
+        cfg.data.setup()
+
+
 @pytest.mark.parametrize(
     "dm_schema", ["ad", "adm", "law", "semi", "lill", "synth"]  # "crime", "health"
 )

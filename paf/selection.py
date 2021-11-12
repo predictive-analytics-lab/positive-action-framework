@@ -101,6 +101,7 @@ def produce_selection_groups(
     #     )
 
     outcomes[GROUP_1] = facct_mapper(pd.Series(outcomes[GROUP_0]))
+    print(outcomes[GROUP_1].value_counts())
 
     outcomes[GROUP_2] = facct_mapper_2(pd.Series(outcomes[GROUP_1]))
 

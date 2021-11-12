@@ -10,13 +10,12 @@ typer = "^0.3.2"
 optuna = "^2.9.1"
 wandb = "^0.12.0"
 plotly = "^5.1.0"
-ethicml = {extras = ["all"], version = "^0.3.4"}
-pytorch-lightning = "^1.4.9, <1.5"
+ethicml = {extras = ["all"], version = "^0.3.5"}
 neoconfigen = "^2.1.0"
 hydra-submitit-launcher = {version = "^1.1.1", allow-prereleases = true}
 hydra-joblib-launcher = {version = "^1.1.2", allow-prereleases = true}
 attrs = "^21.2.0"
-conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", rev = "8531f579e4c1f03e813d5eb4a2fa25ac8f26a56e"}
+conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", rev = "1a620ff32d13367d1cb8156fc07c4af73311ae1d", extras = ["fair"]}
 hydra-core = "^1.1.1"
 umap-learn = "^0.5.1"
 faiss-cpu = "^1.7.1"

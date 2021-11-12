@@ -1,8 +1,6 @@
 """Main script."""
 from __future__ import annotations
 
-from ranzen import str_to_enum
-
 if 1:
     import faiss  # noqa
 from dataclasses import dataclass
