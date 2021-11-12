@@ -76,6 +76,12 @@ class ModelType(Enum):
     NN = auto()
     ERM_DP = auto()
     EQ_DP = auto()
+    ERM_KAM = auto()
+    EQ_KAM = auto()
+    ERM_SHI = auto()
+    EQ_SHI = auto()
+    ERM_ZAF = auto()
+    EQ_ZAF = auto()
 
 
 @dataclass
@@ -533,7 +539,7 @@ def multiple_metrics(
 
 
 def two_model_approach(cfg: Config, data: BaseDataModule, logger: pll.WandbLogger) -> None:
-    if cfg.exp.model is ModelType.ERM_DP:
+    if cfg.exp.model in (ModelType.ERM_DP, ModelType.ERM_KAM, ModelType.ERM_ZAF, ModelType.ERM_SHI):
         first_model = em.LRCV(seed=cfg.exp.seed)
         first_results = first_model.run(data.train_datatuple, data.test_datatuple)
     else:
@@ -545,8 +551,20 @@ def two_model_approach(cfg: Config, data: BaseDataModule, logger: pll.WandbLogge
             test_predictions=erm_model.run(data.train_datatuple, data.test_datatuple),
             test=data.test_datatuple,
         )
-    dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
-    dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    if cfg.exp.model in (ModelType.ERM_DP, ModelType.ERM_DP):
+        dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    elif cfg.exp.model in (ModelType.ERM_ZAF, ModelType.EQ_ZAF):
+        dp_model = em.ZafarFairness()
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    elif cfg.exp.model in (ModelType.ERM_KAM, ModelType.EQ_KAM):
+        dp_model = em.Kamiran(seed=cfg.exp.seed)
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    elif cfg.exp.model in (ModelType.ERM_SHI, ModelType.EQ_SHI):
+        dp_model = em.Kamishima()
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    else:
+        raise NotImplementedError(f"{cfg.exp.model} not implemented")
 
     matches = {
         f"{c}": first_results.hard[

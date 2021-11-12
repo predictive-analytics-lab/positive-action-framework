@@ -102,7 +102,7 @@ def test_clf(dm_schema: str) -> None:
 # run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
 
 
-@pytest.mark.parametrize("model", ["ERM_DP", "EQ_DP"])
+@pytest.mark.parametrize("model", ["ERM_DP", "EQ_DP", "ERM_KAM", "EQ_KAM"])
 @pytest.mark.parametrize("dm_schema", ["ad", "law", "lill"])
 def test_erm_dp(model: str, dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
