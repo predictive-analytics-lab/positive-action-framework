@@ -244,6 +244,25 @@ class NearestNeighbour(CommonModel):
     def training_step(self, *_: Any) -> plut.STEP_OUTPUT:
         ...
 
+    @implements(pl.LightningModule)
+    def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> NnStepOut:
+        return self.shared_step(batch, stage=Stage.test)
+
+    @implements(pl.LightningModule)
+    def validation_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> NnStepOut:
+        return self.shared_step(batch, stage=Stage.validate)
+
+    def shared_step(self, batch: Batch | CfBatch | TernarySample, *, stage: Stage) -> NnStepOut:
+        recon_list = self.forward(x=batch.x, s=batch.s)
+
+        return NnStepOut(
+            cf_x=index_by_s(recon_list.x, 1 - batch.s),
+            x=index_by_s(recon_list.x, batch.s),
+            s=batch.s,
+            recons_0=recon_list.x[0],
+            recons_1=recon_list.x[1],
+        )
+
     def predict_step(
         self, batch: Batch | CfBatch | TernarySample, batch_idx: int, *_: Any
     ) -> NnStepOut | None:
