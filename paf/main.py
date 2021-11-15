@@ -274,7 +274,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     # cfg.enc_trainer.fit(model=model, datamodule=data)
     results = model.collate_results(
         cfg.enc_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None),
-        cycle_steps=0,
+        cycle_steps=100,
     )
 
     if isinstance(results, PafResults):
