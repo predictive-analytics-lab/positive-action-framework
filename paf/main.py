@@ -210,7 +210,16 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         baseline_models(cfg.clf, data=data, logger=wandb_logger, debug=cfg.exp.debug)
         return
 
-    if cfg.exp.model in (ModelType.ERM_DP, ModelType.EQ_DP):
+    if cfg.exp.model in (
+        ModelType.ERM_DP,
+        ModelType.EQ_DP,
+        ModelType.ERM_SHI,
+        ModelType.EQ_SHI,
+        ModelType.ERM_ZAF,
+        ModelType.EQ_ZAF,
+        ModelType.ERM_KAM,
+        ModelType.EQ_KAM,
+    ):
         two_model_approach(cfg=cfg, data=data, logger=wandb_logger)
         return
 
@@ -551,7 +560,7 @@ def two_model_approach(cfg: Config, data: BaseDataModule, logger: pll.WandbLogge
             test_predictions=erm_model.run(data.train_datatuple, data.test_datatuple),
             test=data.test_datatuple,
         )
-    if cfg.exp.model in (ModelType.ERM_DP, ModelType.ERM_DP):
+    if cfg.exp.model in (ModelType.ERM_DP, ModelType.EQ_DP):
         dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
         dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
     elif cfg.exp.model in (ModelType.ERM_ZAF, ModelType.EQ_ZAF):
