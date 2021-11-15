@@ -207,7 +207,8 @@ class NearestNeighbour(CommonModel):
         data: BaseDataModule | EthicMlDataModule,
         indices: list[str] | None,
     ) -> None:
-        _ = (num_s, data_dim, s_dim, cf_available, feature_groups, outcome_cols, indices)
+        _ = (num_s, data_dim, s_dim, cf_available, feature_groups, indices)
+        self.data_cols = outcome_cols
         self.train_features = torch.as_tensor(data.train_datatuple.x.values, dtype=torch.float32)
         self.train_sens = torch.as_tensor(data.train_datatuple.s.values, dtype=torch.long)
 
