@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from conduit.types import Stage
 from ranzen import implements
 
 if 1:
