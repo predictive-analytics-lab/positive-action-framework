@@ -48,7 +48,7 @@ def test_get_value_counts(seed: int):
 
 
 @pytest.mark.parametrize(
-    "dm_schema", ["ad", "adm", "law", "semi", "lill", "synth"]  # "crime", "health"
+    "dm_schema", ["ad", "adm", "adminv", "law", "semi", "lill", "synth"]  # "crime", "health"
 )
 def test_with_initialize(dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""

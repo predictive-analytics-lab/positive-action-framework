@@ -1,8 +1,10 @@
 """Main script."""
 from __future__ import annotations
+from copy import copy
 
 if 1:
     import faiss  # noqa
+
 from dataclasses import dataclass
 from enum import Enum, auto
 import logging
@@ -192,7 +194,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     LOGGER.info(f"data_dim={data.size()}, num_s={data.card_s}")
 
     raw_config["name"] = name_lookup(cfg)
-    raw_config["data_name"] = cfg.data.__class__.__name__
+    raw_config["data_name"] = cfg.data.__class__.__name__ + "inverted"
 
     wandb_logger = pll.WandbLogger(
         entity="predictive-analytics-lab",
@@ -203,6 +205,8 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     )
     cfg.enc_trainer.logger = wandb_logger
     cfg.clf_trainer.logger = wandb_logger
+
+    pred_trainer = copy(cfg.enc_trainer)
 
     # make_data_plots(data, cfg.trainer.logger)
 
@@ -270,7 +274,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     # cfg.enc_trainer.fit(model=model, datamodule=data)
     results = model.collate_results(
         cfg.enc_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None),
-        cycle_steps=100,
+        cycle_steps=0,
     )
 
     if isinstance(results, PafResults):
@@ -303,7 +307,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         data=data,
         encoder=encoder,
         classifier=classifier,
-        _model_trainer=cfg.enc_trainer,
+        _model_trainer=pred_trainer,
     )
 
     if not cfg.exp.log_offline and wandb_logger is not None:
@@ -468,23 +472,23 @@ def evaluate(
                 test_mode=cfg.clf_trainer.fast_dev_run,
             )
 
-        # === This is only for reporting ====
-        _model = PafModel(encoder=encoder, classifier=classifier)
-        _results = _model.collate_results(
-            _model_trainer.predict(
-                model=_model, ckpt_path=None, dataloaders=data.train_dataloader()
-            )
-        )
-        produce_selection_groups(
-            outcomes=_results.pd_results,
-            data=data,
-            recon_0=_results.recons_0,
-            recon_1=_results.recons_1,
-            logger=wandb_logger,
-            data_name="Train",
-            debug=cfg.exp.debug,
-        )
-        # === === ===
+        # # === This is only for reporting ====
+        # _model = PafModel(encoder=encoder, classifier=classifier)
+        # _results = _model.collate_results(
+        #     _model_trainer.predict(
+        #         model=_model, ckpt_path=None, dataloaders=data.train_dataloader()
+        #     )
+        # )
+        # produce_selection_groups(
+        #     outcomes=_results.pd_results,
+        #     data=data,
+        #     recon_0=_results.recons_0,
+        #     recon_1=_results.recons_1,
+        #     logger=wandb_logger,
+        #     data_name="Train",
+        #     debug=cfg.exp.debug,
+        # )
+        # # === === ===
 
 
 def baseline_models(
