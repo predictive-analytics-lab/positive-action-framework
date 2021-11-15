@@ -3,6 +3,8 @@ from __future__ import annotations
 from conduit.types import Stage
 from ranzen import implements
 
+from paf.plotting import make_plot
+
 if 1:
     import faiss  # noqa
 
@@ -266,6 +268,20 @@ class NearestNeighbour(CommonModel):
             recons_0=recon_list.x[0],
             recons_1=recon_list.x[1],
         )
+
+    @implements(pl.LightningModule)
+    def test_epoch_end(self, outputs: list[NnStepOut]) -> None:
+        self.shared_epoch_end(outputs, stage=Stage.test)
+
+    @implements(pl.LightningModule)
+    def validation_epoch_end(self, outputs: list[NnStepOut]) -> None:
+        self.shared_epoch_end(outputs, stage=Stage.validate)
+
+    def shared_epoch_end(self, output_results: list[NnStepOut], *, stage: Stage) -> None:
+        self.all_x = torch.cat([_r.x for _r in output_results], 0)
+        self.all_s = torch.cat([_r.s for _r in output_results], 0)
+        self.all_recon = torch.cat([_r.x for _r in output_results], 0)
+        self.all_cf_pred = torch.cat([_r.cf_x for _r in output_results], 0)
 
     def predict_step(
         self, batch: Batch | CfBatch | TernarySample, batch_idx: int, *_: Any
