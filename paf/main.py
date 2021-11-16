@@ -194,7 +194,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     LOGGER.info(f"data_dim={data.size()}, num_s={data.card_s}")
 
     raw_config["name"] = name_lookup(cfg)
-    raw_config["data_name"] = cfg.data.__class__.__name__ + "inverted"
+    raw_config["data_name"] = cfg.data.__class__.__name__
 
     wandb_logger = pll.WandbLogger(
         entity="predictive-analytics-lab",
