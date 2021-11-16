@@ -1,0 +1,20 @@
+defaults:
+  - /schema/enc: enc_schema
+  - _self_
+
+encoder_blocks: 5
+adv_blocks: 2
+decoder_blocks: 5
+latent_dims: 30
+latent_multiplier: 10
+lr: 3e-4
+adv_weight: 0.5
+mmd_weight: 0.5
+target_weight: 3.0
+cycle_weight: 0.0
+proxy_weight: 1.0
+s_as_input: true
+mmd_kernel: "RBF"
+scheduler_rate: 0.99
+weight_decay: 1e-6
+debug: false
