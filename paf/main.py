@@ -15,9 +15,11 @@ from conduit.hydra.conduit.fair.data.datamodules.conf import (  # type: ignore[i
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
     CompasDataModuleConf,
+    CreditDataModuleConf,
     CrimeDataModuleConf,
     HealthDataModuleConf,
     LawDataModuleConf,
+    SqfDataModuleConf,
 )
 import ethicml as em
 import hydra
@@ -65,7 +67,7 @@ from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: igno
 )
 from paf.log_progress import do_log
 from paf.mmd import KernelType, mmd2
-from paf.plotting import label_plot
+from paf.plotting import label_plot, make_data_plots
 from paf.scoring import get_full_breakdown, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
 import wandb
@@ -144,10 +146,12 @@ DATA_GROUP: Final[str] = "schema/data"  # group
 CS.store(name="adult-bolt", node=AdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="admiss-bolt", node=AdmissionsDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="compas-bolt", node=CompasDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="credit-bolt", node=CreditDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="crime-bolt", node=CrimeDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="health-bolt", node=HealthDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="law-bolt", node=LawDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="semi-synth", node=SemiAdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="sqf-bolt", node=SqfDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="lilliput", node=LilliputDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="synth", node=SimpleXDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="third", node=ThirdWayDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
@@ -208,7 +212,8 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
 
     pred_trainer = copy(cfg.enc_trainer)
 
-    # make_data_plots(data, cfg.trainer.logger)
+    if cfg.exp.debug:
+        make_data_plots(data, wandb_logger)
 
     if isinstance(cfg.clf, em.InAlgorithm):
         baseline_models(cfg.clf, data=data, logger=wandb_logger, debug=cfg.exp.debug)

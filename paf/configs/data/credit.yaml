@@ -1,0 +1,6 @@
+defaults:
+  - /schema/data: credit-bolt
+  - em_base
+  - _self_
+
+sens_feat: "sex"
