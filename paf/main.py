@@ -73,6 +73,7 @@ from paf.selection import baseline_selection_rules, produce_selection_groups
 import wandb
 
 LOGGER = logging.getLogger(__name__)
+sns.set_theme(style="whitegrid")
 
 
 class ModelType(Enum):
