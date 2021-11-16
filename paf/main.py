@@ -345,10 +345,14 @@ def make_umap(
         (embedding["s"] == 1) & (embedding["y"] == 0),
         (embedding["s"] == 1) & (embedding["y"] == 1),
     ]
-    values = ["s0y0", "s0y1", "s1y0", "s1y1"]
-    embedding["group"] = np.select(conditions, values, -1)
+    values = ["S=0,Y=0", "S=0,Y=1", "S=1,Y=0", "S=1,Y=1"]
+    embedding["Labels"] = np.select(conditions, values, -1)
 
-    sns.scatterplot(data=embedding, x="x1", y="x2", hue="group")
+    fig = sns.scatterplot(data=embedding, x="x1", y="x2", hue="Labels")
+    fig.set(xlabel=None)
+    fig.tick_params(bottom=False)
+    fig.set(ylabel=None)
+    fig.tick_params(left=False)
     logger.experiment.log({f"{data_name}": wandb.Image(plt)})
     plt.clf()
 
