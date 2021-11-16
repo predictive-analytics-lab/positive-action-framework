@@ -3,4 +3,4 @@ defaults:
   - em_base
   - _self_
 
-sens_feat: "sex"
+sens_feat: "race"
