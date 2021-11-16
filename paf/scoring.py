@@ -243,12 +243,24 @@ def get_full_breakdown(
         result = data.y[data.y.columns[0]] == val
         do_log(f"{target_info}/P({y_denotation}={val})", result.sum() / result.count(), logger)
 
+        # P(s=val)
+        result = data.s[data.s.columns[0]] == val
+        do_log(f"{target_info}/P({s_denotation}={val})", result.sum() / result.count(), logger)
+
     for outer_val in [0, 1]:
         for inner_val in [0, 1]:
             # P(y^=outer | S=inner)
             result = data.y[data.s[data.s.columns[0]] == inner_val][data.y.columns[0]] == outer_val
             do_log(
                 f"{target_info}/P({y_denotation}={outer_val}|{s_denotation}={inner_val})",
+                result.sum() / result.count(),
+                logger,
+            )
+
+            # P(s=outer | y^=inner)
+            result = data.s[data.y[data.y.columns[0]] == inner_val][data.s.columns[0]] == outer_val
+            do_log(
+                f"{target_info}/P({s_denotation}={outer_val}|{y_denotation}={inner_val})",
                 result.sum() / result.count(),
                 logger,
             )
