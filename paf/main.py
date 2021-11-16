@@ -348,7 +348,7 @@ def make_umap(
     values = ["S=0,Y=0", "S=0,Y=1", "S=1,Y=0", "S=1,Y=1"]
     embedding["Labels"] = np.select(conditions, values, -1)
 
-    fig = sns.scatterplot(data=embedding, x="x1", y="x2", hue="Labels")
+    fig = sns.scatterplot(data=embedding, x="x1", y="x2", hue="Labels", style="Labels")
     fig.set(xlabel=None)
     fig.tick_params(bottom=False)
     fig.set(ylabel=None)
