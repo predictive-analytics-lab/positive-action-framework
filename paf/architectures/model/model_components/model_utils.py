@@ -18,7 +18,7 @@ __all__ = [
 def init_weights(module: nn.Module) -> None:
     """Make Linear layer weights initialised with Xavier Norm."""
     if isinstance(module, nn.Linear):
-        nn.init.xavier_normal_(module.weight)
+        nn.init.xavier_uniform_(module.weight)
 
 
 def index_by_s(recons: list[Tensor], s: Tensor) -> Tensor:
