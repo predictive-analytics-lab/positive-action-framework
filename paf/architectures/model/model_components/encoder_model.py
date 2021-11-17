@@ -37,7 +37,6 @@ __all__ = [
     "EncFwd",
 ]
 
-from ... import MmdReportingResults
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +83,7 @@ class Loss:
         recon_weight: float = 1.0,
         proxy_weight: float = 1.0,
     ):
-        self._recon_loss_fn = nn.L1Loss(reduction="mean")
+        self._recon_loss_fn = nn.L1Loss(reduction="sum")
         self.feature_groups = feature_groups if feature_groups is not None else {}
         self._adv_weight = adv_weight
         self._mmd_weight = mmd_weight
@@ -114,7 +113,7 @@ class Loss:
                 recon_loss += cross_entropy(
                     index_by_s(recons, batch.s)[:, group_slice],
                     torch.argmax(batch.x[:, group_slice], dim=-1),
-                    reduction="mean",
+                    reduction="sum",
                 )
         else:
             recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
@@ -134,7 +133,7 @@ class Loss:
 
     def adv_loss(self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample) -> Tensor:
         return binary_cross_entropy_with_logits(
-            enc_fwd.s.squeeze(-1), batch.s, reduction="mean"
+            enc_fwd.s.squeeze(-1), batch.s, reduction="sum"
         )  # * self._adv_weight
 
     def mmd_loss(
@@ -400,7 +399,7 @@ class AE(CommonModel):
             with no_grad():
                 # enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
                 cf_recon_loss = l1_loss(
-                    index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
+                    index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="sum"
                 )
                 to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
