@@ -626,7 +626,7 @@ def two_model_approach(cfg: Config, data: BaseDataModule, logger: pll.WandbLogge
             assert data.true_data_group is not None
             metrics_and_breakdown(
                 preds=preds,
-                target=data.test_datatuple,
+                target=data.true_test_datatuple,
                 name=f"{PS}/{TL}/{fair_bool=}",
                 logger=logger,
                 debug=cfg.exp.debug,
