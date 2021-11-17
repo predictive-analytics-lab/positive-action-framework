@@ -189,9 +189,9 @@ def make_data_plots(data: pl.LightningDataModule, logger: pll.WandbLogger) -> No
             )
             label_plot(data.cf_train_datatuple, logger, "cf_train")
             label_plot(data.cf_test_datatuple, logger, "cf_test")
-            label_plot(data.s0_s0, logger, "s0_s0")
-            label_plot(data.s0_s1, logger, "s0_s1")
-            label_plot(data.s1_s0, logger, "s1_s0")
-            label_plot(data.s1_s1, logger, "s1_s1")
+            label_plot(data.data_s0_s0, logger, "s0_s0")
+            label_plot(data.data_s0_s1, logger, "s0_s1")
+            label_plot(data.data_s1_s0, logger, "s1_s0")
+            label_plot(data.data_s1_s1, logger, "s1_s1")
         except (IndexError, KeyError):
             pass
