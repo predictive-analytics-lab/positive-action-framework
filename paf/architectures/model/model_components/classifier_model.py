@@ -63,7 +63,7 @@ class Loss:
     def pred_loss(
         self, clf_fwd: ClfFwd, batch: Batch | TernarySample, weight: Tensor | None
     ) -> Tensor:
-        return self._pred_weight * self._pred_loss_fn(reduction="sum", weight=weight)(
+        return self._pred_weight * self._pred_loss_fn(reduction="mean", weight=weight)(
             index_by_s(clf_fwd.y, batch.s).squeeze(-1), batch.y
         )
 
@@ -75,7 +75,7 @@ class Loss:
         )
 
     def adv_loss(self, clf_fwd: ClfFwd, batch: Batch | TernarySample) -> Tensor:
-        return self._adv_loss_fn(reduction="sum")(
+        return self._adv_loss_fn(reduction="mean")(
             clf_fwd.s.squeeze(-1), batch.s
         )  # * self._adv_weight
 
