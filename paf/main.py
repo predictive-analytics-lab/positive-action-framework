@@ -73,7 +73,6 @@ from paf.selection import baseline_selection_rules, produce_selection_groups
 import wandb
 
 LOGGER = logging.getLogger(__name__)
-sns.set_theme(style="whitegrid", palette="tab10")
 
 
 class ModelType(Enum):
@@ -348,6 +347,7 @@ def make_umap(
     values = ["S=0,Y=0", "S=0,Y=1", "S=1,Y=0", "S=1,Y=1"]
     embedding["Labels"] = np.select(conditions, values, -1)
 
+    sns.set_theme(style="whitegrid", palette="tab10")
     fig = sns.scatterplot(data=embedding, x="x1", y="x2", hue="Labels", style="Labels")
     fig.set(xlabel=None)
     fig.tick_params(bottom=False)
