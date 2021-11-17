@@ -5,12 +5,12 @@ defaults:
 encoder_blocks: 5
 adv_blocks: 2
 decoder_blocks: 2
-latent_dims: 10
+latent_dims: 40
 latent_multiplier: 10
 lr: 1e-3
-adv_weight: 0.5
-pred_weight: 1.0
-mmd_weight: 0.0
+adv_weight: 1.0
+pred_weight: 2.0
+mmd_weight: 1.0
 s_as_input: true
 mmd_kernel: "RBF"
 scheduler_rate: 0.99
