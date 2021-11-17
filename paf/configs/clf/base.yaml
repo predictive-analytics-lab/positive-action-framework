@@ -17,4 +17,3 @@ scheduler_rate: 0.99
 weight_decay: 1e-6
 use_iw: true
 debug: false
-log_every_n_steps: 10

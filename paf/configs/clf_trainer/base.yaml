@@ -9,3 +9,4 @@ auto_select_gpus: False
 auto_scale_batch_size: False
 accelerator: null
 terminate_on_nan: True
+log_every_n_steps: 10
