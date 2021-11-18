@@ -259,7 +259,7 @@ class Clf(CommonModel):
 
         clf_out = self.forward(x=mixed.inputs, s=s)
         _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
-        pred_loss = self.loss.pred_loss(clf_out, s=s, y=mixed.targets, weight=_iw)
+        pred_loss = self.loss.pred_loss(clf_out, s=s, y=mixed.targets[:, 1], weight=_iw)
         adv_loss = self.loss.adv_loss(clf_out, s=s)
         mmd_loss = self.loss.mmd_loss(clf_out, s=s)
 
