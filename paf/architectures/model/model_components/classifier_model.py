@@ -169,21 +169,21 @@ class Clf(CommonModel):
             latent_dim=self.latent_dims,
             out_size=1,
             blocks=self.adv_blocks,
-            hid_multiplier=self.latent_multiplier * 10,
+            hid_multiplier=self.latent_multiplier,
             weight=self._adv_weight,
         )
         self.in_adv0 = Adversary(
             latent_dim=1,
             out_size=1,
             blocks=self.adv_blocks,
-            hid_multiplier=self.latent_multiplier * 10,
+            hid_multiplier=self.latent_multiplier,
             weight=0.1,
         )
         self.in_adv1 = Adversary(
             latent_dim=1,
             out_size=1,
             blocks=self.adv_blocks,
-            hid_multiplier=self.latent_multiplier * 10,
+            hid_multiplier=self.latent_multiplier,
             weight=0.1,
         )
         self.decoders = nn.ModuleList(
@@ -192,7 +192,7 @@ class Clf(CommonModel):
                     latent_dim=self.latent_dims,
                     in_size=1,
                     blocks=self.decoder_blocks,
-                    hid_multiplier=self.latent_multiplier * 10,
+                    hid_multiplier=self.latent_multiplier,
                 )
                 for _ in range(num_s)
             ]

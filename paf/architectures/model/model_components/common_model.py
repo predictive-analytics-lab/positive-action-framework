@@ -125,7 +125,7 @@ class Encoder(BaseModel):
     def __init__(self, *, in_size: int, latent_dim: int, blocks: int, hid_multiplier: int):
         super().__init__(
             in_size=in_size,
-            hid_size=in_size * hid_multiplier,
+            hid_size=latent_dim * hid_multiplier,
             out_size=latent_dim,
             blocks=blocks,
         )
