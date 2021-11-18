@@ -261,14 +261,17 @@ class Clf(CommonModel):
         y_s1 = torch.cat([y_s1y0, y_s1y1], dim=0)
         mixed_s1 = self.mixup_s1(x_s1, targets=y_s1.long())
 
-        x = torch.cat([mixed_s0.inputs, mixed_s1.inputs], dim=0)
+        mixed_x = torch.cat([mixed_s0.inputs, mixed_s1.inputs], dim=0)
         s = torch.cat([s_s0, s_s1], dim=0)
-        y = torch.cat([mixed_s0.targets[:, 1], mixed_s1.targets[:, 1]], dim=0)
+        mixed_y = torch.cat([mixed_s0.targets[:, 1], mixed_s1.targets[:, 1]], dim=0)
 
-        # mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(s))
-        # mixed_pred_loss = torch.nn.functional.binary_cross_entropy_with_logits(
-        #     index_by_s(mixed_out.y, s).squeeze(), mixed.targets[:, 1]
-        # )
+        x = torch.cat([x_s0, x_s1], dim=0)
+        y = torch.cat([y_s0, y_s1], dim=0)
+
+        mixed_out = self.forward(x=mixed_x, s=s)
+        mixed_pred_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+            index_by_s(mixed_out.y, s).squeeze(), mixed_y
+        )
 
         clf_out = self.forward(x=x, s=s)
         _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
@@ -282,7 +285,7 @@ class Clf(CommonModel):
         #     index_by_s(mixed_out.y, s).squeeze(), mixed.targets[:, 1]
         # )
 
-        loss = pred_loss + adv_loss + mmd_loss  # + mixed_pred_loss
+        loss = pred_loss + adv_loss + mmd_loss + mixed_pred_loss
 
         x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
