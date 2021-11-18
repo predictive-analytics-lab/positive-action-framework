@@ -6,3 +6,5 @@ encoder_blocks: 5
 adv_blocks: 2
 decoder_blocks: 5
 latent_dims: 3
+latent_multiplier: 10
+target_weight: 4.0
