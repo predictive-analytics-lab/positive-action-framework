@@ -5,14 +5,18 @@
 # flake8: noqa
 
 from dataclasses import dataclass
+from omegaconf import MISSING
 
 
 @dataclass
 class CycleGanConf:
     _target_: str = "paf.architectures.model.CycleGan"
+    blocks: int = MISSING
+    adv_blocks: int = MISSING
+    latent_multiplier: int = MISSING
+    scheduler_rate: float = 0.99
     d_lr: float = 0.0002
     g_lr: float = 0.0002
-    epoch_decay: int = 200
 
 
 @dataclass

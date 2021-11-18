@@ -34,9 +34,7 @@ __all__ = [
     "CycleFwd",
 ]
 
-from .. import MmdReportingResults
 from ...base_templates import BaseDataModule
-from ...mmd import KernelType, mmd2
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +52,7 @@ class InitType(Enum):
     KAIMING = auto()
     NORMAL = auto()
     XAVIER = auto()
+    UNIFORM = auto()
 
 
 class Initializer:
@@ -72,6 +71,8 @@ class Initializer:
                 nn.init.xavier_normal_(module.weight.data, gain=self.init_gain)  # type: ignore[arg-type]
             elif self.init_type is InitType.NORMAL:
                 nn.init.normal_(module.weight.data, mean=0, std=self.init_gain)  # type: ignore[arg-type]
+            elif self.init_type is InitType.UNIFORM:
+                nn.init.xavier_uniform_(module.weight.data)  # type: ignore[arg-type]
             else:
                 raise ValueError("Initialization not found!!")
 
@@ -233,7 +234,7 @@ class ResBlock(nn.Module):
         """ResBlock."""
         super().__init__()
         conv = nn.Linear(in_channels, in_channels)
-        layers = [conv, nn.LeakyReLU(), nn.BatchNorm1d(in_channels)]
+        layers = [conv, nn.SELU(), nn.LayerNorm(in_channels)]
         if apply_dp:
             layers += [nn.Dropout(0.5)]
         conv = nn.Linear(in_channels, in_channels)
@@ -247,10 +248,10 @@ class ResBlock(nn.Module):
 class Generator(nn.Module):
     net: nn.Module
 
-    def __init__(self, in_dims: int, *, nb_resblks: int = 3):
+    def __init__(self, in_dims: int, *, latent_multiplier: int, nb_resblks: int):
         """Generator."""
         super().__init__()
-        out_dims = in_dims * 3
+        out_dims = in_dims * latent_multiplier
         conv = nn.Linear(in_dims, out_dims)
         layers: list[nn.Module] = [conv]
 
@@ -270,19 +271,19 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     net: nn.Module
 
-    def __init__(self, in_dims: int, nb_layers: int = 3):
+    def __init__(self, in_dims: int, *, latent_multiplier: int, nb_layers: int):
         """Discriminator."""
         super().__init__()
-        out_dims = in_dims * 3
+        out_dims = in_dims * latent_multiplier
         conv = nn.Linear(in_dims, out_dims)
-        layers = [conv, nn.LeakyReLU(), nn.BatchNorm1d(out_dims)]
+        layers = [conv, nn.SELU(), nn.LayerNorm(out_dims)]
 
         for _ in range(1, nb_layers):
             conv = nn.Linear(out_dims, out_dims)
-            layers += [conv, nn.LeakyReLU(), nn.BatchNorm1d(out_dims)]
+            layers += [conv, nn.SELU(), nn.LayerNorm(out_dims)]
 
         conv = nn.Linear(out_dims, out_dims)
-        layers += [conv, nn.LeakyReLU(), nn.BatchNorm1d(out_dims)]
+        layers += [conv, nn.SELU(), nn.LayerNorm(out_dims)]
 
         conv = nn.Linear(out_dims, 1)
         layers += [conv]
@@ -313,20 +314,26 @@ class CycleGan(CommonModel):
     @parsable
     def __init__(
         self,
+        blocks: int,
+        adv_blocks: int,
+        latent_multiplier: int,
+        scheduler_rate: float = 0.99,
         d_lr: float = 2e-4,
         g_lr: float = 2e-4,
-        epoch_decay: int = 200,
     ):
-
         super().__init__(name="CycleGan")
         self.d_lr = d_lr
         self.g_lr = g_lr
-        self.epoch_decay = epoch_decay
+        self.scheduler_rate = scheduler_rate
+
+        self.blocks = blocks
+        self.adv_blocks = adv_blocks
+        self.latent_multiplier = latent_multiplier
 
         self.fake_pool_a = HistoryPool(pool_sz=50)
         self.fake_pool_b = HistoryPool(pool_sz=50)
 
-        self.init_fn = Initializer(init_type=InitType.NORMAL, init_gain=0.02)
+        self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
     @implements(CommonModel)
     def build(
@@ -343,10 +350,30 @@ class CycleGan(CommonModel):
     ) -> None:
         _ = (num_s, s_dim, cf_available, indices, data)
         self.loss = Loss(loss_type=LossType.MSE, lambda_=1, feature_groups=feature_groups)
-        self.g_a2b = self.init_fn(Generator(in_dims=data_dim))
-        self.g_b2a = self.init_fn(Generator(in_dims=data_dim))
-        self.d_a = self.init_fn(Discriminator(in_dims=data_dim))
-        self.d_b = self.init_fn(Discriminator(in_dims=data_dim))
+        self.g_a2b = self.init_fn(
+            Generator(
+                in_dims=data_dim, nb_resblks=self.blocks, latent_multiplier=self.latent_multiplier
+            )
+        )
+        self.g_b2a = self.init_fn(
+            Generator(
+                in_dims=data_dim, nb_resblks=self.blocks, latent_multiplier=self.latent_multiplier
+            )
+        )
+        self.d_a = self.init_fn(
+            Discriminator(
+                in_dims=data_dim,
+                nb_layers=self.adv_blocks,
+                latent_multiplier=self.latent_multiplier,
+            )
+        )
+        self.d_b = self.init_fn(
+            Discriminator(
+                in_dims=data_dim,
+                nb_layers=self.adv_blocks,
+                latent_multiplier=self.latent_multiplier,
+            )
+        )
         self.d_a_params = self.d_a.parameters()
         self.d_b_params = self.d_b.parameters()
         self.g_params = itertools.chain([*self.g_a2b.parameters(), *self.g_b2a.parameters()])
@@ -553,9 +580,9 @@ class CycleGan(CommonModel):
         d_b_opt = torch.optim.AdamW(self.d_b_params, lr=self.d_lr)
 
         # define the lr_schedulers here
-        g_sch = optim.lr_scheduler.ExponentialLR(g_opt, gamma=0.999)
-        d_a_sch = optim.lr_scheduler.ExponentialLR(d_a_opt, gamma=0.999)
-        d_b_sch = optim.lr_scheduler.ExponentialLR(d_b_opt, gamma=0.999)
+        g_sch = optim.lr_scheduler.ExponentialLR(g_opt, gamma=self.scheduler_rate)
+        d_a_sch = optim.lr_scheduler.ExponentialLR(d_a_opt, gamma=self.scheduler_rate)
+        d_b_sch = optim.lr_scheduler.ExponentialLR(d_b_opt, gamma=self.scheduler_rate)
 
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
