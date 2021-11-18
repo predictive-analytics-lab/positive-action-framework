@@ -489,6 +489,20 @@ class AE(CommonModel):
 
         if self.debug:
             make_plot(
+                x=index_by_s(self.all_recon.clone(), self.all_s.clone()),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_recon",
+                cols=[str(i) for i in range(self.latent_dims)],
+            )
+            make_plot(
+                x=self.all_x.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_true_x",
+                cols=[str(i) for i in range(self.latent_dims)],
+            )
+            make_plot(
                 x=all_z.clone(),
                 s=self.all_s.clone(),
                 logger=self.logger,
