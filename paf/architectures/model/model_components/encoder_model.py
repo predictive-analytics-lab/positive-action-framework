@@ -239,7 +239,7 @@ class AE(CommonModel):
             latent_dim=self.latent_dims,
             out_size=1,
             blocks=self.adv_blocks,
-            hid_multiplier=self.latent_multiplier,
+            hid_multiplier=self.latent_multiplier * 10,
             weight=self._adv_weight,
         )
 
@@ -247,14 +247,14 @@ class AE(CommonModel):
             latent_dim=self.data_dim,
             out_size=1,
             blocks=self.adv_blocks,
-            hid_multiplier=self.latent_multiplier,
+            hid_multiplier=self.latent_multiplier * 10,
             weight=0.1,
         )
         self.in_adv1 = Adversary(
             latent_dim=self.data_dim,
             out_size=1,
             blocks=self.adv_blocks,
-            hid_multiplier=self.latent_multiplier,
+            hid_multiplier=self.latent_multiplier * 10,
             weight=0.1,
         )
         self.enc = Encoder(
@@ -269,7 +269,7 @@ class AE(CommonModel):
                     latent_dim=self.latent_dims,
                     in_size=self.data_dim,
                     blocks=self.decoder_blocks,
-                    hid_multiplier=self.latent_multiplier,
+                    hid_multiplier=self.latent_multiplier * 10,
                 )
                 for _ in range(num_s)
             ]
