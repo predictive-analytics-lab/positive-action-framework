@@ -330,8 +330,8 @@ class CycleGan(CommonModel):
         self.adv_blocks = adv_blocks
         self.latent_multiplier = latent_multiplier
 
-        # self.fake_pool_a = HistoryPool(pool_sz=50)
-        # self.fake_pool_b = HistoryPool(pool_sz=50)
+        self.fake_pool_a = HistoryPool(pool_sz=256)
+        self.fake_pool_b = HistoryPool(pool_sz=256)
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
@@ -458,7 +458,7 @@ class CycleGan(CommonModel):
 
         if optimizer_idx == 1:
             self.set_requires_grad([self.d_a], requires_grad=True)
-            fake_a = cyc_out.fake_a  # self.fake_pool_a.push_and_pop(cyc_out.fake_a)
+            fake_a = self.fake_pool_a.push_and_pop(cyc_out.fake_a)
             dis_out = self.forward_dis(dis=self.d_a, real_data=real_a, fake_data=fake_a.detach())
 
             # GAN loss
@@ -478,7 +478,7 @@ class CycleGan(CommonModel):
 
         if optimizer_idx == 2:
             self.set_requires_grad([self.d_b], requires_grad=True)
-            fake_b = cyc_out.fake_b  # self.fake_pool_b.push_and_pop(cyc_out.fake_b)
+            fake_b = self.fake_pool_b.push_and_pop(cyc_out.fake_b)
             dis_b_out = self.forward_dis(dis=self.d_b, real_data=real_b, fake_data=fake_b.detach())
 
             # GAN loss
