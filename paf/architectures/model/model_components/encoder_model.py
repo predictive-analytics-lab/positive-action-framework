@@ -489,7 +489,7 @@ class AE(CommonModel):
 
         if self.debug:
             make_plot(
-                x=index_by_s(self.all_recon.clone(), self.all_s.clone()),
+                x=self.all_recon.clone(),
                 s=self.all_s.clone(),
                 logger=self.logger,
                 name=f"{stage}_recon",
