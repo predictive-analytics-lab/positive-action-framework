@@ -403,8 +403,8 @@ class AE(CommonModel):
             # f"{Stage.fit}/enc/s1_dist_mmd": mmd_results.s1_dist,
         }
 
-        if isinstance(batch, CfBatch):
-            with no_grad():
+        # if isinstance(batch, CfBatch):
+        #     with no_grad():
                 # enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
                 # cf_recon_loss = l1_loss(
                 #     index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
