@@ -49,4 +49,5 @@ class ClfConf:
     adv_blocks: int = MISSING
     decoder_blocks: int = MISSING
     latent_multiplier: int = MISSING
+    batch_size: int = MISSING
     debug: bool = MISSING
