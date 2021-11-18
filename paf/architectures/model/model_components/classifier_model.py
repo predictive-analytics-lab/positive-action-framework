@@ -277,10 +277,34 @@ class Clf(CommonModel):
         adv_loss = self.loss.adv_loss(clf_out, s=s)
         mmd_loss = self.loss.mmd_loss(clf_out, s=s)
 
-        mixed = self.mixup(batch.x, targets=y.long(), group_labels=s.long())
-        mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(s))
+        x_s0y0 = batch.x[(batch.s == 0) & (batch.y == 0)]
+        x_s0y1 = batch.x[(batch.s == 0) & (batch.y == 1)]
+        x_s0 = torch.cat([x_s0y0, x_s0y1], dim=0)
+        x_s1y0 = batch.x[(batch.s == 1) & (batch.y == 0)]
+        x_s1y1 = batch.x[(batch.s == 1) & (batch.y == 1)]
+        x_s1 = torch.cat([x_s1y0, x_s1y1], dim=0)
+        s_s0y0 = batch.x.new_zeros((x_s0y0.shape[0]))
+        s_s0y1 = batch.x.new_zeros((x_s0y0.shape[0]))
+        s_s0 = torch.cat([s_s0y0, s_s0y1], dim=0)
+        s_s1y0 = batch.x.new_ones((x_s1y0.shape[0]))
+        s_s1y1 = batch.x.new_ones((x_s1y0.shape[0]))
+        s_s1 = torch.cat([s_s1y0, s_s1y1], dim=0)
+        y_s0y0 = batch.x.new_zeros((x_s0y0.shape[0]))
+        y_s0y1 = batch.x.new_ones((x_s0y1.shape[0]))
+        y_s0 = torch.cat([y_s0y0, y_s0y1], dim=0)
+        y_s1y0 = batch.x.new_zeros((x_s0y0.shape[0]))
+        y_s1y1 = batch.x.new_ones((x_s0y1.shape[0]))
+        y_s1 = torch.cat([y_s1y0, y_s1y1], dim=0)
+
+        mixed_s0 = self.mixup_s0(x_s0, targets=y_s0.long())
+        mixed_s1 = self.mixup_s1(x_s1, targets=y_s1.long())
+        mixed_x = torch.cat([mixed_s0.inputs, mixed_s1.inputs], dim=0)
+        mixed_s = torch.cat([s_s0, s_s1], dim=0)
+        mixed_y = torch.cat([mixed_s0.targets[:, 1], mixed_s1.targets[:, 1]], dim=0)
+
+        mixed_out = self.forward(x=mixed_x, s=mixed_s)
         mixed_pred_loss = torch.nn.functional.mse_loss(
-            index_by_s(mixed_out.y, s).squeeze().sigmoid(), mixed.targets[:, 1]
+            index_by_s(mixed_out.y, s).squeeze().sigmoid(), mixed_y
         )
 
         loss = pred_loss + adv_loss + mmd_loss + mixed_pred_loss
