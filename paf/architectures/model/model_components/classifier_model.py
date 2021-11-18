@@ -233,8 +233,12 @@ class Clf(CommonModel):
 
         x_s0y0 = self.pool_x_s0y0.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 0)])
         x_s0y1 = self.pool_x_s0y1.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 1)])
+        assert len(x_s0y0) == len(x_s0y1)
+
         s_s0y0 = self.pool_s_s0y0.push_and_pop(batch.s[(batch.s == 0) & (batch.y == 0)])
         s_s0y1 = self.pool_s_s0y1.push_and_pop(batch.s[(batch.s == 0) & (batch.y == 1)])
+        assert len(s_s0y0) == len(s_s0y1)
+
         y_s0y0 = self.pool_y_s0y0.push_and_pop(batch.y[(batch.s == 0) & (batch.y == 0)])
         y_s0y1 = self.pool_y_s0y1.push_and_pop(batch.y[(batch.s == 0) & (batch.y == 1)])
         x_s1y0 = self.pool_x_s1y0.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 0)])

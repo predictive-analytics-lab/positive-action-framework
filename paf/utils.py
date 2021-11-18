@@ -93,6 +93,8 @@ class HistoryPool:
     def push_and_pop(self, samples: Tensor) -> Tensor:
         samples_to_return = []
         for sample in samples:
+            if len(samples_to_return) >= self.pool_sz:
+                break
             sample = torch.unsqueeze(sample, 0)
             if self.nb_samples < self.pool_sz:
                 self.history_pool.append(sample)
@@ -105,4 +107,8 @@ class HistoryPool:
                 samples_to_return.append(temp_img)
             else:
                 samples_to_return.append(sample)
+        while len(samples_to_return) < self.pool_sz:
+            rand_int = np.random.randint(0, self.nb_samples)
+            temp_img = self.history_pool[rand_int].clone()
+            samples_to_return.append(temp_img)
         return torch.cat(samples_to_return, 0)
