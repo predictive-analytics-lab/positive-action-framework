@@ -337,9 +337,9 @@ class AE(CommonModel):
         assert self.built
 
         x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
-        s0 = batch.x.new_zeros(x0.shape[1])
+        s0 = batch.x.new_zeros((x0.shape[1], 1))
         x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
-        s1 = batch.x.new_ones(x0.shape[1])
+        s1 = batch.x.new_ones((x0.shape[1], 1))
         x = torch.cat([x0, x1], dim=0)
         s = torch.cat([s0, s1], dim=0)
 
