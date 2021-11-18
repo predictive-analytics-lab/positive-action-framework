@@ -95,30 +95,26 @@ class Loss:
         self._cycle_loss_fn = nn.L1Loss(reduction="mean")
         self._proxy_loss_fn = nn.L1Loss(reduction="none")
 
-    def recon_loss(self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample) -> Tensor:
+    def recon_loss(self, recons: list[Tensor], *, x: Tensor, s: Tensor) -> Tensor:
         if self.feature_groups["discrete"]:
-            recon_loss = batch.x.new_tensor(0.0)
+            recon_loss = x.new_tensor(0.0)
             for i in range(
-                batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])].shape[
-                    1
-                ]
+                x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]
             ):
                 recon_loss += self._recon_loss_fn(
-                    index_by_s(recons, batch.s)[
-                        :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
+                    index_by_s(recons, s)[
+                        :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
                     ][:, i].sigmoid(),
-                    batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])][
-                        :, i
-                    ],
+                    x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])][:, i],
                 )
             for group_slice in self.feature_groups["discrete"]:
                 recon_loss += cross_entropy(
-                    index_by_s(recons, batch.s)[:, group_slice],
-                    torch.argmax(batch.x[:, group_slice], dim=-1),
+                    index_by_s(recons, s)[:, group_slice],
+                    torch.argmax(x[:, group_slice], dim=-1),
                     reduction="mean",
                 )
         else:
-            recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
+            recon_loss = self._recon_loss_fn(index_by_s(recons, s).sigmoid(), x)
 
         return recon_loss * self._recon_weight
 
@@ -133,20 +129,16 @@ class Loss:
         )
         return self._proxy_weight * proxy_loss
 
-    def adv_loss(self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample) -> Tensor:
+    def adv_loss(self, enc_fwd: EncFwd, *, s: Tensor) -> Tensor:
         return binary_cross_entropy_with_logits(
-            enc_fwd.s.squeeze(-1), batch.s, reduction="mean"
+            enc_fwd.s.squeeze(-1), s, reduction="mean"
         )  # * self._adv_weight
 
-    def mmd_loss(
-        self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, kernel: KernelType
-    ) -> Tensor:
+    def mmd_loss(self, enc_fwd: EncFwd, *, s: Tensor, kernel: KernelType) -> Tensor:
         if self._mmd_weight == 0.0:
             return torch.tensor(0.0)
 
-        return (
-            mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel) * self._mmd_weight
-        )
+        return mmd2(enc_fwd.z[s == 0], enc_fwd.z[s == 1], kernel=kernel) * self._mmd_weight
 
     def cycle_loss(
         self, cyc_x: list[Tensor], *, batch: Batch | CfBatch | TernarySample
@@ -359,10 +351,10 @@ class AE(CommonModel):
         # constraint_mask[:, self.indices] += 1
         enc_fwd = self.forward(x=x, s=s, constraint_mask=constraint_mask)
 
-        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, x=x, s=s)
         # proxy_loss = self.loss.proxy_loss(enc_fwd, batch=batch, mask=constraint_mask)
-        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
-        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
+        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, s=s)
+        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, s=s, kernel=self.mmd_kernel)
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + mmd_loss  # + proxy_loss  # + cycle_loss
@@ -398,11 +390,11 @@ class AE(CommonModel):
             f"{Stage.fit}/enc/x1_adv_loss": x1_adv,
             # f"{Stage.fit}/enc/proxy_loss": proxy_loss,
             f"{Stage.fit}/enc/mse": self.fit_mse(
-                self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x
+                self.invert(index_by_s(enc_fwd.x, s), x), x
             ),
             f"{Stage.fit}/enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/enc/z_mean_abs_diff": (
-                enc_fwd.z[batch.s <= 0].detach().mean() - enc_fwd.z[batch.s > 0].detach().mean()
+                enc_fwd.z[s <= 0].detach().mean() - enc_fwd.z[s > 0].detach().mean()
             ).abs(),
             # f"{Stage.fit}/enc/cycle_loss": report_of_cyc_loss,
             # f"{Stage.fit}/enc/recon_mmd": mmd_results.recon,
@@ -414,10 +406,10 @@ class AE(CommonModel):
         if isinstance(batch, CfBatch):
             with no_grad():
                 # enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
-                cf_recon_loss = l1_loss(
-                    index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
-                )
-                to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
+                # cf_recon_loss = l1_loss(
+                #     index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
+                # )
+                # to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
         self.log_dict(to_log, logger=True)
 
@@ -443,9 +435,9 @@ class AE(CommonModel):
         constraint_mask[:, self.indices] += 1
         enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
 
-        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
-        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
-        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, x=batch.x, s=batch.s)
+        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, s=batch.s)
+        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, s=batch.s, kernel=self.mmd_kernel)
         # cycle_loss, _ = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + mmd_loss  # + cycle_loss
