@@ -22,6 +22,7 @@ from torchmetrics import Accuracy
 from paf.base_templates import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
+from paf.utils import HistoryPool
 
 from .common_model import Adversary, BaseModel, CommonModel, Decoder, Encoder
 from .model_utils import index_by_s
@@ -60,24 +61,18 @@ class Loss:
         self._pred_loss_fn = nn.BCEWithLogitsLoss
         self._adv_loss_fn = nn.BCEWithLogitsLoss
 
-    def pred_loss(
-        self, clf_fwd: ClfFwd, batch: Batch | TernarySample, weight: Tensor | None
-    ) -> Tensor:
+    def pred_loss(self, clf_fwd: ClfFwd, s: Tensor, y: Tensor, weight: Tensor | None) -> Tensor:
         return self._pred_weight * self._pred_loss_fn(reduction="mean", weight=weight)(
-            index_by_s(clf_fwd.y, batch.s).squeeze(-1), batch.y
+            index_by_s(clf_fwd.y, s).squeeze(-1), y
         )
 
-    def mmd_loss(self, clf_fwd: ClfFwd, batch: Batch | TernarySample) -> Tensor:
+    def mmd_loss(self, clf_fwd: ClfFwd, s: Tensor) -> Tensor:
         if self._mmd_weight == 0.0:
             return torch.tensor(0.0)
-        return self._mmd_weight * mmd2(
-            clf_fwd.z[batch.s == 0], clf_fwd.z[batch.s == 1], kernel=self._kernel
-        )
+        return self._mmd_weight * mmd2(clf_fwd.z[s == 0], clf_fwd.z[s == 1], kernel=self._kernel)
 
-    def adv_loss(self, clf_fwd: ClfFwd, batch: Batch | TernarySample) -> Tensor:
-        return self._adv_loss_fn(reduction="mean")(
-            clf_fwd.s.squeeze(-1), batch.s
-        )  # * self._adv_weight
+    def adv_loss(self, clf_fwd: ClfFwd, s: Tensor) -> Tensor:
+        return self._adv_loss_fn(reduction="mean")(clf_fwd.s.squeeze(-1), s)  # * self._adv_weight
 
 
 class Clf(CommonModel):
@@ -107,6 +102,7 @@ class Clf(CommonModel):
         adv_blocks: int,
         decoder_blocks: int,
         latent_multiplier: int,
+        batch_size: int,
         debug: bool,
     ):
         """Classifier."""
@@ -141,6 +137,19 @@ class Clf(CommonModel):
         self.mixup = RandomMixUp(
             lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
         )
+
+        self.pool_x_s0y0 = HistoryPool(pool_size=batch_size)
+        self.pool_x_s0y1 = HistoryPool(pool_size=batch_size)
+        self.pool_x_s1y0 = HistoryPool(pool_size=batch_size)
+        self.pool_x_s1y1 = HistoryPool(pool_size=batch_size)
+        self.pool_s_s0y0 = HistoryPool(pool_size=batch_size)
+        self.pool_s_s0y1 = HistoryPool(pool_size=batch_size)
+        self.pool_s_s1y0 = HistoryPool(pool_size=batch_size)
+        self.pool_s_s1y1 = HistoryPool(pool_size=batch_size)
+        self.pool_y_s0y0 = HistoryPool(pool_size=batch_size)
+        self.pool_y_s0y1 = HistoryPool(pool_size=batch_size)
+        self.pool_y_s1y0 = HistoryPool(pool_size=batch_size)
+        self.pool_y_s1y1 = HistoryPool(pool_size=batch_size)
 
         self.built = False
 
@@ -221,45 +230,62 @@ class Clf(CommonModel):
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
-        clf_out = self.forward(x=batch.x, s=batch.s)
-        _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
-        pred_loss = self.loss.pred_loss(clf_out, batch, weight=_iw)
-        adv_loss = self.loss.adv_loss(clf_out, batch)
-        mmd_loss = self.loss.mmd_loss(clf_out, batch)
 
-        mixed = self.mixup(batch.x, targets=batch.y.long(), group_labels=batch.s.long())
-        mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(batch.s))
+        x_s0y0 = self.pool_x_s0y0.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 0)])
+        x_s0y1 = self.pool_x_s0y1.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 1)])
+        s_s0y0 = self.pool_s_s0y0.push_and_pop(batch.s[(batch.s == 0) & (batch.y == 0)])
+        s_s0y1 = self.pool_s_s0y1.push_and_pop(batch.s[(batch.s == 0) & (batch.y == 1)])
+        y_s0y0 = self.pool_y_s0y0.push_and_pop(batch.y[(batch.s == 0) & (batch.y == 0)])
+        y_s0y1 = self.pool_y_s0y1.push_and_pop(batch.y[(batch.s == 0) & (batch.y == 1)])
+        x_s1y0 = self.pool_x_s1y0.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 0)])
+        x_s1y1 = self.pool_x_s1y1.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 1)])
+        s_s1y0 = self.pool_s_s1y0.push_and_pop(batch.s[(batch.s == 1) & (batch.y == 0)])
+        s_s1y1 = self.pool_s_s1y1.push_and_pop(batch.s[(batch.s == 1) & (batch.y == 1)])
+        y_s1y0 = self.pool_s_s1y0.push_and_pop(batch.y[(batch.s == 1) & (batch.y == 0)])
+        y_s1y1 = self.pool_s_s1y1.push_and_pop(batch.y[(batch.s == 1) & (batch.y == 1)])
+        x = torch.cat([x_s0y0, x_s0y1, x_s1y0, x_s1y1], dim=0)
+        s = torch.cat([s_s0y0, s_s0y1, s_s1y0, s_s1y1], dim=0)
+        y = torch.cat([y_s0y0, y_s0y1, y_s1y0, y_s1y1], dim=0)
+
+        clf_out = self.forward(x=x, s=s)
+        _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
+        pred_loss = self.loss.pred_loss(clf_out, s=s, y=y, weight=_iw)
+        adv_loss = self.loss.adv_loss(clf_out, s=s)
+        mmd_loss = self.loss.mmd_loss(clf_out, s=s)
+
+        mixed = self.mixup(x, targets=y.long(), group_labels=s.long())
+        mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(s))
         mixed_pred_loss = torch.nn.functional.binary_cross_entropy_with_logits(
-            index_by_s(mixed_out.y, batch.s).squeeze(), mixed.targets[:, 1]
+            index_by_s(mixed_out.y, s).squeeze(), mixed.targets[:, 1]
         )
 
-        loss = pred_loss + adv_loss + mmd_loss + mixed_pred_loss
+        loss = adv_loss + mmd_loss + mixed_pred_loss
 
         x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
                 [
-                    self.in_adv0(clf_out.y[0][batch.s == 0].detach()).squeeze(-1),
-                    self.in_adv0(clf_out.y[0][batch.s == 1]).squeeze(-1),
+                    self.in_adv0(clf_out.y[0][s == 0].detach()).squeeze(-1),
+                    self.in_adv0(clf_out.y[0][s == 1]).squeeze(-1),
                 ],
                 dim=0,
             ),
-            torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
+            torch.cat([s[s == 0], s[s == 1]], dim=0),
         )
         x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
                 [
-                    self.in_adv1(clf_out.y[1][batch.s == 0]).squeeze(-1),
-                    self.in_adv1(clf_out.y[1][batch.s == 1].detach()).squeeze(-1),
+                    self.in_adv1(clf_out.y[1][s == 0]).squeeze(-1),
+                    self.in_adv1(clf_out.y[1][s == 1].detach()).squeeze(-1),
                 ],
                 dim=0,
             ),
-            torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
+            torch.cat([s[s == 0], s[s == 1]], dim=0),
         )
         loss += x0_adv + x1_adv
 
         to_log = {
             f"{Stage.fit}/clf/acc": self.fit_acc(
-                index_by_s(clf_out.y, batch.s).squeeze(-1).sigmoid(), batch.y.int()
+                index_by_s(clf_out.y, s).squeeze(-1).sigmoid(), y.int()
             ),
             f"{Stage.fit}/clf/loss": loss,
             f"{Stage.fit}/clf/pred_loss": pred_loss,
@@ -269,19 +295,19 @@ class Clf(CommonModel):
             f"{Stage.fit}/clf/mmd_loss": mmd_loss,
             f"{Stage.fit}/clf/z_norm": clf_out.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/clf/z_mean_abs_diff": (
-                clf_out.z[batch.s <= 0].detach().mean() - clf_out.z[batch.s > 0].detach().mean()
+                clf_out.z[s <= 0].detach().mean() - clf_out.z[s > 0].detach().mean()
             ).abs(),
         }
 
-        if isinstance(batch, CfBatch):
-            with torch.no_grad():
-                to_log[f"{Stage.fit}/clf/cf_acc"] = self.fit_cf_acc(
-                    index_by_s(clf_out.y, batch.cfs).squeeze(-1).sigmoid(), batch.cfy.int()
-                )
-                # cf_recon_loss = l1_loss(
-                #     index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
-                # )
-                # to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
+        # if isinstance(batch, CfBatch):
+        #     with torch.no_grad():
+        #         to_log[f"{Stage.fit}/clf/cf_acc"] = self.fit_cf_acc(
+        #             index_by_s(clf_out.y, batch.cfs).squeeze(-1).sigmoid(), batch.cfy.int()
+        #         )
+        # cf_recon_loss = l1_loss(
+        #     index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
+        # )
+        # to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
         self.log_dict(to_log, logger=True)
 

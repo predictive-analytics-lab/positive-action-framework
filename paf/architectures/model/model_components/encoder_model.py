@@ -389,9 +389,7 @@ class AE(CommonModel):
             f"{Stage.fit}/enc/x0_adv_loss": x0_adv,
             f"{Stage.fit}/enc/x1_adv_loss": x1_adv,
             # f"{Stage.fit}/enc/proxy_loss": proxy_loss,
-            f"{Stage.fit}/enc/mse": self.fit_mse(
-                self.invert(index_by_s(enc_fwd.x, s), x), x
-            ),
+            f"{Stage.fit}/enc/mse": self.fit_mse(self.invert(index_by_s(enc_fwd.x, s), x), x),
             f"{Stage.fit}/enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/enc/z_mean_abs_diff": (
                 enc_fwd.z[s <= 0].detach().mean() - enc_fwd.z[s > 0].detach().mean()
@@ -405,11 +403,11 @@ class AE(CommonModel):
 
         # if isinstance(batch, CfBatch):
         #     with no_grad():
-                # enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
-                # cf_recon_loss = l1_loss(
-                #     index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
-                # )
-                # to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
+        # enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
+        # cf_recon_loss = l1_loss(
+        #     index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
+        # )
+        # to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
         self.log_dict(to_log, logger=True)
 
