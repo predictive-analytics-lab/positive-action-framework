@@ -22,7 +22,7 @@ from torchmetrics import Accuracy
 from paf.base_templates import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
-from paf.utils import HistoryPool
+from paf.utils import HistoryPool, Stratifier
 
 from .common_model import Adversary, BaseModel, CommonModel, Decoder, Encoder
 from .model_utils import index_by_s
@@ -141,18 +141,10 @@ class Clf(CommonModel):
             lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
         )
 
-        self.pool_x_s0y0 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_x_s0y1 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_x_s1y0 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_x_s1y1 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_s_s0y0 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_s_s0y1 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_s_s1y0 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_s_s1y1 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_y_s0y0 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_y_s0y1 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_y_s1y0 = HistoryPool(pool_size=batch_size // 4)
-        self.pool_y_s1y1 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_x_s0y0 = Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s0y1 = Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s1y0 = Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s1y1 = Stratifier(pool_size=batch_size // 4)
 
         self.built = False
 
@@ -238,18 +230,18 @@ class Clf(CommonModel):
         x_s0y1 = self.pool_x_s0y1.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 1)])
         assert len(x_s0y0) == len(x_s0y1)
 
-        s_s0y0 = self.pool_s_s0y0.push_and_pop(batch.s[(batch.s == 0) & (batch.y == 0)])
-        s_s0y1 = self.pool_s_s0y1.push_and_pop(batch.s[(batch.s == 0) & (batch.y == 1)])
+        s_s0y0 = batch.x.new_zeros(x_s0y0.shape[1])
+        s_s0y1 = batch.x.new_zeros(x_s0y0.shape[1])
         assert len(s_s0y0) == len(s_s0y1)
 
-        y_s0y0 = self.pool_y_s0y0.push_and_pop(batch.y[(batch.s == 0) & (batch.y == 0)])
-        y_s0y1 = self.pool_y_s0y1.push_and_pop(batch.y[(batch.s == 0) & (batch.y == 1)])
+        y_s0y0 = batch.x.new_zeros(x_s0y0.shape[1])
+        y_s0y1 = batch.x.new_ones(x_s0y1.shape[1])
         x_s1y0 = self.pool_x_s1y0.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 0)])
         x_s1y1 = self.pool_x_s1y1.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 1)])
-        s_s1y0 = self.pool_s_s1y0.push_and_pop(batch.s[(batch.s == 1) & (batch.y == 0)])
-        s_s1y1 = self.pool_s_s1y1.push_and_pop(batch.s[(batch.s == 1) & (batch.y == 1)])
-        y_s1y0 = self.pool_s_s1y0.push_and_pop(batch.y[(batch.s == 1) & (batch.y == 0)])
-        y_s1y1 = self.pool_s_s1y1.push_and_pop(batch.y[(batch.s == 1) & (batch.y == 1)])
+        s_s1y0 = batch.x.new_ones(x_s0y1.shape[1])
+        s_s1y1 = batch.x.new_ones(x_s0y1.shape[1])
+        y_s1y0 = batch.x.new_zeros(x_s0y0.shape[1])
+        y_s1y1 = batch.x.new_ones(x_s0y1.shape[1])
 
         x_s0 = torch.cat([x_s0y0, x_s0y1], dim=0)
         s_s0 = torch.cat([s_s0y0, s_s0y1], dim=0)

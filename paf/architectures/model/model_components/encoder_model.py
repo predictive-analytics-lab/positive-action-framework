@@ -23,7 +23,7 @@ from paf.base_templates import BaseDataModule
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
-from paf.utils import HistoryPool
+from paf.utils import HistoryPool, Stratifier
 
 from .common_model import Adversary, BaseModel, CommonModel, Decoder, Encoder
 from .model_utils import index_by_s
@@ -210,10 +210,8 @@ class AE(CommonModel):
         self.val_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
 
-        self.pool_x0 = HistoryPool(pool_size=batch_size // 2)
-        self.pool_x1 = HistoryPool(pool_size=batch_size // 2)
-        self.pool_s0 = HistoryPool(pool_size=batch_size // 2)
-        self.pool_s1 = HistoryPool(pool_size=batch_size // 2)
+        self.pool_x0 = Stratifier(pool_size=batch_size // 2)
+        self.pool_x1 = Stratifier(pool_size=batch_size // 2)
 
     @implements(CommonModel)
     def build(
@@ -339,9 +337,9 @@ class AE(CommonModel):
         assert self.built
 
         x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
-        s0 = self.pool_s0.push_and_pop(batch.s[batch.s == 0])
+        s0 = batch.x.new_zeros(x0.shape[1])
         x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
-        s1 = self.pool_s1.push_and_pop(batch.s[batch.s == 1])
+        s1 = batch.x.new_ones(x0.shape[1])
         x = torch.cat([x0, x1], dim=0)
         s = torch.cat([s0, s1], dim=0)
 
