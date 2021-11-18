@@ -47,9 +47,7 @@ def test_get_value_counts(seed: int):
         cfg.data.setup()
 
 
-@pytest.mark.parametrize(
-    "dm_schema", ["ad", "adm", "adminv", "law", "semi", "lill", "synth"]  # "crime", "health"
-)
+@pytest.mark.parametrize("dm_schema", ["ad", "adm", "law", "lill"])  # "crime", "health"
 def test_with_initialize(dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
     with initialize(config_path=CFG_PTH):
@@ -65,9 +63,7 @@ def test_with_initialize(dm_schema: str) -> None:
 @pytest.mark.parametrize(
     "dm_schema,cf_available",
     [
-        ("third", True),
         ("lill", True),
-        ("synth", True),
         ("ad", False),
         ("adm", False),
         # ("crime", False),
@@ -106,7 +102,7 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
                 torch.testing.assert_allclose(batch.y, batch.cfy)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
+@pytest.mark.parametrize("dm_schema", ["lill", "ad"])
 def test_datamods(dm_schema: str) -> None:
     """Test the flip dataset function."""
     with initialize(config_path=CFG_PTH):
@@ -129,7 +125,7 @@ def test_datamods(dm_schema: str) -> None:
             torch.testing.assert_allclose(tr_batch.x, te_batch.x)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adm", "ad"])
+@pytest.mark.parametrize("dm_schema", ["lill", "adm", "ad"])
 def test_enc(dm_schema: str) -> None:
     """Test the encoder network runs."""
     with initialize(config_path=CFG_PTH):
@@ -158,7 +154,7 @@ def test_enc(dm_schema: str) -> None:
         cfg.enc_trainer.test(model=encoder, ckpt_path=None, datamodule=cfg.data)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
+@pytest.mark.parametrize("dm_schema", ["lill", "ad"])
 def test_clf(dm_schema: str) -> None:
     """Test the classifier network runs."""
     with initialize(config_path=CFG_PTH):
@@ -186,7 +182,7 @@ def test_clf(dm_schema: str) -> None:
         cfg.clf_trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
+@pytest.mark.parametrize("dm_schema", ["lill", "ad"])
 def test_clfmod(dm_schema: str) -> None:
     """Test the end to end."""
     with initialize(config_path=CFG_PTH):

@@ -23,6 +23,7 @@ from paf.base_templates import BaseDataModule
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
+from paf.utils import HistoryPool
 
 from .common_model import Adversary, BaseModel, CommonModel, Decoder, Encoder
 from .model_utils import index_by_s
@@ -191,6 +192,7 @@ class AE(CommonModel):
         scheduler_rate: float,
         weight_decay: float,
         debug: bool,
+        batch_size: int,
     ):
         super().__init__(name="Enc")
 
@@ -215,6 +217,11 @@ class AE(CommonModel):
         self.fit_mse = MeanSquaredError()
         self.val_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
+
+        self.pool_x0 = HistoryPool(pool_sz=batch_size)
+        self.pool_x1 = HistoryPool(pool_sz=batch_size)
+        self.pool_s0 = HistoryPool(pool_sz=batch_size)
+        self.pool_s1 = HistoryPool(pool_sz=batch_size)
 
     @implements(CommonModel)
     def build(
@@ -312,19 +319,19 @@ class AE(CommonModel):
         # cycle_dec = [dec(cycle_z) for dec in self.decoders]
         return EncFwd(z=z, s=s_pred, x=recons)  # , cyc_z=cycle_z, cyc_x=cycle_dec)
 
-    def make_mask(self, batch: TernarySample) -> Tensor:
+    def make_mask(self, x: Tensor) -> Tensor:
 
         mask = []
         if self.feature_groups["discrete"]:
             for group in self.feature_groups["discrete"]:
-                prob = torch.bernoulli(torch.rand((batch.x.shape[0], 1), device=self.device))
+                prob = torch.bernoulli(torch.rand((x.shape[0], 1), device=self.device))
                 probs = torch.cat([prob for _ in range(group.start, group.stop)], dim=1)
                 mask.append(probs)
             mask.append(
                 torch.bernoulli(
                     torch.rand(
                         (
-                            batch.x.shape[0],
+                            x.shape[0],
                             self.data_dim - self.feature_groups["discrete"][-1].stop,
                         ),
                         device=self.device,
@@ -332,17 +339,25 @@ class AE(CommonModel):
                 )
             )
         else:
-            mask.append(torch.bernoulli(torch.rand_like(batch.x)))
+            mask.append(torch.bernoulli(torch.rand_like(x)))
         return torch.cat(mask, dim=1)
 
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
+
+        x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
+        s0 = self.pool_s0.push_and_pop(batch.s[batch.s == 0])
+        x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
+        s1 = self.pool_s1.push_and_pop(batch.s[batch.s == 1])
+        x = torch.cat([x0, x1], dim=0)
+        s = torch.cat([s0, s1], dim=0)
+
         # constraint_mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
-        constraint_mask = self.make_mask(batch) if self._proxy_weight > 0.0 else None
+        constraint_mask = self.make_mask(x) if self._proxy_weight > 0.0 else None
         # constraint_mask = torch.zeros_like(batch.x)
         # constraint_mask[:, self.indices] += 1
-        enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
+        enc_fwd = self.forward(x=x, s=s, constraint_mask=constraint_mask)
 
         recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
         # proxy_loss = self.loss.proxy_loss(enc_fwd, batch=batch, mask=constraint_mask)
@@ -354,22 +369,22 @@ class AE(CommonModel):
         x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
                 [
-                    self.in_adv0(enc_fwd.x[0][batch.s == 0].detach()).squeeze(-1),
-                    self.in_adv0(enc_fwd.x[0][batch.s == 1]).squeeze(-1),
+                    self.in_adv0(enc_fwd.x[0][s == 0].detach()).squeeze(-1),
+                    self.in_adv0(enc_fwd.x[0][s == 1]).squeeze(-1),
                 ],
                 dim=0,
             ),
-            torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
+            s,
         )
         x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
                 [
-                    self.in_adv1(enc_fwd.x[1][batch.s == 0]).squeeze(-1),
-                    self.in_adv1(enc_fwd.x[1][batch.s == 1].detach()).squeeze(-1),
+                    self.in_adv1(enc_fwd.x[1][s == 0]).squeeze(-1),
+                    self.in_adv1(enc_fwd.x[1][s == 1].detach()).squeeze(-1),
                 ],
                 dim=0,
             ),
-            torch.cat([batch.s[batch.s == 0], batch.s[batch.s == 1]], dim=0),
+            s,
         )
         loss += x0_adv + x1_adv
         # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)

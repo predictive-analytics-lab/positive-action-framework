@@ -29,6 +29,7 @@ class AEConf:
     scheduler_rate: float = MISSING
     weight_decay: float = MISSING
     debug: bool = MISSING
+    batch_size: int = MISSING
 
 
 @dataclass

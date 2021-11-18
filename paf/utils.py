@@ -5,10 +5,15 @@ from typing import Any, MutableMapping
 import warnings
 
 import pandas as pd
+import torch
+from torch import Tensor
+import numpy as np
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=UserWarning)
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
+
+__all__ = ["flatten", "facct_mapper", "facct_mapper_2", "facct_mapper_outcomes", "HistoryPool"]
 
 
 def flatten(
@@ -77,3 +82,27 @@ def facct_mapper_outcomes(mapped: pd.Series, fair: bool) -> pd.Series:
     lookup = {0: 0, 1: 1, 2: 1 if fair else 0}
 
     return pd.Series({i: lookup[d] for i, d in enumerate(mapped)})
+
+
+class HistoryPool:
+    def __init__(self, pool_sz: int = 50):
+        self.nb_samples = 0
+        self.history_pool: list[Tensor] = []
+        self.pool_sz = pool_sz
+
+    def push_and_pop(self, samples: Tensor) -> Tensor:
+        samples_to_return = []
+        for sample in samples:
+            sample = torch.unsqueeze(sample, 0)
+            if self.nb_samples < self.pool_sz:
+                self.history_pool.append(sample)
+                samples_to_return.append(sample)
+                self.nb_samples += 1
+            elif np.random.uniform(0, 1) > 0.5:
+                rand_int = np.random.randint(0, self.pool_sz)
+                temp_img = self.history_pool[rand_int].clone()
+                self.history_pool[rand_int] = sample
+                samples_to_return.append(temp_img)
+            else:
+                samples_to_return.append(sample)
+        return torch.cat(samples_to_return, 0)

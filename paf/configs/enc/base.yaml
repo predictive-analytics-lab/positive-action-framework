@@ -18,3 +18,4 @@ mmd_kernel: "RBF"
 scheduler_rate: 0.99
 weight_decay: 1e-6
 debug: false
+batch_size: ${data.train_batch_size}
