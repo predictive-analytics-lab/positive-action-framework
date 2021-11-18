@@ -270,7 +270,7 @@ class Clf(CommonModel):
 
         mixed_out = self.forward(x=mixed_x, s=s)
         mixed_pred_loss = torch.nn.functional.mse_loss(
-            index_by_s(mixed_out.y, s).squeeze().sigmioid(), mixed_y
+            index_by_s(mixed_out.y, s).squeeze().sigmoid(), mixed_y
         )
 
         clf_out = self.forward(x=x, s=s)
