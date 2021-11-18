@@ -493,14 +493,14 @@ class AE(CommonModel):
                 s=self.all_s.clone(),
                 logger=self.logger,
                 name=f"{stage}_recon",
-                cols=[str(i) for i in range(self.latent_dims)],
+                cols=self.data_cols,
             )
             make_plot(
                 x=self.all_x.clone(),
                 s=self.all_s.clone(),
                 logger=self.logger,
                 name=f"{stage}_true_x",
-                cols=[str(i) for i in range(self.latent_dims)],
+                cols=self.data_cols,
             )
             make_plot(
                 x=all_z.clone(),
