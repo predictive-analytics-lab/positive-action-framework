@@ -268,16 +268,19 @@ class Clf(CommonModel):
         #     index_by_s(mixed_out.y, s).squeeze().sigmoid(), mixed_y
         # )
 
-        clf_out = self.forward(x=batch.x, s=batch.s)
-        _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
-        pred_loss = self.loss.pred_loss(clf_out, s=batch.s, y=batch.y, weight=_iw)
-        adv_loss = self.loss.adv_loss(clf_out, s=batch.s)
-        mmd_loss = self.loss.mmd_loss(clf_out, s=batch.s)
+        s = batch.s
+        y = batch.y
 
-        mixed = self.mixup(batch.x, targets=batch.y.long(), group_labels=batch.s.long())
-        mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(batch.s))
+        clf_out = self.forward(x=batch.x, s=s)
+        _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
+        pred_loss = self.loss.pred_loss(clf_out, s=s, y=y, weight=_iw)
+        adv_loss = self.loss.adv_loss(clf_out, s=s)
+        mmd_loss = self.loss.mmd_loss(clf_out, s=s)
+
+        mixed = self.mixup(batch.x, targets=y.long(), group_labels=s.long())
+        mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(s))
         mixed_pred_loss = torch.nn.functional.mse_loss(
-            index_by_s(mixed_out.y, batch.s).squeeze().sigmoid(), mixed.targets[:, 1]
+            index_by_s(mixed_out.y, s).squeeze().sigmoid(), mixed.targets[:, 1]
         )
 
         loss = pred_loss + adv_loss + mmd_loss + mixed_pred_loss
