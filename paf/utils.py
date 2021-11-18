@@ -85,10 +85,10 @@ def facct_mapper_outcomes(mapped: pd.Series, fair: bool) -> pd.Series:
 
 
 class HistoryPool:
-    def __init__(self, pool_sz: int = 50):
+    def __init__(self, pool_size: int = 50):
         self.nb_samples = 0
         self.history_pool: list[Tensor] = []
-        self.pool_sz = pool_sz
+        self.pool_sz = pool_size
 
     def push_and_pop(self, samples: Tensor) -> Tensor:
         samples_to_return = []

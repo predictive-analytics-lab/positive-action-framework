@@ -308,8 +308,8 @@ class CycleGan(CommonModel):
         self.adv_blocks = adv_blocks
         self.latent_multiplier = latent_multiplier
 
-        self.fake_pool_a = HistoryPool(pool_sz=batch_size)
-        self.fake_pool_b = HistoryPool(pool_sz=batch_size)
+        self.fake_pool_a = HistoryPool(pool_size=batch_size)
+        self.fake_pool_b = HistoryPool(pool_size=batch_size)
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 

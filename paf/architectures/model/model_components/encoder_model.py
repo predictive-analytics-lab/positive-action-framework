@@ -210,10 +210,10 @@ class AE(CommonModel):
         self.val_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
 
-        self.pool_x0 = HistoryPool(pool_sz=batch_size)
-        self.pool_x1 = HistoryPool(pool_sz=batch_size)
-        self.pool_s0 = HistoryPool(pool_sz=batch_size)
-        self.pool_s1 = HistoryPool(pool_sz=batch_size)
+        self.pool_x0 = HistoryPool(pool_size=batch_size)
+        self.pool_x1 = HistoryPool(pool_size=batch_size)
+        self.pool_s0 = HistoryPool(pool_size=batch_size)
+        self.pool_s1 = HistoryPool(pool_size=batch_size)
 
     @implements(CommonModel)
     def build(
