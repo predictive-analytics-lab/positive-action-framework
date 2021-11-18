@@ -4,7 +4,7 @@
 # isort:skip_file
 # flake8: noqa
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from omegaconf import MISSING
 
 
@@ -14,6 +14,7 @@ class CycleGanConf:
     blocks: int = MISSING
     adv_blocks: int = MISSING
     latent_multiplier: int = MISSING
+    batch_size: int = MISSING
     scheduler_rate: float = 0.99
     d_lr: float = 0.0002
     g_lr: float = 0.0002

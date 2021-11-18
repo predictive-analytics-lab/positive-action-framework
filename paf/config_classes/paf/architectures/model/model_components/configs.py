@@ -4,7 +4,7 @@
 # isort:skip_file
 # flake8: noqa
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from omegaconf import MISSING
 from paf.mmd import KernelType
 from typing import Any

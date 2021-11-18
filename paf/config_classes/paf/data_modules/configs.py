@@ -4,7 +4,7 @@
 # isort:skip_file
 # flake8: noqa
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from omegaconf import MISSING
 from typing import Optional
 from typing import Tuple
@@ -18,7 +18,8 @@ class LilliputDataModuleConf:
     seed: int = MISSING
     num_samples: int = MISSING
     num_workers: int = MISSING
-    batch_size: int = MISSING
+    train_batch_size: int = MISSING
+    eval_batch_size: int = MISSING
     cf_available: bool = True
     train_dims: Optional[Tuple[int, ...]] = None
 

@@ -317,6 +317,7 @@ class CycleGan(CommonModel):
         blocks: int,
         adv_blocks: int,
         latent_multiplier: int,
+        batch_size: int,
         scheduler_rate: float = 0.99,
         d_lr: float = 2e-4,
         g_lr: float = 2e-4,
@@ -330,8 +331,8 @@ class CycleGan(CommonModel):
         self.adv_blocks = adv_blocks
         self.latent_multiplier = latent_multiplier
 
-        self.fake_pool_a = HistoryPool(pool_sz=256)
-        self.fake_pool_b = HistoryPool(pool_sz=256)
+        self.fake_pool_a = HistoryPool(pool_sz=batch_size)
+        self.fake_pool_b = HistoryPool(pool_sz=batch_size)
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
