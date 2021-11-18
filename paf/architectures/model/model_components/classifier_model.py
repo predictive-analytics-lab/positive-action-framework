@@ -138,18 +138,18 @@ class Clf(CommonModel):
             lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
         )
 
-        self.pool_x_s0y0 = HistoryPool(pool_size=batch_size)
-        self.pool_x_s0y1 = HistoryPool(pool_size=batch_size)
-        self.pool_x_s1y0 = HistoryPool(pool_size=batch_size)
-        self.pool_x_s1y1 = HistoryPool(pool_size=batch_size)
-        self.pool_s_s0y0 = HistoryPool(pool_size=batch_size)
-        self.pool_s_s0y1 = HistoryPool(pool_size=batch_size)
-        self.pool_s_s1y0 = HistoryPool(pool_size=batch_size)
-        self.pool_s_s1y1 = HistoryPool(pool_size=batch_size)
-        self.pool_y_s0y0 = HistoryPool(pool_size=batch_size)
-        self.pool_y_s0y1 = HistoryPool(pool_size=batch_size)
-        self.pool_y_s1y0 = HistoryPool(pool_size=batch_size)
-        self.pool_y_s1y1 = HistoryPool(pool_size=batch_size)
+        self.pool_x_s0y0 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_x_s0y1 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_x_s1y0 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_x_s1y1 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_s_s0y0 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_s_s0y1 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_s_s1y0 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_s_s1y1 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_y_s0y0 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_y_s0y1 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_y_s1y0 = HistoryPool(pool_size=batch_size // 4)
+        self.pool_y_s1y1 = HistoryPool(pool_size=batch_size // 4)
 
         self.built = False
 
