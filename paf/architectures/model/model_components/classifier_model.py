@@ -253,13 +253,13 @@ class Clf(CommonModel):
         adv_loss = self.loss.adv_loss(clf_out, s=s)
         mmd_loss = self.loss.mmd_loss(clf_out, s=s)
 
-        mixed = self.mixup(x, targets=y.long(), group_labels=s.long())
-        mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(s))
-        mixed_pred_loss = torch.nn.functional.binary_cross_entropy_with_logits(
-            index_by_s(mixed_out.y, s).squeeze(), mixed.targets[:, 1]
-        )
+        # mixed = self.mixup(x, targets=y.long(), group_labels=s.long())
+        # mixed_out = self.forward(x=mixed.inputs, s=torch.zeros_like(s))
+        # mixed_pred_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+        #     index_by_s(mixed_out.y, s).squeeze(), mixed.targets[:, 1]
+        # )
 
-        loss = adv_loss + mmd_loss + mixed_pred_loss
+        loss = pred_loss + adv_loss + mmd_loss  # + mixed_pred_loss
 
         x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
