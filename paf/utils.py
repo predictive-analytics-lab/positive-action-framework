@@ -131,11 +131,13 @@ class Stratifier:
                 self.history_pool.append(sample)
                 samples_to_return.append(sample)
                 self.nb_samples += 1
-            else:
+            elif np.random.uniform(0, 1) > 0.5:
                 rand_int = np.random.randint(0, self.pool_sz)
                 temp_img = self.history_pool[rand_int].clone()
                 self.history_pool[rand_int] = sample
                 samples_to_return.append(temp_img)
+            else:
+                samples_to_return.append(sample)
         while len(samples_to_return) < self.pool_sz:
             rand_int = np.random.randint(0, self.nb_samples)
             temp_img = self.history_pool[rand_int].clone()
