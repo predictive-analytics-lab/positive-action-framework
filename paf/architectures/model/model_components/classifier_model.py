@@ -394,7 +394,7 @@ class Clf(CommonModel):
             preds_0=self.threshold(clf_out.y[0]),
             preds_1=self.threshold(clf_out.y[1]),
             cf_y=batch.cfy if isinstance(batch, CfBatch) else None,
-            cf_preds=self.threshold(index_by_s(clf_out.y, batch.cfs))
+            cf_preds=self.threshold(index_by_s(clf_out.y, 1 - batch.s))
             if isinstance(batch, CfBatch)
             else None,
         )
@@ -426,8 +426,12 @@ class Clf(CommonModel):
             make_plot(
                 x=all_preds, s=all_s, logger=self.logger, name=f"{stage}/preds", cols=["preds"]
             )
-            make_plot(x=preds_0, s=all_s, logger=self.logger, name=f"{stage}/preds", cols=["preds"])
-            make_plot(x=preds_1, s=all_s, logger=self.logger, name=f"{stage}/preds", cols=["preds"])
+            make_plot(
+                x=preds_0, s=all_s, logger=self.logger, name=f"{stage}/preds_all0", cols=["preds"]
+            )
+            make_plot(
+                x=preds_1, s=all_s, logger=self.logger, name=f"{stage}/preds_all1", cols=["preds"]
+            )
             make_plot(
                 x=all_z,
                 s=all_s,
@@ -444,7 +448,7 @@ class Clf(CommonModel):
                     x=all_cf_y.unsqueeze(-1),
                     s=all_s,
                     logger=self.logger,
-                    name="true_counterfactual_outcome",
+                    name=f"{stage}/true_counterfactual_outcome",
                     cols=["preds"],
                 )
                 make_plot(
