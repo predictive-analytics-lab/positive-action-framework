@@ -4,6 +4,7 @@ defaults:
 
 encoder_blocks: 5
 adv_blocks: 2
-decoder_blocks: 2
+decoder_blocks: 5
 latent_dims: 2
 latent_multiplier: 25
+lr: 1e-4

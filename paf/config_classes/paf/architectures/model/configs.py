@@ -15,6 +15,8 @@ class CycleGanConf:
     adv_blocks: int = MISSING
     latent_multiplier: int = MISSING
     batch_size: int = MISSING
+    g_weight_decay: float = MISSING
+    d_weight_decay: float = MISSING
     scheduler_rate: float = 0.99
     d_lr: float = 0.0002
     g_lr: float = 0.0002

@@ -295,6 +295,8 @@ class CycleGan(CommonModel):
         adv_blocks: int,
         latent_multiplier: int,
         batch_size: int,
+        g_weight_decay: float,
+        d_weight_decay: float,
         scheduler_rate: float = 0.99,
         d_lr: float = 2e-4,
         g_lr: float = 2e-4,
@@ -308,8 +310,11 @@ class CycleGan(CommonModel):
         self.adv_blocks = adv_blocks
         self.latent_multiplier = latent_multiplier
 
-        self.fake_pool_a = HistoryPool(pool_size=batch_size // 2)
-        self.fake_pool_b = HistoryPool(pool_size=batch_size // 2)
+        self.fake_pool_a = HistoryPool(pool_size=batch_size // 4)
+        self.fake_pool_b = HistoryPool(pool_size=batch_size // 4)
+
+        self.g_weight_decay = g_weight_decay
+        self.d_weight_decay = d_weight_decay
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
@@ -553,9 +558,9 @@ class CycleGan(CommonModel):
     ) -> tuple[list[torch.optim.Optimizer], list[optim.lr_scheduler.ExponentialLR]]:
 
         # define the optimizers here
-        g_opt = torch.optim.AdamW(self.g_params, lr=self.g_lr)
-        d_a_opt = torch.optim.AdamW(self.d_a_params, lr=self.d_lr)
-        d_b_opt = torch.optim.AdamW(self.d_b_params, lr=self.d_lr)
+        g_opt = torch.optim.AdamW(self.g_params, lr=self.g_lr, weight_decay=self.g_weight_decay)
+        d_a_opt = torch.optim.AdamW(self.d_a_params, lr=self.d_lr, weight_decay=self.d_weight_decay)
+        d_b_opt = torch.optim.AdamW(self.d_b_params, lr=self.d_lr, weight_decay=self.d_weight_decay)
 
         # define the lr_schedulers here
         g_sch = optim.lr_scheduler.ExponentialLR(g_opt, gamma=self.scheduler_rate)

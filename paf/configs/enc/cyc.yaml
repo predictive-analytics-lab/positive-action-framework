@@ -8,3 +8,5 @@ blocks: 5
 adv_blocks: 2
 latent_multiplier: 10
 batch_size: ${data.train_batch_size}
+g_weight_decay: 1e-6
+d_weight_decay: 1e-6
