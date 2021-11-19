@@ -134,4 +134,5 @@ class Stratifier:
             rand_int = np.random.randint(0, self.nb_samples)
             temp_img = self.history_pool[rand_int].clone()
             self.history_pool.append(temp_img)
+            self.nb_samples += 1
         return torch.cat(self.history_pool, 0)
