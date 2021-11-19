@@ -389,7 +389,7 @@ class AE(CommonModel):
             kernel=KernelType.RBF,
         )
 
-        loss += x0_adv + x1_adv
+        # loss += x0_adv + x1_adv
         # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         to_log = {

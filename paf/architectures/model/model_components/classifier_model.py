@@ -343,7 +343,7 @@ class Clf(CommonModel):
             kernel=KernelType.RBF,
         )
 
-        loss += x0_adv + x1_adv
+        # loss += x0_adv + x1_adv
 
         to_log = {
             f"{Stage.fit}/clf/acc": self.fit_acc(
