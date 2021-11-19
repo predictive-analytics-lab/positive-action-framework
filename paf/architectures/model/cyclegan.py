@@ -538,7 +538,7 @@ class CycleGan(CommonModel):
         self.shared_epoch_end(outputs, stage=Stage.test)
 
     def validation_epoch_end(self, outputs: list[SharedStepOut]) -> None:
-        self.shared_epoch_end(outputs, stage=Stage.validation)
+        self.shared_epoch_end(outputs, stage=Stage.validate)
 
     def shared_epoch_end(self, outputs: list[SharedStepOut], *, stage: Stage) -> None:
         self.all_x = torch.cat([_r.x for _r in outputs], 0)
