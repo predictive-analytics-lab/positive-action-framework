@@ -519,7 +519,7 @@ class CycleGan(CommonModel):
             # f"{stage}/enc/s0_dist_mmd": mmd_results.s0_dist,
             # f"{stage}/enc/s1_dist_mmd": mmd_results.s1_dist,
         }
-        self.log_dict(dict_, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log_dict(dict_)
 
         return SharedStepOut(
             x=batch.x,
