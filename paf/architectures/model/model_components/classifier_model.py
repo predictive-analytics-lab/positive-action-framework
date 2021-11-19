@@ -309,7 +309,7 @@ class Clf(CommonModel):
             index_by_s(mixed_out.y, s).squeeze(), mixed.targets[:, 1]
         )
 
-        loss = mixed_pred_loss + adv_loss + mmd_loss  # + pred_loss
+        loss = mixed_pred_loss + adv_loss + mmd_loss   + pred_loss
 
         # x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
         #     torch.cat(
