@@ -300,6 +300,7 @@ class CycleGan(CommonModel):
         scheduler_rate: float = 0.99,
         d_lr: float = 2e-4,
         g_lr: float = 2e-4,
+        adv_steps: int = 1,
     ):
         super().__init__(name="CycleGan")
         self.d_lr = d_lr
@@ -316,7 +317,11 @@ class CycleGan(CommonModel):
         self.g_weight_decay = g_weight_decay
         self.d_weight_decay = d_weight_decay
 
+        self.adv_steps = adv_steps
+
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
+
+        self.automatic_optimization = False
 
     @implements(CommonModel)
     def build(
@@ -396,54 +401,57 @@ class CycleGan(CommonModel):
         pred_fake_data = dis(fake_data)
         return DisFwd(real=pred_real_data, fake=pred_fake_data)
 
-    def training_step(
-        self, batch: Batch | CfBatch | TernarySample, batch_idx: int, optimizer_idx: int
-    ) -> Tensor:
+    def training_step(self, batch: Batch | CfBatch | TernarySample, batch_idx: int) -> Tensor:
         _ = (batch_idx,)
+
+        g_opt, d_a_opt, d_b_opt = self.optimizers()
+        g_sch, d_a_sch, d_b_sch = self.lr_schedulers()
+
         real_a, real_b = batch.x[batch.s == 0], batch.x[batch.s == 1]
         size = min(len(real_a), len(real_b))
         real_a = real_a[:size]
         real_b = real_b[:size]
         cyc_out = self.forward(real_a=real_a, real_b=real_b)
 
-        if optimizer_idx == 0:
-            gen_fwd = self.forward_gen(
-                real_a=real_a, real_b=real_b, fake_a=cyc_out.fake_a, fake_b=cyc_out.fake_b
-            )
+        gen_fwd = self.forward_gen(
+            real_a=real_a, real_b=real_b, fake_a=cyc_out.fake_a, fake_b=cyc_out.fake_b
+        )
 
-            # mmd_results = self.mmd_reporting(
-            #     gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch, train=True
-            # )
-            # self.log(f"{Stage.fit}/enc/recon_mmd", mmd_results.recon)
-            # self.log(f"{Stage.fit}/enc/cf_recon_mmd", mmd_results.cf_recon)
-            # self.log(f"{Stage.fit}/enc/s0_dist_mmd", mmd_results.s0_dist)
-            # self.log(f"{Stage.fit}/enc/s1_dist_mmd", mmd_results.s1_dist)
+        # mmd_results = self.mmd_reporting(
+        #     gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch, train=True
+        # )
+        # self.log(f"{Stage.fit}/enc/recon_mmd", mmd_results.recon)
+        # self.log(f"{Stage.fit}/enc/cf_recon_mmd", mmd_results.cf_recon)
+        # self.log(f"{Stage.fit}/enc/s0_dist_mmd", mmd_results.s0_dist)
+        # self.log(f"{Stage.fit}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
-            # No need to calculate the gradients for Discriminators' parameters
-            self.set_requires_grad([self.d_a, self.d_b], requires_grad=False)
-            d_a_pred_fake_data = self.d_a(cyc_out.fake_a)
-            d_b_pred_fake_data = self.d_b(cyc_out.fake_b)
+        # No need to calculate the gradients for Discriminators' parameters
+        self.set_requires_grad([self.d_a, self.d_b], requires_grad=False)
+        d_a_pred_fake_data = self.d_a(cyc_out.fake_a)
+        d_b_pred_fake_data = self.d_b(cyc_out.fake_b)
 
-            gen_loss = self.loss.get_gen_loss(
-                real_a=real_a,
-                real_b=real_b,
-                gen_fwd=gen_fwd,
-                d_a_pred_fake_data=d_a_pred_fake_data,
-                d_b_pred_fake_data=d_b_pred_fake_data,
-            )
+        gen_loss = self.loss.get_gen_loss(
+            real_a=real_a,
+            real_b=real_b,
+            gen_fwd=gen_fwd,
+            d_a_pred_fake_data=d_a_pred_fake_data,
+            d_b_pred_fake_data=d_b_pred_fake_data,
+        )
 
-            self.log(f"{Stage.fit}/enc/g_tot_loss", gen_loss.tot)
-            self.log(f"{Stage.fit}/enc/g_A2B_loss", gen_loss.a2b)
-            self.log(f"{Stage.fit}/enc/g_B2A_loss", gen_loss.b2a)
-            self.log(f"{Stage.fit}/enc/cycle_loss", gen_loss.cycle_loss)
+        self.log(f"{Stage.fit}/enc/g_tot_loss", gen_loss.tot)
+        self.log(f"{Stage.fit}/enc/g_A2B_loss", gen_loss.a2b)
+        self.log(f"{Stage.fit}/enc/g_B2A_loss", gen_loss.b2a)
+        self.log(f"{Stage.fit}/enc/cycle_loss", gen_loss.cycle_loss)
 
-            return gen_loss.tot
+        g_opt.zero_grad()
+        self.manual_backward(gen_loss.tot)
+        g_opt.step()
 
-        if optimizer_idx == 1:
-            self.set_requires_grad([self.d_a], requires_grad=True)
-            fake_a = self.fake_pool_a.push_and_pop(cyc_out.fake_a)
-            dis_out = self.forward_dis(dis=self.d_a, real_data=real_a, fake_data=fake_a.detach())
+        self.set_requires_grad([self.d_a], requires_grad=True)
+        fake_a = self.fake_pool_a.push_and_pop(cyc_out.fake_a)
+        dis_out = self.forward_dis(dis=self.d_a, real_data=real_a, fake_data=fake_a.detach())
 
+        for _ in range(self.adv_steps):
             # GAN loss
             d_a_loss = self.loss.get_dis_loss(
                 dis_pred_real_data=dis_out.real, dis_pred_fake_data=dis_out.fake
@@ -457,9 +465,10 @@ class CycleGan(CommonModel):
                 logger=True,
             )
 
-            return d_a_loss
+            d_a_opt.zero_grad()
+            self.manual_backward(d_a_loss)
+            d_a_opt.step()
 
-        if optimizer_idx == 2:
             self.set_requires_grad([self.d_b], requires_grad=True)
             fake_b = self.fake_pool_b.push_and_pop(cyc_out.fake_b)
             dis_b_out = self.forward_dis(dis=self.d_b, real_data=real_b, fake_data=fake_b.detach())
@@ -477,8 +486,13 @@ class CycleGan(CommonModel):
                 logger=True,
             )
 
-            return d_b_loss
-        raise NotImplementedError("There should only be 3 optimizers.")
+            d_b_opt.zero_grad()
+            self.manual_backward(d_b_loss)
+            d_b_opt.step()
+
+            g_sch.step()
+            d_a_sch.step()
+            d_b_sch.step()
 
     def shared_step(self, batch: Batch | CfBatch | TernarySample, *, stage: Stage) -> SharedStepOut:
         real_a = batch.x

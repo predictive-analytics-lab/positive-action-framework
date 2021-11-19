@@ -119,7 +119,7 @@ def test_erm_dp(model: str, dm_schema: str) -> None:
 
 
 @pytest.mark.parametrize("dm_schema", ["ad", "law", "lill"])
-@pytest.mark.parametrize("model", ["nn", "cyc"])
+@pytest.mark.parametrize("model", ["cyc", "nn"])
 def test_model_type(model: str, dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
     with initialize(config_path=CFG_PTH):
