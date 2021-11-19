@@ -311,37 +311,37 @@ class Clf(CommonModel):
 
         loss = mixed_pred_loss + adv_loss + mmd_loss  # + pred_loss
 
-        x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
-            torch.cat(
-                [
-                    self.in_adv0(clf_out.y[0][s == 0].detach()).squeeze(-1),
-                    self.in_adv0(clf_out.y[0][s == 1]).squeeze(-1),
-                ],
-                dim=0,
-            ),
-            torch.cat([s[s == 0], s[s == 1]], dim=0),
-        )
-        x0_adv += mmd2(
-            clf_out.y[0][s == 0].detach(),
-            clf_out.y[0][s == 1],
-            kernel=KernelType.RBF,
-        )
-
-        x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
-            torch.cat(
-                [
-                    self.in_adv1(clf_out.y[1][s == 0]).squeeze(-1),
-                    self.in_adv1(clf_out.y[1][s == 1].detach()).squeeze(-1),
-                ],
-                dim=0,
-            ),
-            torch.cat([s[s == 0], s[s == 1]], dim=0),
-        )
-        x1_adv += mmd2(
-            clf_out.y[1][s == 0],
-            clf_out.y[1][s == 1].detach(),
-            kernel=KernelType.RBF,
-        )
+        # x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+        #     torch.cat(
+        #         [
+        #             self.in_adv0(clf_out.y[0][s == 0].detach()).squeeze(-1),
+        #             self.in_adv0(clf_out.y[0][s == 1]).squeeze(-1),
+        #         ],
+        #         dim=0,
+        #     ),
+        #     torch.cat([s[s == 0], s[s == 1]], dim=0),
+        # )
+        # x0_adv += mmd2(
+        #     clf_out.y[0][s == 0].detach(),
+        #     clf_out.y[0][s == 1],
+        #     kernel=KernelType.RBF,
+        # )
+        #
+        # x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+        #     torch.cat(
+        #         [
+        #             self.in_adv1(clf_out.y[1][s == 0]).squeeze(-1),
+        #             self.in_adv1(clf_out.y[1][s == 1].detach()).squeeze(-1),
+        #         ],
+        #         dim=0,
+        #     ),
+        #     torch.cat([s[s == 0], s[s == 1]], dim=0),
+        # )
+        # x1_adv += mmd2(
+        #     clf_out.y[1][s == 0],
+        #     clf_out.y[1][s == 1].detach(),
+        #     kernel=KernelType.RBF,
+        # )
 
         # loss += x0_adv + x1_adv
 

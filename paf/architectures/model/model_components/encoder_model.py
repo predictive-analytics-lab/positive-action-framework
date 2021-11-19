@@ -358,36 +358,36 @@ class AE(CommonModel):
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + mmd_loss  # + proxy_loss  # + cycle_loss
-        x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
-            torch.cat(
-                [
-                    self.in_adv0(enc_fwd.x[0][s == 0].detach()).squeeze(-1),
-                    self.in_adv0(enc_fwd.x[0][s == 1]).squeeze(-1),
-                ],
-                dim=0,
-            ),
-            torch.cat([s[s == 0], s[s == 1]], dim=0),
-        )
-        x0_adv += mmd2(
-            enc_fwd.x[0][s == 0].detach(),
-            enc_fwd.x[0][s == 1],
-            kernel=KernelType.RBF,
-        )
-        x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
-            torch.cat(
-                [
-                    self.in_adv1(enc_fwd.x[1][s == 0]).squeeze(-1),
-                    self.in_adv1(enc_fwd.x[1][s == 1].detach()).squeeze(-1),
-                ],
-                dim=0,
-            ),
-            torch.cat([s[s == 0], s[s == 1]], dim=0),
-        )
-        x1_adv += mmd2(
-            enc_fwd.x[1][s == 0],
-            enc_fwd.x[1][s == 1].detach(),
-            kernel=KernelType.RBF,
-        )
+        # x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+        #     torch.cat(
+        #         [
+        #             self.in_adv0(enc_fwd.x[0][s == 0].detach()).squeeze(-1),
+        #             self.in_adv0(enc_fwd.x[0][s == 1]).squeeze(-1),
+        #         ],
+        #         dim=0,
+        #     ),
+        #     torch.cat([s[s == 0], s[s == 1]], dim=0),
+        # )
+        # x0_adv += mmd2(
+        #     enc_fwd.x[0][s == 0].detach(),
+        #     enc_fwd.x[0][s == 1],
+        #     kernel=KernelType.RBF,
+        # )
+        # x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+        #     torch.cat(
+        #         [
+        #             self.in_adv1(enc_fwd.x[1][s == 0]).squeeze(-1),
+        #             self.in_adv1(enc_fwd.x[1][s == 1].detach()).squeeze(-1),
+        #         ],
+        #         dim=0,
+        #     ),
+        #     torch.cat([s[s == 0], s[s == 1]], dim=0),
+        # )
+        # x1_adv += mmd2(
+        #     enc_fwd.x[1][s == 0],
+        #     enc_fwd.x[1][s == 1].detach(),
+        #     kernel=KernelType.RBF,
+        # )
 
         # loss += x0_adv + x1_adv
         # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
