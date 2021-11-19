@@ -352,8 +352,8 @@ class Clf(CommonModel):
             f"{Stage.fit}/clf/loss": loss,
             f"{Stage.fit}/clf/pred_loss": pred_loss,
             f"{Stage.fit}/clf/adv_loss": adv_loss,
-            f"{Stage.fit}/clf/y0_adv_loss": x0_adv,
-            f"{Stage.fit}/clf/y1_adv_loss": x1_adv,
+            # f"{Stage.fit}/clf/y0_adv_loss": x0_adv,
+            # f"{Stage.fit}/clf/y1_adv_loss": x1_adv,
             f"{Stage.fit}/clf/mmd_loss": mmd_loss,
             f"{Stage.fit}/clf/z_norm": clf_out.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/clf/z_mean_abs_diff": (
