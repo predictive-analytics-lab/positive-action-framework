@@ -301,6 +301,7 @@ class CycleGan(CommonModel):
         scheduler_rate: float = 0.99,
         d_lr: float = 2e-4,
         g_lr: float = 2e-4,
+        debug: bool = False,
     ):
         super().__init__(name="CycleGan")
         self.d_lr = d_lr
@@ -321,6 +322,8 @@ class CycleGan(CommonModel):
         self.d_weight_decay = d_weight_decay
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
+
+        self.debug = debug
 
     @implements(CommonModel)
     def build(
