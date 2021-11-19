@@ -311,7 +311,7 @@ class Clf(CommonModel):
         # mixed_s = torch.cat([s_s0, s_s1], dim=0)
         # mixed_y = torch.cat([mixed_s0.targets[:, 1], mixed_s1.targets[:, 1]], dim=0)
 
-        mixed = self.mixup(x, targets=y, group_labels=s)
+        mixed = self.mixup(x, targets=y.long(), group_labels=s.long())
         mixed_out = self.forward(x=mixed.inputs, s=s)
         mixed_pred_loss = torch.nn.functional.binary_cross_entropy_with_logits(
             index_by_s(mixed_out.y, s).squeeze(), mixed.targets
