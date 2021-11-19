@@ -35,6 +35,7 @@ __all__ = [
 ]
 
 from ...base_templates import BaseDataModule
+from ...plotting import make_plot
 from ...utils import HistoryPool, Stratifier
 
 logger = logging.getLogger(__name__)
@@ -531,16 +532,39 @@ class CycleGan(CommonModel):
         )
 
     def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:
-        self.shared_epoch_end(outputs)
+        self.shared_epoch_end(outputs, stage=Stage.test)
 
     def validation_epoch_end(self, outputs: list[SharedStepOut]) -> None:
-        self.shared_epoch_end(outputs)
+        self.shared_epoch_end(outputs, stage=Stage.validation)
 
-    def shared_epoch_end(self, outputs: list[SharedStepOut]) -> None:
+    def shared_epoch_end(self, outputs: list[SharedStepOut], *, stage: Stage) -> None:
         self.all_x = torch.cat([_r.x for _r in outputs], 0)
         self.all_s = torch.cat([_r.s for _r in outputs], 0)
         self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
         self.all_cf_pred = torch.cat([_r.recon for _r in outputs], 0)
+
+        if self.debug:
+            make_plot(
+                x=self.all_recon.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_recon",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=self.all_x.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_true_x",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=self.all_cf_pred.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_cf_recons",
+                cols=self.data_cols,
+            )
 
     def validation_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> SharedStepOut:
         return self.shared_step(batch=batch, stage=Stage.validate)
