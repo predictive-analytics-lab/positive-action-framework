@@ -210,8 +210,8 @@ class AE(CommonModel):
         self.val_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
 
-        self.pool_x0 = Stratifier(pool_size=batch_size // 2)
-        self.pool_x1 = Stratifier(pool_size=batch_size // 2)
+        # self.pool_x0 = Stratifier(pool_size=batch_size // 2)
+        # self.pool_x1 = Stratifier(pool_size=batch_size // 2)
 
     @implements(CommonModel)
     def build(
@@ -336,12 +336,14 @@ class AE(CommonModel):
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
 
-        x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
-        s0 = batch.x.new_zeros((x0.shape[0]))
-        x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
-        s1 = batch.x.new_ones((x0.shape[0]))
-        x = torch.cat([x0, x1], dim=0)
-        s = torch.cat([s0, s1], dim=0)
+        # x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
+        # s0 = batch.x.new_zeros((x0.shape[0]))
+        # x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
+        # s1 = batch.x.new_ones((x0.shape[0]))
+        # x = torch.cat([x0, x1], dim=0)
+        # s = torch.cat([s0, s1], dim=0)
+        x = batch.x
+        s = batch.s
 
         # constraint_mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
         constraint_mask = self.make_mask(x) if self._proxy_weight > 0.0 else None
@@ -364,7 +366,7 @@ class AE(CommonModel):
                 ],
                 dim=0,
             ),
-            s,
+            torch.cat([s[s == 0], s[s == 1]], dim=0),
         )
         x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
@@ -374,7 +376,7 @@ class AE(CommonModel):
                 ],
                 dim=0,
             ),
-            s,
+            torch.cat([s[s == 0], s[s == 1]], dim=0),
         )
         loss += x0_adv + x1_adv
         # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
