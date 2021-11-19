@@ -10,4 +10,3 @@ latent_multiplier: 10
 batch_size: ${data.train_batch_size}
 g_weight_decay: 1e-6
 d_weight_decay: 1e-6
-adv_steps: 1

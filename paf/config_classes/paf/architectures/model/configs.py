@@ -20,7 +20,6 @@ class CycleGanConf:
     scheduler_rate: float = 0.99
     d_lr: float = 0.0002
     g_lr: float = 0.0002
-    adv_steps: int = 1
 
 
 @dataclass
