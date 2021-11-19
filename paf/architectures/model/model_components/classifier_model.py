@@ -369,36 +369,21 @@ class Clf(CommonModel):
 
     @implements(pl.LightningModule)
     def validation_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> ClfInferenceOut:
-        assert self.built
-        clf_out = self.forward(x=batch.x, s=batch.s)
-
-        self.log(
-            f"{Stage.validate}/clf/acc",
-            self.val_acc(self.threshold(index_by_s(clf_out.y, batch.s).squeeze(-1)), batch.y.int()),
-        )
-
-        return ClfInferenceOut(
-            y=batch.y,
-            z=clf_out.z,
-            s=batch.s,
-            preds=self.threshold(index_by_s(clf_out.y, batch.s)),
-            preds_0=self.threshold(clf_out.y[0]),
-            preds_1=self.threshold(clf_out.y[1]),
-            cf_y=batch.cfy if isinstance(batch, CfBatch) else None,
-            cf_preds=self.threshold(index_by_s(clf_out.y, batch.cfs))
-            if isinstance(batch, CfBatch)
-            else None,
-        )
+        return self.shared_step(batch, stage=Stage.validate)
 
     @implements(pl.LightningModule)
     def test_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> ClfInferenceOut:
+        return self.shared_step(batch, stage=Stage.test)
+
+    def shared_step(
+        self, batch: Batch | CfBatch | TernarySample, *, stage: Stage
+    ) -> ClfInferenceOut:
         assert self.built
         clf_out = self.forward(x=batch.x, s=batch.s)
+        acc = self.val_acc if stage is Stage.validate else self.test_acc
         self.log(
-            f"{Stage.test}/clf/acc",
-            self.test_acc(
-                self.threshold(index_by_s(clf_out.y, batch.s).squeeze(-1)), batch.y.int()
-            ),
+            f"{stage}/clf/acc",
+            acc(self.threshold(index_by_s(clf_out.y, batch.s).squeeze(-1)), batch.y.int()),
         )
 
         return ClfInferenceOut(
@@ -415,7 +400,14 @@ class Clf(CommonModel):
         )
 
     @implements(pl.LightningModule)
+    def validation_epoch_end(self, outputs: list[ClfInferenceOut]) -> None:
+        return self.shared_epoch_end(outputs, stage=Stage.test)
+
+    @implements(pl.LightningModule)
     def test_epoch_end(self, outputs: list[ClfInferenceOut]) -> None:
+        return self.shared_epoch_end(outputs, stage=Stage.test)
+
+    def shared_epoch_end(self, outputs: list[ClfInferenceOut], *, stage: Stage) -> None:
         all_y = torch.cat([_r.y for _r in outputs], 0)
         all_z = torch.cat([_r.z for _r in outputs], 0)
         all_s = torch.cat([_r.s for _r in outputs], 0)
@@ -428,12 +420,14 @@ class Clf(CommonModel):
                 x=all_y.unsqueeze(-1),
                 s=all_s,
                 logger=self.logger,
-                name="true_data",
+                name=f"{stage}/true_data",
                 cols=["out"],
             )
-            make_plot(x=all_preds, s=all_s, logger=self.logger, name="preds", cols=["preds"])
-            make_plot(x=preds_0, s=all_s, logger=self.logger, name="preds", cols=["preds"])
-            make_plot(x=preds_1, s=all_s, logger=self.logger, name="preds", cols=["preds"])
+            make_plot(
+                x=all_preds, s=all_s, logger=self.logger, name=f"{stage}/preds", cols=["preds"]
+            )
+            make_plot(x=preds_0, s=all_s, logger=self.logger, name=f"{stage}/preds", cols=["preds"])
+            make_plot(x=preds_1, s=all_s, logger=self.logger, name=f"{stage}/preds", cols=["preds"])
             make_plot(
                 x=all_z,
                 s=all_s,
@@ -453,7 +447,13 @@ class Clf(CommonModel):
                     name="true_counterfactual_outcome",
                     cols=["preds"],
                 )
-                make_plot(x=cf_preds, s=all_s, logger=self.logger, name="cf_preds", cols=["preds"])
+                make_plot(
+                    x=cf_preds,
+                    s=all_s,
+                    logger=self.logger,
+                    name=f"{stage}/cf_preds",
+                    cols=["preds"],
+                )
 
     @implements(pl.LightningModule)
     def configure_optimizers(self) -> tuple[list[AdamW], list[ExponentialLR]]:
