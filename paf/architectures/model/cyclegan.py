@@ -35,7 +35,7 @@ __all__ = [
 ]
 
 from ...base_templates import BaseDataModule
-from ...utils import HistoryPool
+from ...utils import HistoryPool, Stratifier
 
 logger = logging.getLogger(__name__)
 
@@ -313,6 +313,9 @@ class CycleGan(CommonModel):
         self.fake_pool_a = HistoryPool(pool_size=batch_size // 4)
         self.fake_pool_b = HistoryPool(pool_size=batch_size // 4)
 
+        self.pool_x0 = Stratifier(pool_size=batch_size // 2)
+        self.pool_x1 = Stratifier(pool_size=batch_size // 2)
+
         self.g_weight_decay = g_weight_decay
         self.d_weight_decay = d_weight_decay
 
@@ -400,7 +403,15 @@ class CycleGan(CommonModel):
         self, batch: Batch | CfBatch | TernarySample, batch_idx: int, optimizer_idx: int
     ) -> Tensor:
         _ = (batch_idx,)
-        real_a, real_b = batch.x[batch.s == 0], batch.x[batch.s == 1]
+
+        x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
+        s0 = batch.x.new_zeros((x0.shape[0]))
+        x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
+        s1 = batch.x.new_ones((x1.shape[0]))
+        x = torch.cat([x0, x1], dim=0)
+        s = torch.cat([s0, s1], dim=0)
+
+        real_a, real_b = x[s == 0], x[s == 1]
         size = min(len(real_a), len(real_b))
         real_a = real_a[:size]
         real_b = real_b[:size]
@@ -448,15 +459,7 @@ class CycleGan(CommonModel):
             d_a_loss = self.loss.get_dis_loss(
                 dis_pred_real_data=dis_out.real, dis_pred_fake_data=dis_out.fake
             )
-            self.log(
-                f"{Stage.fit}/enc/d_A_loss",
-                d_a_loss,
-                on_step=True,
-                on_epoch=True,
-                prog_bar=True,
-                logger=True,
-            )
-
+            self.log(f"{Stage.fit}/enc/d_A_loss", d_a_loss)
             return d_a_loss
 
         if optimizer_idx == 2:
@@ -468,15 +471,7 @@ class CycleGan(CommonModel):
             d_b_loss = self.loss.get_dis_loss(
                 dis_pred_real_data=dis_b_out.real, dis_pred_fake_data=dis_b_out.fake
             )
-            self.log(
-                f"{Stage.fit}/enc/d_B_loss",
-                d_b_loss,
-                on_step=True,
-                on_epoch=True,
-                prog_bar=True,
-                logger=True,
-            )
-
+            self.log(f"{Stage.fit}/enc/d_B_loss", d_b_loss)
             return d_b_loss
         raise NotImplementedError("There should only be 3 optimizers.")
 
