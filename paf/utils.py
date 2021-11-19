@@ -122,24 +122,16 @@ class Stratifier:
         self.pool_sz = pool_size
 
     def push_and_pop(self, samples: Tensor) -> Tensor:
-        samples_to_return = []
         for sample in samples:
-            if len(samples_to_return) >= self.pool_sz:
-                break
             sample = torch.unsqueeze(sample, 0)
             if self.nb_samples < self.pool_sz:
                 self.history_pool.append(sample)
-                samples_to_return.append(sample)
                 self.nb_samples += 1
-            elif np.random.uniform(0, 1) > 0.5:
-                rand_int = np.random.randint(0, self.pool_sz)
-                temp_img = self.history_pool[rand_int].clone()
-                self.history_pool[rand_int] = sample
-                samples_to_return.append(temp_img)
             else:
-                samples_to_return.append(sample)
-        while len(samples_to_return) < self.pool_sz:
+                rand_int = np.random.randint(0, self.pool_sz)
+                self.history_pool[rand_int] = sample
+        while self.nb_samples < self.pool_sz:
             rand_int = np.random.randint(0, self.nb_samples)
             temp_img = self.history_pool[rand_int].clone()
-            samples_to_return.append(temp_img)
-        return torch.cat(samples_to_return, 0)
+            self.history_pool.append(temp_img)
+        return torch.cat(self.history_pool, 0)
