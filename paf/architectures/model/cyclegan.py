@@ -444,7 +444,7 @@ class CycleGan(CommonModel):
         self.log(f"{Stage.fit}/enc/cycle_loss", gen_loss.cycle_loss)
 
         g_opt.zero_grad()
-        self.manual_backward(gen_loss.tot)
+        self.manual_backward(gen_loss.tot, retain_graph=True)
         g_opt.step()
 
         self.set_requires_grad([self.d_a], requires_grad=True)
@@ -466,7 +466,7 @@ class CycleGan(CommonModel):
             )
 
             d_a_opt.zero_grad()
-            self.manual_backward(d_a_loss)
+            self.manual_backward(d_a_loss, retain_graph=True)
             d_a_opt.step()
 
             self.set_requires_grad([self.d_b], requires_grad=True)
@@ -487,7 +487,7 @@ class CycleGan(CommonModel):
             )
 
             d_b_opt.zero_grad()
-            self.manual_backward(d_b_loss)
+            self.manual_backward(d_b_loss, retain_graph=True)
             d_b_opt.step()
 
             g_sch.step()
