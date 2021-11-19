@@ -397,11 +397,11 @@ class Clf(CommonModel):
             y=batch.y,
             z=clf_out.z,
             s=batch.s,
-            preds=self.threshold(index_by_s(clf_out.y, batch.s)),
-            preds_0=self.threshold(clf_out.y[0]),
-            preds_1=self.threshold(clf_out.y[1]),
+            preds=index_by_s(clf_out.y, batch.s).sigmoid(),
+            preds_0=clf_out.y[0].sigmoid(),
+            preds_1=clf_out.y[1].sigmoid(),
             cf_y=batch.cfy if isinstance(batch, CfBatch) else None,
-            cf_preds=self.threshold(index_by_s(clf_out.y, 1 - batch.s))
+            cf_preds=index_by_s(clf_out.y, 1 - batch.s).sigmoid()
             if isinstance(batch, CfBatch)
             else None,
         )
