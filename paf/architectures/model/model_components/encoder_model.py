@@ -368,6 +368,11 @@ class AE(CommonModel):
             ),
             torch.cat([s[s == 0], s[s == 1]], dim=0),
         )
+        x0_adv += mmd2(
+            enc_fwd.x[0][s == 0].detach(),
+            enc_fwd.x[0][s == 1],
+            kernel=KernelType.RBF,
+        )
         x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
                 [
@@ -378,6 +383,12 @@ class AE(CommonModel):
             ),
             torch.cat([s[s == 0], s[s == 1]], dim=0),
         )
+        x1_adv += mmd2(
+            enc_fwd.x[1][s == 0],
+            enc_fwd.x[1][s == 1].detach(),
+            kernel=KernelType.RBF,
+        )
+
         loss += x0_adv + x1_adv
         # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 

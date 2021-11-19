@@ -321,6 +321,12 @@ class Clf(CommonModel):
             ),
             torch.cat([s[s == 0], s[s == 1]], dim=0),
         )
+        x0_adv += mmd2(
+            clf_out.y[0][s == 0].detach(),
+            clf_out.y[0][s == 1],
+            kernel=KernelType.RBF,
+        )
+
         x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
             torch.cat(
                 [
@@ -331,6 +337,12 @@ class Clf(CommonModel):
             ),
             torch.cat([s[s == 0], s[s == 1]], dim=0),
         )
+        x1_adv += mmd2(
+            clf_out.y[1][s == 0],
+            clf_out.y[1][s == 1].detach(),
+            kernel=KernelType.RBF,
+        )
+
         loss += x0_adv + x1_adv
 
         to_log = {
