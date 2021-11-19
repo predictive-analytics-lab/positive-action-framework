@@ -144,10 +144,16 @@ class Clf(CommonModel):
             lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
         )
 
-        self.pool_x_s0y0 = HistoryPool(pool_size=batch_size)#(pool_size=batch_size // 4)
-        self.pool_x_s0y1 = HistoryPool(pool_size=batch_size)#Stratifier(pool_size=batch_size // 4)
-        self.pool_x_s1y0 = HistoryPool(pool_size=batch_size)#Stratifier(pool_size=batch_size // 4)
-        self.pool_x_s1y1 = HistoryPool(pool_size=batch_size)#Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s0y0 = HistoryPool(pool_size=batch_size)  # (pool_size=batch_size // 4)
+        self.pool_x_s0y1 = HistoryPool(
+            pool_size=batch_size
+        )  # Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s1y0 = HistoryPool(
+            pool_size=batch_size
+        )  # Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s1y1 = HistoryPool(
+            pool_size=batch_size
+        )  # Stratifier(pool_size=batch_size // 4)
 
         self.built = False
 
@@ -234,17 +240,17 @@ class Clf(CommonModel):
         # assert len(x_s0y0) == len(x_s0y1)
 
         s_s0y0 = batch.x.new_zeros((x_s0y0.shape[0]))
-        s_s0y1 = batch.x.new_zeros((x_s0y0.shape[0]))
+        s_s0y1 = batch.x.new_zeros((x_s0y1.shape[0]))
         # assert len(s_s0y0) == len(s_s0y1)
 
         y_s0y0 = batch.x.new_zeros((x_s0y0.shape[0]))
         y_s0y1 = batch.x.new_ones((x_s0y1.shape[0]))
         x_s1y0 = self.pool_x_s1y0.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 0)])
         x_s1y1 = self.pool_x_s1y1.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 1)])
-        s_s1y0 = batch.x.new_ones((x_s0y1.shape[0]))
-        s_s1y1 = batch.x.new_ones((x_s0y1.shape[0]))
-        y_s1y0 = batch.x.new_zeros((x_s0y0.shape[0]))
-        y_s1y1 = batch.x.new_ones((x_s0y1.shape[0]))
+        s_s1y0 = batch.x.new_ones((x_s1y0.shape[0]))
+        s_s1y1 = batch.x.new_ones((x_s1y1.shape[0]))
+        y_s1y0 = batch.x.new_zeros((x_s1y0.shape[0]))
+        y_s1y1 = batch.x.new_ones((x_s1y1.shape[0]))
 
         x_s0 = torch.cat([x_s0y0, x_s0y1], dim=0)
         s_s0 = torch.cat([s_s0y0, s_s0y1], dim=0)
