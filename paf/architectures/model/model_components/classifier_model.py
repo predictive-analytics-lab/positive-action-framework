@@ -144,18 +144,10 @@ class Clf(CommonModel):
         #     lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
         # )
 
-        self.pool_x_s0y0 = HistoryPool(
-            pool_size=batch_size // 4
-        )  # Stratifier(pool_size=batch_size // 4)
-        self.pool_x_s0y1 = HistoryPool(
-            pool_size=batch_size // 4
-        )  # Stratifier(pool_size=batch_size // 4)
-        self.pool_x_s1y0 = HistoryPool(
-            pool_size=batch_size // 4
-        )  # Stratifier(pool_size=batch_size // 4)
-        self.pool_x_s1y1 = HistoryPool(
-            pool_size=batch_size // 4
-        )  # Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s0y0 = Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s0y1 = Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s1y0 = Stratifier(pool_size=batch_size // 4)
+        self.pool_x_s1y1 = Stratifier(pool_size=batch_size // 4)
 
         self.built = False
 
@@ -237,48 +229,48 @@ class Clf(CommonModel):
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
 
-        # x_s0y0 = self.pool_x_s0y0.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 0)])
-        # x_s0y1 = self.pool_x_s0y1.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 1)])
-        # assert len(x_s0y0) == len(x_s0y1)
+        x_s0y0 = self.pool_x_s0y0.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 0)])
+        x_s0y1 = self.pool_x_s0y1.push_and_pop(batch.x[(batch.s == 0) & (batch.y == 1)])
+        assert len(x_s0y0) == len(x_s0y1)
 
-        # s_s0y0 = batch.x.new_zeros((x_s0y0.shape[0]))
-        # s_s0y1 = batch.x.new_zeros((x_s0y1.shape[0]))
-        # assert len(s_s0y0) == len(s_s0y1)
+        s_s0y0 = batch.x.new_zeros((x_s0y0.shape[0]))
+        s_s0y1 = batch.x.new_zeros((x_s0y1.shape[0]))
+        assert len(s_s0y0) == len(s_s0y1)
 
-        # y_s0y0 = batch.x.new_zeros((x_s0y0.shape[0]))
-        # y_s0y1 = batch.x.new_ones((x_s0y1.shape[0]))
-        # x_s1y0 = self.pool_x_s1y0.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 0)])
-        # x_s1y1 = self.pool_x_s1y1.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 1)])
-        # s_s1y0 = batch.x.new_ones((x_s1y0.shape[0]))
-        # s_s1y1 = batch.x.new_ones((x_s1y1.shape[0]))
-        # y_s1y0 = batch.x.new_zeros((x_s1y0.shape[0]))
-        # y_s1y1 = batch.x.new_ones((x_s1y1.shape[0]))
+        y_s0y0 = batch.x.new_zeros((x_s0y0.shape[0]))
+        y_s0y1 = batch.x.new_ones((x_s0y1.shape[0]))
+        x_s1y0 = self.pool_x_s1y0.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 0)])
+        x_s1y1 = self.pool_x_s1y1.push_and_pop(batch.x[(batch.s == 1) & (batch.y == 1)])
+        s_s1y0 = batch.x.new_ones((x_s1y0.shape[0]))
+        s_s1y1 = batch.x.new_ones((x_s1y1.shape[0]))
+        y_s1y0 = batch.x.new_zeros((x_s1y0.shape[0]))
+        y_s1y1 = batch.x.new_ones((x_s1y1.shape[0]))
 
-        # x_s0 = torch.cat([x_s0y0, x_s0y1], dim=0)
-        # s_s0 = torch.cat([s_s0y0, s_s0y1], dim=0)
-        # y_s0 = torch.cat([y_s0y0, y_s0y1], dim=0)
+        x_s0 = torch.cat([x_s0y0, x_s0y1], dim=0)
+        s_s0 = torch.cat([s_s0y0, s_s0y1], dim=0)
+        y_s0 = torch.cat([y_s0y0, y_s0y1], dim=0)
         # mixed_s0 = self.mixup_s0(x_s0, targets=y_s0.long())
 
-        # x_s1 = torch.cat([x_s1y0, x_s1y1], dim=0)
-        # s_s1 = torch.cat([s_s1y0, s_s1y1], dim=0)
-        # y_s1 = torch.cat([y_s1y0, y_s1y1], dim=0)
+        x_s1 = torch.cat([x_s1y0, x_s1y1], dim=0)
+        s_s1 = torch.cat([s_s1y0, s_s1y1], dim=0)
+        y_s1 = torch.cat([y_s1y0, y_s1y1], dim=0)
         # mixed_s1 = self.mixup_s1(x_s1, targets=y_s1.long())
 
         # mixed_x = torch.cat([mixed_s0.inputs, mixed_s1.inputs], dim=0)
-        # s = torch.cat([s_s0, s_s1], dim=0)
+        s = torch.cat([s_s0, s_s1], dim=0)
         # mixed_y = torch.cat([mixed_s0.targets[:, 1], mixed_s1.targets[:, 1]], dim=0)
 
-        # x = torch.cat([x_s0, x_s1], dim=0)
-        # y = torch.cat([y_s0, y_s1], dim=0)
+        x = torch.cat([x_s0, x_s1], dim=0)
+        y = torch.cat([y_s0, y_s1], dim=0)
 
         # mixed_out = self.forward(x=batch.x, s=batch.s)
         # mixed_pred_loss = torch.nn.functional.mse_loss(
         #     index_by_s(mixed_out.y, s).squeeze().sigmoid(), mixed_y
         # )
 
-        x = batch.x
-        s = batch.s
-        y = batch.y
+        # x = batch.x
+        # s = batch.s
+        # y = batch.y
 
         clf_out = self.forward(x=x, s=s)
         _iw = batch.iw if self.use_iw and isinstance(batch, (Batch, CfBatch)) else None
