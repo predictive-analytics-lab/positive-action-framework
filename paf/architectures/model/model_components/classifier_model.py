@@ -134,15 +134,15 @@ class Clf(CommonModel):
             kernel=str_to_enum(mmd_kernel, enum=KernelType),
         )
 
-        self.mixup = RandomMixUp(
+        # self.mixup = RandomMixUp(
+        #     lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
+        # )
+        self.mixup_s0 = RandomMixUp(
             lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
         )
-        # self.mixup_s0 = RandomMixUp(
-        #     lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
-        # )
-        # self.mixup_s1 = RandomMixUp(
-        #     lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
-        # )
+        self.mixup_s1 = RandomMixUp(
+            lambda_sampler=torch.distributions.Uniform(0.0, 1.0), num_classes=2
+        )
 
         self.pool_x_s0y0 = Stratifier(pool_size=batch_size // 4)
         self.pool_x_s0y1 = Stratifier(pool_size=batch_size // 4)
@@ -296,8 +296,8 @@ class Clf(CommonModel):
         y_s1y1 = batch.x.new_ones((x_s0y1.shape[0]))
         y_s1 = torch.cat([y_s1y0, y_s1y1], dim=0)
 
-        mixed_s0 = self.mixup(x_s0, targets=y_s0.long())
-        mixed_s1 = self.mixup(x_s1, targets=y_s1.long())
+        mixed_s0 = self.mixup_s0(x_s0, targets=y_s0.long())
+        mixed_s1 = self.mixup_s1(x_s1, targets=y_s1.long())
         mixed_x = torch.cat([mixed_s0.inputs, mixed_s1.inputs], dim=0)
         mixed_s = torch.cat([s_s0, s_s1], dim=0)
         mixed_y = torch.cat([mixed_s0.targets[:, 1], mixed_s1.targets[:, 1]], dim=0)
