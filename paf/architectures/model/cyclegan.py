@@ -133,7 +133,7 @@ class Loss:
                 gen_cyc_loss += self._recon_loss_fn(
                     cyc_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
-                    ][:, i].sigmoid(),
+                    ][:, i],
                     real_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i],
@@ -158,7 +158,7 @@ class Loss:
                 gen_idt_loss += self._recon_loss_fn(
                     idt_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
-                    ][:, i].sigmoid(),
+                    ][:, i],
                     real_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i],
@@ -363,6 +363,7 @@ class CycleGan(CommonModel):
                 blocks=self.decoder_blocks,
                 hid_multiplier=self.latent_multiplier,
             ),
+            nn.Sigmoid(),
         )
         self.g_s1_2_s0 = nn.Sequential(
             Encoder(
@@ -377,6 +378,7 @@ class CycleGan(CommonModel):
                 blocks=self.decoder_blocks,
                 hid_multiplier=self.latent_multiplier,
             ),
+            nn.Sigmoid(),
         )
         self.d_s0 = self.init_fn(
             Decoder(
@@ -406,23 +408,23 @@ class CycleGan(CommonModel):
         }
         self.built = True
 
-    def invert(self, z: Tensor, x: Tensor) -> Tensor:
-        """Go from soft to discrete features."""
-        k = z.clone()
-        if self.loss.feature_groups["discrete"]:
-            for i in range(
-                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
-            ):
-                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = k[
-                    :, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])
-                ][:, i].sigmoid()
-            for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
-                one_hot = to_discrete(inputs=k[:, group_slice])
-                k[:, group_slice] = one_hot
-        else:
-            k = k.sigmoid()
-
-        return k
+    # def invert(self, z: Tensor, x: Tensor) -> Tensor:
+    #     """Go from soft to discrete features."""
+    #     k = z.clone()
+    #     if self.loss.feature_groups["discrete"]:
+    #         for i in range(
+    #             k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
+    #         ):
+    #             k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = k[
+    #                 :, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])
+    #             ][:, i].sigmoid()
+    #         for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
+    #             one_hot = to_discrete(inputs=k[:, group_slice])
+    #             k[:, group_slice] = one_hot
+    #     else:
+    #         k = k.sigmoid()
+    #
+    #     return k
 
     @staticmethod
     def set_requires_grad(nets: nn.Module | list[nn.Module], requires_grad: bool = False) -> None:
@@ -433,8 +435,8 @@ class CycleGan(CommonModel):
                 param.requires_grad = requires_grad
 
     def forward(self, *, real_s0: Tensor, real_s1: Tensor) -> CycleFwd:
-        fake_s1 = self.invert(self.g_s0_2_s1(real_s0), real_s0)
-        fake_s0 = self.invert(self.g_s1_2_s0(real_s1), real_s1)
+        fake_s1 = self.g_s0_2_s1(real_s0)
+        fake_s0 = self.g_s1_2_s0(real_s1)
         return CycleFwd(fake_s1=fake_s1, fake_s0=fake_s0)
 
     def forward_gen(
