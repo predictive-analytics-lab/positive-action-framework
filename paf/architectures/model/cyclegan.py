@@ -196,7 +196,6 @@ class Loss:
         g_a2b_loss = g_a2b_gan_loss + g_a2b_idt_loss + tot_cyc_loss
         g_b2a_loss = g_b2a_gan_loss + g_b2a_idt_loss + tot_cyc_loss
         g_tot_loss = g_a2b_loss + g_b2a_loss - tot_cyc_loss
-
         return GenLoss(a2b=g_a2b_loss, b2a=g_b2a_loss, tot=g_tot_loss, cycle_loss=tot_cyc_loss)
 
 
@@ -232,14 +231,11 @@ class Generator(nn.Module):
         out_dims = in_dims * latent_multiplier
         conv = nn.Linear(in_dims, out_dims)
         layers: list[nn.Module] = [conv]
-
         for _ in range(nb_resblks):
             res_blk = ResBlock(in_channels=out_dims, apply_dp=False)
             layers += [res_blk]
-
         conv = nn.Linear(out_dims, in_dims)
         layers += [conv]
-
         self.net = nn.Sequential(*layers)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -329,7 +325,7 @@ class CycleGan(CommonModel):
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
-        self.s_as_input = False
+        self.s_as_input = True
         self.latent_dims = latent_dims
 
         self.debug = debug
@@ -349,7 +345,7 @@ class CycleGan(CommonModel):
     ) -> None:
         _ = (num_s, s_dim, cf_available, indices, data)
         self.data_dim = data_dim
-        self.loss = Loss(loss_type=LossType.MSE, lambda_=1, feature_groups=feature_groups)
+        self.loss = Loss(loss_type=LossType.BCE, lambda_=1, feature_groups=feature_groups)
         self.g_a2b = nn.Sequential(
             Encoder(
                 in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
@@ -437,7 +433,6 @@ class CycleGan(CommonModel):
         self, batch: Batch | CfBatch | TernarySample, batch_idx: int, optimizer_idx: int
     ) -> Tensor:
         _ = (batch_idx,)
-
         x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
         s0 = batch.x.new_zeros(x0.shape[0])
         x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
