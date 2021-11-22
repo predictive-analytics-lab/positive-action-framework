@@ -345,7 +345,7 @@ class CycleGan(CommonModel):
     ) -> None:
         _ = (num_s, s_dim, cf_available, indices, data)
         self.data_dim = data_dim
-        self.loss = Loss(loss_type=LossType.BCE, lambda_=1, feature_groups=feature_groups)
+        self.loss = Loss(loss_type=LossType.BCE, lambda_=10, feature_groups=feature_groups)
         self.g_a2b = nn.Sequential(
             Encoder(
                 in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
