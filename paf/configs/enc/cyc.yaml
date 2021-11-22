@@ -2,11 +2,11 @@ defaults:
   - /schema/enc: cyclegan
   - _self_
 
-d_lr:  3e-4
-g_lr:  3e-4
+d_lr:  1e-3
+g_lr:  1e-3
 blocks: 5
 adv_blocks: 2
-latent_multiplier: 10
+latent_multiplier: 20
 batch_size: ${data.train_batch_size}
 g_weight_decay: 1e-6
 d_weight_decay: 1e-6
