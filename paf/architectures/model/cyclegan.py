@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
-from .model_components import Adversary, CommonModel, Decoder, Encoder, index_by_s
+from .model_components import Adversary, CommonModel, Decoder, Encoder, index_by_s, to_discrete
 
 __all__ = [
     "SharedStepOut",
@@ -378,7 +378,7 @@ class CycleGan(CommonModel):
                 hid_multiplier=self.latent_multiplier,
             ),
         )
-        self.d_s = self.init_fn(
+        self.d_s0 = self.init_fn(
             Decoder(
                 latent_dim=self.data_dim,
                 in_size=1,
@@ -386,16 +386,16 @@ class CycleGan(CommonModel):
                 hid_multiplier=self.latent_multiplier,
             )
         )
-        # self.d_s1 = self.init_fn(
-        #     Decoder(
-        #         latent_dim=self.data_dim,
-        #         in_size=1,
-        #         blocks=self.adv_blocks,
-        #         hid_multiplier=self.latent_multiplier,
-        #     )
-        # )
-        self.d_a_params = self.d_s.parameters()
-        self.d_b_params = self.d_s.parameters()
+        self.d_s1 = self.init_fn(
+            Decoder(
+                latent_dim=self.data_dim,
+                in_size=1,
+                blocks=self.adv_blocks,
+                hid_multiplier=self.latent_multiplier,
+            )
+        )
+        self.d_a_params = self.d_s0.parameters()
+        self.d_b_params = self.d_s1.parameters()
         self.g_params = itertools.chain(
             [*self.g_s0_2_s1.parameters(), *self.g_s1_2_s0.parameters()]
         )
@@ -405,6 +405,24 @@ class CycleGan(CommonModel):
             "real_s1": torch.rand(33, data_dim, device=self.device),
         }
         self.built = True
+
+    def invert(self, z: Tensor, x: Tensor) -> Tensor:
+        """Go from soft to discrete features."""
+        k = z.clone()
+        if self.loss.feature_groups["discrete"]:
+            for i in range(
+                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
+            ):
+                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = k[
+                    :, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])
+                ][:, i].sigmoid()
+            for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
+                one_hot = to_discrete(inputs=k[:, group_slice])
+                k[:, group_slice] = one_hot
+        else:
+            k = k.sigmoid()
+
+        return k
 
     @staticmethod
     def set_requires_grad(nets: nn.Module | list[nn.Module], requires_grad: bool = False) -> None:
@@ -466,10 +484,9 @@ class CycleGan(CommonModel):
             # self.log(f"{Stage.fit}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
             # No need to calculate the gradients for Discriminators' parameters
-            # self.set_requires_grad([self.d_s0, self.d_s1], requires_grad=False)
-            self.set_requires_grad([self.d_s], requires_grad=False)
-            d_s0_pred_fake_data = self.d_s(cyc_out.fake_s0)
-            d_s1_pred_fake_data = self.d_s(cyc_out.fake_s1)
+            self.set_requires_grad([self.d_s0, self.d_s1], requires_grad=False)
+            d_s0_pred_fake_data = self.d_s0(cyc_out.fake_s0)
+            d_s1_pred_fake_data = self.d_s1(cyc_out.fake_s1)
 
             gen_loss = self.loss.get_gen_loss(
                 real_s0=real_s0,
@@ -487,9 +504,9 @@ class CycleGan(CommonModel):
             return gen_loss.tot
 
         if optimizer_idx == 1:
-            self.set_requires_grad([self.d_s], requires_grad=True)
+            self.set_requires_grad([self.d_s0], requires_grad=True)
             fake_s0 = self.fake_pool_s0.push_and_pop(cyc_out.fake_s0)
-            dis_out = self.forward_dis(dis=self.d_s, real_data=real_s0, fake_data=fake_s0.detach())
+            dis_out = self.forward_dis(dis=self.d_s0, real_data=real_s0, fake_data=fake_s0.detach())
 
             # GAN loss
             d_s0_loss = self.loss.get_dis_loss(
@@ -499,10 +516,10 @@ class CycleGan(CommonModel):
             return d_s0_loss
 
         if optimizer_idx == 2:
-            self.set_requires_grad([self.d_s], requires_grad=True)
+            self.set_requires_grad([self.d_s1], requires_grad=True)
             fake_s1 = self.fake_pool_s1.push_and_pop(cyc_out.fake_s1)
             dis_s1_out = self.forward_dis(
-                dis=self.d_s, real_data=real_s1, fake_data=fake_s1.detach()
+                dis=self.d_s1, real_data=real_s1, fake_data=fake_s1.detach()
             )
 
             # GAN loss
@@ -522,8 +539,8 @@ class CycleGan(CommonModel):
             real_s0=real_s0, real_s1=real_s1, fake_s0=cyc_out.fake_s0, fake_s1=cyc_out.fake_s1
         )
 
-        dis_out_a = self.forward_dis(dis=self.d_s, real_data=real_s0, fake_data=cyc_out.fake_s0)
-        dis_out_b = self.forward_dis(dis=self.d_s, real_data=real_s1, fake_data=cyc_out.fake_s1)
+        dis_out_a = self.forward_dis(dis=self.d_s0, real_data=real_s0, fake_data=cyc_out.fake_s0)
+        dis_out_b = self.forward_dis(dis=self.d_s1, real_data=real_s1, fake_data=cyc_out.fake_s1)
 
         # G_A2B loss, G_B2A loss, G loss
         gen_losses = self.loss.get_gen_loss(
