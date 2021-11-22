@@ -325,7 +325,7 @@ class CycleGan(CommonModel):
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
-        self.s_as_input = True
+        self.s_as_input = False
         self.latent_dims = latent_dims
 
         self.debug = debug
