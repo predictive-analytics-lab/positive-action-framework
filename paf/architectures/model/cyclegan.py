@@ -415,8 +415,8 @@ class CycleGan(CommonModel):
                 param.requires_grad = requires_grad
 
     def forward(self, *, real_s0: Tensor, real_s1: Tensor) -> CycleFwd:
-        fake_s1 = self.g_s0_2_s1(real_s0)
-        fake_s0 = self.g_s1_2_s0(real_s1)
+        fake_s1 = self.invert(self.g_s0_2_s1(real_s0), real_s0)
+        fake_s0 = self.invert(self.g_s1_2_s0(real_s1), real_s1)
         return CycleFwd(fake_s1=fake_s1, fake_s0=fake_s0)
 
     def forward_gen(
@@ -561,12 +561,12 @@ class CycleGan(CommonModel):
         return SharedStepOut(
             x=batch.x,
             s=batch.s,
-            recon=self.invert(index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s), batch.x),
-            cf_pred=self.invert(index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s), batch.x),
-            recons_0=self.invert(cyc_out.fake_s0, batch.x),
-            recons_1=self.invert(cyc_out.fake_s1, batch.x),
-            idt_recon=self.invert(index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s), batch.x),
-            cyc_recon=self.invert(index_by_s([gen_fwd.cyc_s0, gen_fwd.cyc_s1], batch.s), batch.x),
+            recon=index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s),
+            cf_pred=index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s),
+            recons_0=cyc_out.fake_s0,
+            recons_1=cyc_out.fake_s1,
+            idt_recon=index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s),
+            cyc_recon=index_by_s([gen_fwd.cyc_s0, gen_fwd.cyc_s1], batch.s),
         )
 
     def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:
