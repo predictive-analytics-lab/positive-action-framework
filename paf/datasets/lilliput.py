@@ -418,10 +418,10 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         discrete_only=False,
     )
 
-    LOGGER.info(f"OT/DATA P(Y=1|Sx=0,Sy=0): {gt_results['s1_0_s2_0'].mean()}")
-    LOGGER.info(f"OT/DATA P(Y=1|Sx=0,Sy=1): {gt_results['s1_0_s2_1'].mean()}")
-    LOGGER.info(f"OT/DATA P(Y=1|Sx=1,Sy=0): {gt_results['s1_1_s2_0'].mean()}")
-    LOGGER.info(f"OT/DATA P(Y=1|Sx=1,Sy=1): {gt_results['s1_1_s2_1'].mean()}")
+    print(f"OT/DATA P(Y=1|Sx=0,Sy=0): {gt_results['s1_0_s2_0'].mean()}")
+    print(f"OT/DATA P(Y=1|Sx=0,Sy=1): {gt_results['s1_0_s2_1'].mean()}")
+    print(f"OT/DATA P(Y=1|Sx=1,Sy=0): {gt_results['s1_1_s2_0'].mean()}")
+    print(f"OT/DATA P(Y=1|Sx=1,Sy=1): {gt_results['s1_1_s2_1'].mean()}")
 
     return CfData(
         dataset=dataset,

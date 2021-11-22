@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 
 from paf.base_templates.dataset_utils import Batch, CfBatch
 
-from .model_components import CommonModel, index_by_s
+from .model_components import Adversary, CommonModel, Decoder, Encoder, index_by_s
 
 __all__ = [
     "SharedStepOut",
@@ -292,23 +292,27 @@ class CycleGan(CommonModel):
     @parsable
     def __init__(
         self,
-        blocks: int,
+        encoder_blocks: int,
+        decoder_blocks: int,
         adv_blocks: int,
         latent_multiplier: int,
         batch_size: int,
         g_weight_decay: float,
         d_weight_decay: float,
+        latent_dims: int,
         scheduler_rate: float = 0.99,
         d_lr: float = 2e-4,
         g_lr: float = 2e-4,
         debug: bool = False,
+        adv_weight: float = 1.0,
     ):
         super().__init__(name="CycleGan")
         self.d_lr = d_lr
         self.g_lr = g_lr
         self.scheduler_rate = scheduler_rate
 
-        self.blocks = blocks
+        self.encoder_blocks = encoder_blocks
+        self.decoder_blocks = decoder_blocks
         self.adv_blocks = adv_blocks
         self.latent_multiplier = latent_multiplier
 
@@ -321,7 +325,12 @@ class CycleGan(CommonModel):
         self.g_weight_decay = g_weight_decay
         self.d_weight_decay = d_weight_decay
 
+        self._adv_weight = adv_weight
+
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
+
+        self.s_as_input = False
+        self.latent_dims = latent_dims
 
         self.debug = debug
 
@@ -339,29 +348,52 @@ class CycleGan(CommonModel):
         indices: list[str] | None,
     ) -> None:
         _ = (num_s, s_dim, cf_available, indices, data)
+        self.data_dim = data_dim
         self.loss = Loss(loss_type=LossType.MSE, lambda_=1, feature_groups=feature_groups)
-        self.g_a2b = self.init_fn(
-            Generator(
-                in_dims=data_dim, nb_resblks=self.blocks, latent_multiplier=self.latent_multiplier
-            )
+        self.g_a2b = nn.Sequential(
+            Encoder(
+                in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
+                latent_dim=self.latent_dims,
+                blocks=self.encoder_blocks,
+                hid_multiplier=self.latent_multiplier,
+            ),
+            Decoder(
+                latent_dim=self.latent_dims,
+                in_size=self.data_dim,
+                blocks=self.decoder_blocks,
+                hid_multiplier=self.latent_multiplier,
+            ),
         )
-        self.g_b2a = self.init_fn(
-            Generator(
-                in_dims=data_dim, nb_resblks=self.blocks, latent_multiplier=self.latent_multiplier
-            )
+        self.g_b2a = nn.Sequential(
+            Encoder(
+                in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
+                latent_dim=self.latent_dims,
+                blocks=self.encoder_blocks,
+                hid_multiplier=self.latent_multiplier,
+            ),
+            Decoder(
+                latent_dim=self.latent_dims,
+                in_size=self.data_dim,
+                blocks=self.decoder_blocks,
+                hid_multiplier=self.latent_multiplier,
+            ),
         )
         self.d_a = self.init_fn(
-            Discriminator(
-                in_dims=data_dim,
-                nb_layers=self.adv_blocks,
-                latent_multiplier=self.latent_multiplier,
+            Adversary(
+                latent_dim=self.data_dim,
+                out_size=1,
+                blocks=self.adv_blocks,
+                hid_multiplier=self.latent_multiplier,
+                weight=self._adv_weight,
             )
         )
         self.d_b = self.init_fn(
-            Discriminator(
-                in_dims=data_dim,
-                nb_layers=self.adv_blocks,
-                latent_multiplier=self.latent_multiplier,
+            Adversary(
+                latent_dim=self.data_dim,
+                out_size=1,
+                blocks=self.adv_blocks,
+                hid_multiplier=self.latent_multiplier,
+                weight=self._adv_weight,
             )
         )
         self.d_a_params = self.d_a.parameters()
@@ -409,9 +441,9 @@ class CycleGan(CommonModel):
         _ = (batch_idx,)
 
         x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
-        s0 = batch.x.new_zeros((x0.shape[0]))
+        s0 = batch.x.new_zeros(x0.shape[0])
         x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
-        s1 = batch.x.new_ones((x1.shape[0]))
+        s1 = batch.x.new_ones(x1.shape[0])
         x = torch.cat([x0, x1], dim=0)
         s = torch.cat([s0, s1], dim=0)
 

@@ -4,7 +4,9 @@ defaults:
 
 d_lr:  1e-3
 g_lr:  1e-3
-blocks: 5
+encoder_blocks: 5
+decoder_blocks: 5
+latent_dims: 3
 adv_blocks: 2
 latent_multiplier: 20
 batch_size: ${data.train_batch_size}
