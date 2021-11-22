@@ -379,21 +379,19 @@ class CycleGan(CommonModel):
             ),
         )
         self.d_a = self.init_fn(
-            Adversary(
+            Decoder(
                 latent_dim=self.data_dim,
-                out_size=1,
+                in_size=1,
                 blocks=self.adv_blocks,
                 hid_multiplier=self.latent_multiplier,
-                weight=self._adv_weight,
             )
         )
         self.d_b = self.init_fn(
-            Adversary(
+            Decoder(
                 latent_dim=self.data_dim,
-                out_size=1,
+                in_size=1,
                 blocks=self.adv_blocks,
                 hid_multiplier=self.latent_multiplier,
-                weight=self._adv_weight,
             )
         )
         self.d_a_params = self.d_a.parameters()
