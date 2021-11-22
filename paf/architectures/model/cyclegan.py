@@ -401,8 +401,8 @@ class CycleGan(CommonModel):
         )
         self.data_cols = outcome_cols
         self.example_input_array = {
-            "real_a": torch.rand(33, data_dim, device=self.device),
-            "real_b": torch.rand(33, data_dim, device=self.device),
+            "real_s0": torch.rand(33, data_dim, device=self.device),
+            "real_s1": torch.rand(33, data_dim, device=self.device),
         }
         self.built = True
 
