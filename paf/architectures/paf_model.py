@@ -62,8 +62,8 @@ class PafModel(pl.LightningModule):
             enc_fwd = self.enc.forward(x=x, s=s)
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
-            cyc_fwd = self.enc.forward(real_a=x, real_b=x)
-            recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
+            cyc_fwd = self.enc.forward(real_s0=x, real_s1=x)
+            recons = [cyc_fwd.fake_s0, cyc_fwd.fake_s1]
         assert recons is not None
         return self.clf.from_recons(recons)
 
@@ -85,8 +85,8 @@ class PafModel(pl.LightningModule):
             enc_s_pred = enc_fwd.s
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
-            cyc_fwd = self.enc.forward(real_a=batch.x, real_b=batch.x)
-            recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
+            cyc_fwd = self.enc.forward(real_s0=batch.x, real_s1=batch.x)
+            recons = [cyc_fwd.fake_s0, cyc_fwd.fake_s1]
             enc_z = torch.ones_like(batch.x)
             enc_s_pred = torch.ones_like(batch.s)
         elif isinstance(self.enc, NearestNeighbour):
@@ -146,14 +146,14 @@ class PafModel(pl.LightningModule):
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - s.cpu())
             else:
-                cf_fwd = self.enc.forward(real_a=_cfx, real_b=_cfx)  # type: ignore[assignment]
+                cf_fwd = self.enc.forward(real_s0=_cfx, real_s1=_cfx)  # type: ignore[assignment]
             _og = self.enc.invert(index_by_s(cf_fwd.x, s), x)
             cycle_loss = mse_loss_fn(_og, x.cpu())
             cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().mean(dim=-1).cpu().numpy().tolist()
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 _fwd = self.enc.forward(x=_og, s=1 - s.cpu())
             else:
-                _fwd = self.enc.forward(real_a=_og, real_b=_og)  # type: ignore[assignment]
+                _fwd = self.enc.forward(real_s0=_og, real_s1=_og)  # type: ignore[assignment]
             _recons = _fwd.x
 
         return PafResults(

@@ -48,6 +48,8 @@ class SharedStepOut(NamedTuple):
     cf_pred: Tensor
     recons_0: Tensor
     recons_1: Tensor
+    idt_recon: Tensor
+    cyc_recon: Tensor
 
 
 class InitType(Enum):
@@ -173,35 +175,37 @@ class Loss:
     def get_gen_loss(
         self,
         *,
-        real_a: Tensor,
-        real_b: Tensor,
+        real_s0: Tensor,
+        real_s1: Tensor,
         gen_fwd: GenFwd,
-        d_a_pred_fake_data: Tensor,
-        d_b_pred_fake_data: Tensor,
+        d_s0_pred_fake_data: Tensor,
+        d_s1_pred_fake_data: Tensor,
     ) -> GenLoss:
         # Cycle loss
-        cyc_loss_a = self.get_gen_cyc_loss(real_data=real_a, cyc_data=gen_fwd.cyc_a)
-        cyc_loss_b = self.get_gen_cyc_loss(real_data=real_b, cyc_data=gen_fwd.cyc_b)
+        cyc_loss_a = self.get_gen_cyc_loss(real_data=real_s0, cyc_data=gen_fwd.cyc_s0)
+        cyc_loss_b = self.get_gen_cyc_loss(real_data=real_s1, cyc_data=gen_fwd.cyc_s1)
         tot_cyc_loss = cyc_loss_a + cyc_loss_b
 
         # GAN loss
-        g_a2b_gan_loss = self.get_gen_gan_loss(d_b_pred_fake_data)
-        g_b2a_gan_loss = self.get_gen_gan_loss(d_a_pred_fake_data)
+        g_s0_2_s1_gan_loss = self.get_gen_gan_loss(d_s1_pred_fake_data)
+        g_s1_2_s0_gan_loss = self.get_gen_gan_loss(d_s0_pred_fake_data)
 
         # Identity loss
-        g_b2a_idt_loss = self.get_gen_idt_loss(real_data=real_a, idt_data=gen_fwd.idt_a)
-        g_a2b_idt_loss = self.get_gen_idt_loss(real_data=real_b, idt_data=gen_fwd.idt_b)
+        g_s1_2_s0_idt_loss = self.get_gen_idt_loss(real_data=real_s0, idt_data=gen_fwd.idt_s0)
+        g_s0_2_s1_idt_loss = self.get_gen_idt_loss(real_data=real_s1, idt_data=gen_fwd.idt_s1)
 
         # Total individual losses
-        g_a2b_loss = g_a2b_gan_loss + g_a2b_idt_loss + tot_cyc_loss
-        g_b2a_loss = g_b2a_gan_loss + g_b2a_idt_loss + tot_cyc_loss
-        g_tot_loss = g_a2b_loss + g_b2a_loss - tot_cyc_loss
-        return GenLoss(a2b=g_a2b_loss, b2a=g_b2a_loss, tot=g_tot_loss, cycle_loss=tot_cyc_loss)
+        g_s0_s1_loss = g_s0_2_s1_gan_loss + g_s0_2_s1_idt_loss + tot_cyc_loss
+        g_s1_2_s0_loss = g_s1_2_s0_gan_loss + g_s1_2_s0_idt_loss + tot_cyc_loss
+        g_tot_loss = g_s0_s1_loss + g_s1_2_s0_loss - tot_cyc_loss
+        return GenLoss(
+            s0_2_s1=g_s0_s1_loss, s1_2_s0=g_s1_2_s0_loss, tot=g_tot_loss, cycle_loss=tot_cyc_loss
+        )
 
 
 class GenLoss(NamedTuple):
-    a2b: Tensor
-    b2a: Tensor
+    s0_2_s1: Tensor
+    s1_2_s0: Tensor
     tot: Tensor
     cycle_loss: Tensor
 
@@ -270,10 +274,10 @@ class Discriminator(nn.Module):
 
 class CycleGan(CommonModel):
     loss: Loss
-    g_a2b: nn.Module
-    g_b2a: nn.Module
-    d_a: nn.Module
-    d_b: nn.Module
+    g_s0_2_s1: nn.Module
+    g_s1_2_s0: nn.Module
+    d_s0: nn.Module
+    d_s1: nn.Module
     d_a_params: Iterator[Parameter]
     d_b_params: Iterator[Parameter]
     g_params: Iterator[Parameter]
@@ -312,8 +316,8 @@ class CycleGan(CommonModel):
         self.adv_blocks = adv_blocks
         self.latent_multiplier = latent_multiplier
 
-        self.fake_pool_a = HistoryPool(pool_size=batch_size // 4)
-        self.fake_pool_b = HistoryPool(pool_size=batch_size // 4)
+        self.fake_pool_s0 = HistoryPool(pool_size=batch_size // 4)
+        self.fake_pool_s1 = HistoryPool(pool_size=batch_size // 4)
 
         self.pool_x0 = Stratifier(pool_size=batch_size // 2)
         self.pool_x1 = Stratifier(pool_size=batch_size // 2)
@@ -346,7 +350,7 @@ class CycleGan(CommonModel):
         _ = (num_s, s_dim, cf_available, indices, data)
         self.data_dim = data_dim
         self.loss = Loss(loss_type=LossType.BCE, lambda_=10, feature_groups=feature_groups)
-        self.g_a2b = nn.Sequential(
+        self.g_s0_2_s1 = nn.Sequential(
             Encoder(
                 in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 latent_dim=self.latent_dims,
@@ -360,7 +364,7 @@ class CycleGan(CommonModel):
                 hid_multiplier=self.latent_multiplier,
             ),
         )
-        self.g_b2a = nn.Sequential(
+        self.g_s1_2_s0 = nn.Sequential(
             Encoder(
                 in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 latent_dim=self.latent_dims,
@@ -374,7 +378,7 @@ class CycleGan(CommonModel):
                 hid_multiplier=self.latent_multiplier,
             ),
         )
-        self.d_a = self.init_fn(
+        self.d_s0 = self.init_fn(
             Decoder(
                 latent_dim=self.data_dim,
                 in_size=1,
@@ -382,7 +386,7 @@ class CycleGan(CommonModel):
                 hid_multiplier=self.latent_multiplier,
             )
         )
-        self.d_b = self.init_fn(
+        self.d_s1 = self.init_fn(
             Decoder(
                 latent_dim=self.data_dim,
                 in_size=1,
@@ -390,9 +394,11 @@ class CycleGan(CommonModel):
                 hid_multiplier=self.latent_multiplier,
             )
         )
-        self.d_a_params = self.d_a.parameters()
-        self.d_b_params = self.d_b.parameters()
-        self.g_params = itertools.chain([*self.g_a2b.parameters(), *self.g_b2a.parameters()])
+        self.d_a_params = self.d_s0.parameters()
+        self.d_b_params = self.d_s1.parameters()
+        self.g_params = itertools.chain(
+            [*self.g_s0_2_s1.parameters(), *self.g_s1_2_s0.parameters()]
+        )
         self.data_cols = outcome_cols
         self.example_input_array = {
             "real_a": torch.rand(33, data_dim, device=self.device),
@@ -408,20 +414,20 @@ class CycleGan(CommonModel):
             for param in net.parameters():
                 param.requires_grad = requires_grad
 
-    def forward(self, *, real_a: Tensor, real_b: Tensor) -> CycleFwd:
-        fake_b = self.g_a2b(real_a)
-        fake_a = self.g_b2a(real_b)
-        return CycleFwd(fake_b=fake_b, fake_a=fake_a)
+    def forward(self, *, real_s0: Tensor, real_s1: Tensor) -> CycleFwd:
+        fake_s1 = self.g_s0_2_s1(real_s0)
+        fake_s0 = self.g_s1_2_s0(real_s1)
+        return CycleFwd(fake_s1=fake_s1, fake_s0=fake_s0)
 
     def forward_gen(
-        self, *, real_a: Tensor, real_b: Tensor, fake_a: Tensor, fake_b: Tensor
+        self, *, real_s0: Tensor, real_s1: Tensor, fake_s0: Tensor, fake_s1: Tensor
     ) -> GenFwd:
-        cyc_a = self.g_b2a(fake_b)
-        idt_a = self.g_b2a(real_a)
+        cyc_s0 = self.g_s1_2_s0(fake_s1)
+        idt_s0 = self.g_s1_2_s0(real_s0)
 
-        cyc_b = self.g_a2b(fake_a)
-        idt_b = self.g_a2b(real_b)
-        return GenFwd(cyc_a=cyc_a, idt_a=idt_a, cyc_b=cyc_b, idt_b=idt_b)
+        cyc_s1 = self.g_s0_2_s1(fake_s0)
+        idt_s1 = self.g_s0_2_s1(real_s1)
+        return GenFwd(cyc_s0=cyc_s0, idt_s0=idt_s0, cyc_s1=cyc_s1, idt_s1=idt_s1)
 
     @staticmethod
     def forward_dis(dis: nn.Module, *, real_data: Tensor, fake_data: Tensor) -> DisFwd:
@@ -440,15 +446,15 @@ class CycleGan(CommonModel):
         x = torch.cat([x0, x1], dim=0)
         s = torch.cat([s0, s1], dim=0)
 
-        real_a, real_b = x[s == 0], x[s == 1]
-        size = min(len(real_a), len(real_b))
-        real_a = real_a[:size]
-        real_b = real_b[:size]
-        cyc_out = self.forward(real_a=real_a, real_b=real_b)
+        real_s0, real_s1 = x[s == 0], x[s == 1]
+        size = min(len(real_s0), len(real_s1))
+        real_s0 = real_s0[:size]
+        real_s1 = real_s1[:size]
+        cyc_out = self.forward(real_s0=real_s0, real_s1=real_s1)
 
         if optimizer_idx == 0:
             gen_fwd = self.forward_gen(
-                real_a=real_a, real_b=real_b, fake_a=cyc_out.fake_a, fake_b=cyc_out.fake_b
+                real_s0=real_s0, real_s1=real_s1, fake_s0=cyc_out.fake_s0, fake_s1=cyc_out.fake_s1
             )
 
             # mmd_results = self.mmd_reporting(
@@ -460,69 +466,71 @@ class CycleGan(CommonModel):
             # self.log(f"{Stage.fit}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
             # No need to calculate the gradients for Discriminators' parameters
-            self.set_requires_grad([self.d_a, self.d_b], requires_grad=False)
-            d_a_pred_fake_data = self.d_a(cyc_out.fake_a)
-            d_b_pred_fake_data = self.d_b(cyc_out.fake_b)
+            self.set_requires_grad([self.d_s0, self.d_s1], requires_grad=False)
+            d_s0_pred_fake_data = self.d_s0(cyc_out.fake_s0)
+            d_s1_pred_fake_data = self.d_s1(cyc_out.fake_s1)
 
             gen_loss = self.loss.get_gen_loss(
-                real_a=real_a,
-                real_b=real_b,
+                real_s0=real_s0,
+                real_s1=real_s1,
                 gen_fwd=gen_fwd,
-                d_a_pred_fake_data=d_a_pred_fake_data,
-                d_b_pred_fake_data=d_b_pred_fake_data,
+                d_s0_pred_fake_data=d_s0_pred_fake_data,
+                d_s1_pred_fake_data=d_s1_pred_fake_data,
             )
 
             self.log(f"{Stage.fit}/enc/g_tot_loss", gen_loss.tot)
-            self.log(f"{Stage.fit}/enc/g_A2B_loss", gen_loss.a2b)
-            self.log(f"{Stage.fit}/enc/g_B2A_loss", gen_loss.b2a)
+            self.log(f"{Stage.fit}/enc/g_A2B_loss", gen_loss.s0_2_s1)
+            self.log(f"{Stage.fit}/enc/g_B2A_loss", gen_loss.s1_2_s0)
             self.log(f"{Stage.fit}/enc/cycle_loss", gen_loss.cycle_loss)
 
             return gen_loss.tot
 
         if optimizer_idx == 1:
-            self.set_requires_grad([self.d_a], requires_grad=True)
-            fake_a = self.fake_pool_a.push_and_pop(cyc_out.fake_a)
-            dis_out = self.forward_dis(dis=self.d_a, real_data=real_a, fake_data=fake_a.detach())
+            self.set_requires_grad([self.d_s0], requires_grad=True)
+            fake_s0 = self.fake_pool_s0.push_and_pop(cyc_out.fake_s0)
+            dis_out = self.forward_dis(dis=self.d_s0, real_data=real_s0, fake_data=fake_s0.detach())
 
             # GAN loss
-            d_a_loss = self.loss.get_dis_loss(
+            d_s0_loss = self.loss.get_dis_loss(
                 dis_pred_real_data=dis_out.real, dis_pred_fake_data=dis_out.fake
             )
-            self.log(f"{Stage.fit}/enc/d_A_loss", d_a_loss)
-            return d_a_loss
+            self.log(f"{Stage.fit}/enc/d_A_loss", d_s0_loss)
+            return d_s0_loss
 
         if optimizer_idx == 2:
-            self.set_requires_grad([self.d_b], requires_grad=True)
-            fake_b = self.fake_pool_b.push_and_pop(cyc_out.fake_b)
-            dis_b_out = self.forward_dis(dis=self.d_b, real_data=real_b, fake_data=fake_b.detach())
+            self.set_requires_grad([self.d_s1], requires_grad=True)
+            fake_s1 = self.fake_pool_s1.push_and_pop(cyc_out.fake_s1)
+            dis_s1_out = self.forward_dis(
+                dis=self.d_s1, real_data=real_s1, fake_data=fake_s1.detach()
+            )
 
             # GAN loss
-            d_b_loss = self.loss.get_dis_loss(
-                dis_pred_real_data=dis_b_out.real, dis_pred_fake_data=dis_b_out.fake
+            d_s1_loss = self.loss.get_dis_loss(
+                dis_pred_real_data=dis_s1_out.real, dis_pred_fake_data=dis_s1_out.fake
             )
-            self.log(f"{Stage.fit}/enc/d_B_loss", d_b_loss)
-            return d_b_loss
+            self.log(f"{Stage.fit}/enc/d_B_loss", d_s1_loss)
+            return d_s1_loss
         raise NotImplementedError("There should only be 3 optimizers.")
 
     def shared_step(self, batch: Batch | CfBatch | TernarySample, *, stage: Stage) -> SharedStepOut:
-        real_a = batch.x
-        real_b = batch.x
+        real_s0 = batch.x
+        real_s1 = batch.x
 
-        cyc_out = self.forward(real_a=real_a, real_b=real_b)
+        cyc_out = self.forward(real_s0=real_s0, real_s1=real_s1)
         gen_fwd = self.forward_gen(
-            real_a=real_a, real_b=real_b, fake_a=cyc_out.fake_a, fake_b=cyc_out.fake_b
+            real_s0=real_s0, real_s1=real_s1, fake_s0=cyc_out.fake_s0, fake_s1=cyc_out.fake_s1
         )
 
-        dis_out_a = self.forward_dis(dis=self.d_a, real_data=real_a, fake_data=cyc_out.fake_a)
-        dis_out_b = self.forward_dis(dis=self.d_b, real_data=real_b, fake_data=cyc_out.fake_b)
+        dis_out_a = self.forward_dis(dis=self.d_s0, real_data=real_s0, fake_data=cyc_out.fake_s0)
+        dis_out_b = self.forward_dis(dis=self.d_s1, real_data=real_s1, fake_data=cyc_out.fake_s1)
 
         # G_A2B loss, G_B2A loss, G loss
         gen_losses = self.loss.get_gen_loss(
-            real_a=real_a,
-            real_b=real_b,
+            real_s0=real_s0,
+            real_s1=real_s1,
             gen_fwd=gen_fwd,
-            d_a_pred_fake_data=dis_out_a.fake,
-            d_b_pred_fake_data=dis_out_b.fake,
+            d_s0_pred_fake_data=dis_out_a.fake,
+            d_s1_pred_fake_data=dis_out_b.fake,
         )
 
         # D_A loss, D_B loss
@@ -537,8 +545,8 @@ class CycleGan(CommonModel):
 
         dict_ = {
             f"{stage}/enc/g_tot_loss": gen_losses.tot,
-            f"{stage}/enc/g_A2B_loss": gen_losses.a2b,
-            f"{stage}/enc/g_B2A_loss": gen_losses.b2a,
+            f"{stage}/enc/g_A2B_loss": gen_losses.s0_2_s1,
+            f"{stage}/enc/g_B2A_loss": gen_losses.s1_2_s0,
             f"{stage}/enc/d_A_loss": d_a_loss,
             f"{stage}/enc/d_B_loss": d_b_loss,
             f"{stage}/enc/loss": gen_losses.tot,
@@ -553,10 +561,12 @@ class CycleGan(CommonModel):
         return SharedStepOut(
             x=batch.x,
             s=batch.s,
-            recon=self.invert(index_by_s([cyc_out.fake_a, cyc_out.fake_b], batch.s), batch.x),
-            cf_pred=self.invert(index_by_s([cyc_out.fake_a, cyc_out.fake_b], 1 - batch.s), batch.x),
-            recons_0=self.invert(cyc_out.fake_a, batch.x),
-            recons_1=self.invert(cyc_out.fake_b, batch.x),
+            recon=self.invert(index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s), batch.x),
+            cf_pred=self.invert(index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s), batch.x),
+            recons_0=self.invert(cyc_out.fake_s0, batch.x),
+            recons_1=self.invert(cyc_out.fake_s1, batch.x),
+            idt_recon=self.invert(index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s), batch.x),
+            cyc_recon=self.invert(index_by_s([gen_fwd.cyc_s0, gen_fwd.cyc_s1], batch.s), batch.x),
         )
 
     def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:
@@ -570,6 +580,8 @@ class CycleGan(CommonModel):
         self.all_s = torch.cat([_r.s for _r in outputs], 0)
         self.all_recon = torch.cat([_r.recon for _r in outputs], 0)
         self.all_cf_pred = torch.cat([_r.recon for _r in outputs], 0)
+        all_idt = torch.cat([_r.idt_recon for _r in outputs], 0)
+        all_cyc = torch.cat([_r.cyc_recon for _r in outputs], 0)
 
         if self.debug:
             make_plot(
@@ -591,6 +603,20 @@ class CycleGan(CommonModel):
                 s=self.all_s.clone(),
                 logger=self.logger,
                 name=f"{stage}_cf_recons",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=all_idt,
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_idt_recon",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=all_cyc,
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_cyc_recons",
                 cols=self.data_cols,
             )
 
@@ -686,10 +712,10 @@ class CycleGan(CommonModel):
 
 
 class GenFwd(NamedTuple):
-    cyc_a: Tensor
-    idt_a: Tensor
-    cyc_b: Tensor
-    idt_b: Tensor
+    cyc_s0: Tensor
+    idt_s0: Tensor
+    cyc_s1: Tensor
+    idt_s1: Tensor
 
 
 class DisFwd(NamedTuple):
@@ -698,9 +724,9 @@ class DisFwd(NamedTuple):
 
 
 class CycleFwd(NamedTuple):
-    fake_b: Tensor
-    fake_a: Tensor
+    fake_s1: Tensor
+    fake_s0: Tensor
 
     @property
     def x(self) -> list[Tensor]:
-        return [self.fake_a, self.fake_b]
+        return [self.fake_s0, self.fake_s1]
