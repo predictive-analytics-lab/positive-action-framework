@@ -581,8 +581,8 @@ class CycleGan(CommonModel):
 
         # G_A2B loss, G_B2A loss, G loss
         gen_losses = self.loss.get_gen_loss(
-            real_s0=real_s0[:, :-1] if self.s_as_input else real_s0,
-            real_s1=real_s1[:, :-1] if self.s_as_input else real_s1,
+            real_s0=real_s0,
+            real_s1=real_s1,
             gen_fwd=gen_fwd,
             d_s0_pred_fake_data=dis_out_a.fake,
             d_s1_pred_fake_data=dis_out_b.fake,

@@ -12,3 +12,4 @@ latent_multiplier: 20
 batch_size: ${data.train_batch_size}
 g_weight_decay: 1e-6
 d_weight_decay: 1e-6
+s_as_input: true
