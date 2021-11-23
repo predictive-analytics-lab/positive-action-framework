@@ -693,7 +693,7 @@ class CycleGan(CommonModel):
         fake_s0 = torch.cat([_r.recons_0 for _r in outputs], 0)
         fake_s1 = torch.cat([_r.recons_1 for _r in outputs], 0)
 
-        if self.debug and self.current_epoch % 10 == 0:
+        if self.debug and self.current_epoch % 25 == 0:
             make_plot(
                 x=self.all_recon.clone(),
                 s=self.all_s.clone(),
