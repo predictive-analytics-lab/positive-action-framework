@@ -345,7 +345,7 @@ class CycleGan(CommonModel):
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
-        self.s_as_input = True
+        self.s_as_input = False
         self.latent_dims = latent_dims
 
         self.debug = debug
@@ -426,7 +426,7 @@ class CycleGan(CommonModel):
                 33, data_dim + s_dim if self.s_as_input else data_dim, device=self.device
             ),
         }
-        self.built = False
+        self.built = True
 
     def soft_invert(self, z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
