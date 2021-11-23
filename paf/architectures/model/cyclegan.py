@@ -700,7 +700,7 @@ class CycleGan(CommonModel):
 
     def configure_optimizers(
         self,
-    ) -> tuple[list[torch.optim.Optimizer], list[optim.lr_scheduler.ExponentialLR]]:
+    ) -> list[torch.optim.Optimizer]:
 
         # define the optimizers here
         g_opt = torch.optim.AdamW(self.g_params, lr=self.g_lr, weight_decay=self.g_weight_decay)
@@ -708,19 +708,13 @@ class CycleGan(CommonModel):
         d_b_opt = torch.optim.AdamW(self.d_b_params, lr=self.d_lr, weight_decay=self.d_weight_decay)
 
         # define the lr_schedulers here
-        g_sch = optim.lr_scheduler.ExponentialLR(g_opt, gamma=self.scheduler_rate)
-        d_a_sch = optim.lr_scheduler.ExponentialLR(d_a_opt, gamma=self.scheduler_rate)
-        d_b_sch = optim.lr_scheduler.ExponentialLR(d_b_opt, gamma=self.scheduler_rate)
+        # g_sch = optim.lr_scheduler.ExponentialLR(g_opt, gamma=self.scheduler_rate)
+        # d_a_sch = optim.lr_scheduler.ExponentialLR(d_a_opt, gamma=self.scheduler_rate)
+        # d_b_sch = optim.lr_scheduler.ExponentialLR(d_b_opt, gamma=self.scheduler_rate)
 
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
-        return [g_opt, d_a_opt, d_a_opt, d_b_opt, d_b_opt], [
-            g_sch,
-            d_a_sch,
-            d_a_sch,
-            d_b_sch,
-            d_b_sch,
-        ]
+        return [g_opt, d_a_opt, d_a_opt, d_b_opt, d_b_opt]
 
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         raise NotImplementedError("This shouldn't be called. Only implementing for the abc.")
