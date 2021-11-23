@@ -371,7 +371,7 @@ class CycleGan(CommonModel):
         )
         self.g_s0_2_s1 = self.init_fn(
             Generator(
-                in_dims=data_dim,
+                in_dims=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 latent_multiplier=self.latent_multiplier,
                 nb_resblks=self.encoder_blocks,
             )
@@ -392,7 +392,7 @@ class CycleGan(CommonModel):
         # )
         self.g_s1_2_s0 = self.init_fn(
             Generator(
-                in_dims=data_dim,
+                in_dims=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 latent_multiplier=self.latent_multiplier,
                 nb_resblks=self.encoder_blocks,
             )
@@ -413,7 +413,7 @@ class CycleGan(CommonModel):
         # )
         self.d_s0 = self.init_fn(
             Discriminator(
-                in_dims=data_dim,
+                in_dims=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 nb_layers=self.adv_blocks,
                 latent_multiplier=self.latent_multiplier,
             )
@@ -426,7 +426,7 @@ class CycleGan(CommonModel):
         )
         self.d_s1 = self.init_fn(
             Discriminator(
-                in_dims=data_dim,
+                in_dims=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 nb_layers=self.adv_blocks,
                 latent_multiplier=self.latent_multiplier,
             )
