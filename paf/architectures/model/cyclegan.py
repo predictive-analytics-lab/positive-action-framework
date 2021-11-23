@@ -513,9 +513,10 @@ class CycleGan(CommonModel):
             # self.log(f"{Stage.fit}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
             # No need to calculate the gradients for Discriminators' parameters
-            self.set_requires_grad([self.d_s0, self.d_s1], requires_grad=False)
-            d_s0_pred_fake_data = self.d_s0(self.soft_invert(cyc_out.fake_s0))
-            d_s1_pred_fake_data = self.d_s1(self.soft_invert(cyc_out.fake_s1))
+            # self.set_requires_grad([self.d_s0, self.d_s1], requires_grad=False)
+            with torch.no_grad():
+                d_s0_pred_fake_data = self.d_s0(self.soft_invert(cyc_out.fake_s0))
+                d_s1_pred_fake_data = self.d_s1(self.soft_invert(cyc_out.fake_s1))
 
             gen_loss = self.loss.get_gen_loss(
                 real_s0=real_s0,
@@ -537,8 +538,11 @@ class CycleGan(CommonModel):
             return gen_loss.tot
 
         if optimizer_idx in {1, 2}:
-            self.set_requires_grad([self.d_s0], requires_grad=True)
-            fake_s0 = self.fake_pool_s0.push_and_pop(self.invert(cyc_out.fake_s0, cyc_out.fake_s0))
+            # self.set_requires_grad([self.d_s0], requires_grad=True)
+            with torch.no_grad():
+                fake_s0 = self.fake_pool_s0.push_and_pop(
+                    self.invert(cyc_out.fake_s0, cyc_out.fake_s0)
+                )
             dis_out = self.forward_dis(dis=self.d_s0, real_data=real_s0, fake_data=fake_s0.detach())
 
             # GAN loss
@@ -549,8 +553,11 @@ class CycleGan(CommonModel):
             return d_s0_loss
 
         if optimizer_idx in {3, 4}:
-            self.set_requires_grad([self.d_s1], requires_grad=True)
-            fake_s1 = self.fake_pool_s1.push_and_pop(self.invert(cyc_out.fake_s1, cyc_out.fake_s1))
+            # self.set_requires_grad([self.d_s1], requires_grad=True)
+            with torch.no_grad():
+                fake_s1 = self.fake_pool_s1.push_and_pop(
+                    self.invert(cyc_out.fake_s1, cyc_out.fake_s1)
+                )
             dis_s1_out = self.forward_dis(
                 dis=self.d_s1, real_data=real_s1, fake_data=fake_s1.detach()
             )
@@ -563,6 +570,7 @@ class CycleGan(CommonModel):
             return d_s1_loss
         raise NotImplementedError("There should only be 3 optimizers.")
 
+    @torch.no_grad()
     def shared_step(self, batch: Batch | CfBatch | TernarySample, *, stage: Stage) -> SharedStepOut:
         real_s0 = (
             torch.cat([batch.x, batch.s.unsqueeze(dim=-1)], dim=1) if self.s_as_input else batch.x
