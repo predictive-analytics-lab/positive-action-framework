@@ -647,14 +647,14 @@ class CycleGan(CommonModel):
             )
             make_plot(
                 x=real_s0,
-                s=torch.ones_like(real_s0.shape[0]),
+                s=torch.ones(real_s0.shape[0]),
                 logger=self.logger,
                 name=f"{stage}_s0",
                 cols=self.data_cols,
             )
             make_plot(
                 x=real_s1,
-                s=torch.ones_like(real_s1.shape[0]),
+                s=torch.ones(real_s1.shape[0]),
                 logger=self.logger,
                 name=f"{stage}_s1",
                 cols=self.data_cols,
