@@ -4,7 +4,7 @@
 # isort:skip_file
 # flake8: noqa
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from omegaconf import MISSING
 
 
@@ -24,6 +24,7 @@ class CycleGanConf:
     g_lr: float = 0.0002
     debug: bool = False
     adv_weight: float = 1.0
+    lambda_: float = 10.0
 
 
 @dataclass
