@@ -144,7 +144,7 @@ class Loss:
                     torch.argmax(real_data[:, group_slice], dim=-1),
                 )
         else:
-            gen_cyc_loss = self._recon_loss_fn(cyc_data.sigmoid(), real_data)
+            gen_cyc_loss = self._recon_loss_fn(cyc_data, real_data)
         return gen_cyc_loss * self.lambda_
 
     def get_gen_idt_loss(self, real_data: Tensor, *, idt_data: Tensor) -> Tensor:
@@ -169,7 +169,7 @@ class Loss:
                     torch.argmax(real_data[:, group_slice], dim=-1),
                 )
         else:
-            gen_idt_loss = self._recon_loss_fn(idt_data.sigmoid(), real_data)
+            gen_idt_loss = self._recon_loss_fn(idt_data, real_data)
         return gen_idt_loss * self.lambda_ * 0.5
 
     def get_gen_loss(
