@@ -305,6 +305,7 @@ class CycleGan(CommonModel):
         g_lr: float = 2e-4,
         debug: bool = False,
         adv_weight: float = 1.0,
+        lambda_: float = 10.0,
     ):
         super().__init__(name="CycleGan")
         self.d_lr = d_lr
@@ -324,6 +325,8 @@ class CycleGan(CommonModel):
 
         self.g_weight_decay = g_weight_decay
         self.d_weight_decay = d_weight_decay
+
+        self.lambda_ = lambda_
 
         self._adv_weight = adv_weight
 
@@ -349,7 +352,9 @@ class CycleGan(CommonModel):
     ) -> None:
         _ = (num_s, s_dim, cf_available, indices, data)
         self.data_dim = data_dim
-        self.loss = Loss(loss_type=LossType.BCE, lambda_=10, feature_groups=feature_groups)
+        self.loss = Loss(
+            loss_type=LossType.BCE, lambda_=self.lambda_, feature_groups=feature_groups
+        )
         self.g_s0_2_s1 = nn.Sequential(
             Encoder(
                 in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
