@@ -507,7 +507,7 @@ class CycleGan(CommonModel):
 
         if optimizer_idx == 1:
             self.set_requires_grad([self.d_s0], requires_grad=True)
-            fake_s0 = self.fake_pool_s0.push_and_pop(cyc_out.fake_s0)
+            fake_s0 = self.fake_pool_s0.push_and_pop(self.invert(cyc_out.fake_s0, cyc_out.fake_s0))
             dis_out = self.forward_dis(dis=self.d_s0, real_data=real_s0, fake_data=fake_s0.detach())
 
             # GAN loss
@@ -519,7 +519,7 @@ class CycleGan(CommonModel):
 
         if optimizer_idx == 2:
             self.set_requires_grad([self.d_s1], requires_grad=True)
-            fake_s1 = self.fake_pool_s1.push_and_pop(cyc_out.fake_s1)
+            fake_s1 = self.fake_pool_s1.push_and_pop(self.invert(cyc_out.fake_s1, cyc_out.fake_s1))
             dis_s1_out = self.forward_dis(
                 dis=self.d_s1, real_data=real_s1, fake_data=fake_s1.detach()
             )
