@@ -561,7 +561,7 @@ class CycleGan(CommonModel):
 
             return gen_loss.tot
 
-        if optimizer_idx == 1:
+        if optimizer_idx in {1, 2, 3}:
             # self.set_requires_grad([self.d_s0], requires_grad=True)
             with torch.no_grad():
                 fake_s0 = self.fake_pool_s0.push_and_pop(
@@ -576,7 +576,7 @@ class CycleGan(CommonModel):
             self.log(f"{Stage.fit}/enc/d_A_loss", d_s0_loss)
             return d_s0_loss
 
-        if optimizer_idx == 2:
+        if optimizer_idx in {4, 5, 6}:
             # self.set_requires_grad([self.d_s1], requires_grad=True)
             with torch.no_grad():
                 fake_s1 = self.fake_pool_s1.push_and_pop(
@@ -780,7 +780,15 @@ class CycleGan(CommonModel):
 
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
-        return [g_opt, d_a_opt, d_b_opt], [g_sch, d_a_sch, d_b_sch]
+        return [
+            g_opt,
+            d_a_opt,
+            d_a_opt,
+            d_a_opt,
+            d_b_opt,
+            d_b_opt,
+            d_b_opt,
+        ]  # , [g_sch, d_a_sch, d_b_sch]
 
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         raise NotImplementedError("This shouldn't be called. Only implementing for the abc.")
