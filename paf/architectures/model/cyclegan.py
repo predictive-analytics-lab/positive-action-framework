@@ -426,18 +426,19 @@ class CycleGan(CommonModel):
 
     def soft_invert(self, z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
+        k = torch.ones_like(z)
         if self.loss.feature_groups["discrete"]:
             for i in range(
                 z[:, slice(self.loss.feature_groups["discrete"][-1].stop, z.shape[1])].shape[1]
             ):
-                z[:, slice(self.loss.feature_groups["discrete"][-1].stop, z.shape[1])][:, i] = z[
+                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, z.shape[1])][:, i] *= z[
                     :, slice(self.loss.feature_groups["discrete"][-1].stop, z.shape[1])
                 ][:, i].sigmoid()
             for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
-                z[:, group_slice] = torch.nn.functional.softmax(z[:, group_slice], dim=-1)
+                k[:, group_slice] *= torch.nn.functional.softmax(z[:, group_slice], dim=-1)
         else:
-            z = z.sigmoid()
-        return z
+            k = z.sigmoid()
+        return k
 
     @staticmethod
     def set_requires_grad(nets: nn.Module | list[nn.Module], requires_grad: bool = False) -> None:
@@ -703,34 +704,22 @@ class CycleGan(CommonModel):
 
         # define the optimizers here
         g_opt = torch.optim.AdamW(self.g_params, lr=self.g_lr, weight_decay=self.g_weight_decay)
-        d_a_opt_1 = torch.optim.AdamW(
-            self.d_a_params, lr=self.d_lr, weight_decay=self.d_weight_decay
-        )
-        d_a_opt_2 = torch.optim.AdamW(
-            self.d_a_params, lr=self.d_lr, weight_decay=self.d_weight_decay
-        )
-        d_b_opt_1 = torch.optim.AdamW(
-            self.d_b_params, lr=self.d_lr, weight_decay=self.d_weight_decay
-        )
-        d_b_opt_2 = torch.optim.AdamW(
-            self.d_b_params, lr=self.d_lr, weight_decay=self.d_weight_decay
-        )
+        d_a_opt = torch.optim.AdamW(self.d_a_params, lr=self.d_lr, weight_decay=self.d_weight_decay)
+        d_b_opt = torch.optim.AdamW(self.d_b_params, lr=self.d_lr, weight_decay=self.d_weight_decay)
 
         # define the lr_schedulers here
         g_sch = optim.lr_scheduler.ExponentialLR(g_opt, gamma=self.scheduler_rate)
-        d_a_sch_1 = optim.lr_scheduler.ExponentialLR(d_a_opt_1, gamma=self.scheduler_rate)
-        d_a_sch_2 = optim.lr_scheduler.ExponentialLR(d_a_opt_2, gamma=self.scheduler_rate)
-        d_b_sch_1 = optim.lr_scheduler.ExponentialLR(d_b_opt_1, gamma=self.scheduler_rate)
-        d_b_sch_2 = optim.lr_scheduler.ExponentialLR(d_b_opt_2, gamma=self.scheduler_rate)
+        d_a_sch = optim.lr_scheduler.ExponentialLR(d_a_opt, gamma=self.scheduler_rate)
+        d_b_sch = optim.lr_scheduler.ExponentialLR(d_b_opt, gamma=self.scheduler_rate)
 
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
-        return [g_opt, d_a_opt_1, d_a_opt_2, d_b_opt_1, d_b_opt_2], [
+        return [g_opt, d_a_opt, d_a_opt, d_b_opt, d_b_opt], [
             g_sch,
-            d_a_sch_1,
-            d_a_sch_2,
-            d_b_sch_1,
-            d_b_sch_2,
+            d_a_sch,
+            d_a_sch,
+            d_b_sch,
+            d_b_sch,
         ]
 
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
