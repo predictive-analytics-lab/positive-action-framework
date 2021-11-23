@@ -587,8 +587,8 @@ class CycleGan(CommonModel):
             cf_pred=self.invert(index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s)),
             real_s0=real_s0[batch.s == 0],
             real_s1=real_s1[batch.s == 1],
-            recons_0=self.invert(cyc_out.fake_s0),
-            recons_1=self.invert(cyc_out.fake_s1),
+            recons_0=self.invert(cyc_out.fake_s0[batch.s == 1]),
+            recons_1=self.invert(cyc_out.fake_s1[batch.s == 0]),
             idt_recon=self.invert(index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s)),
             cyc_recon=self.invert(index_by_s([gen_fwd.cyc_s0, gen_fwd.cyc_s1], batch.s)),
         )
@@ -608,6 +608,8 @@ class CycleGan(CommonModel):
         all_cyc = torch.cat([_r.cyc_recon for _r in outputs], 0)
         real_s0 = torch.cat([_r.real_s0 for _r in outputs], 0)
         real_s1 = torch.cat([_r.real_s1 for _r in outputs], 0)
+        fake_s0 = torch.cat([_r.recons_0 for _r in outputs], 0)
+        fake_s1 = torch.cat([_r.recons_1 for _r in outputs], 0)
 
         if self.debug:
             make_plot(
@@ -647,7 +649,7 @@ class CycleGan(CommonModel):
             )
             make_plot(
                 x=real_s0,
-                s=torch.ones(real_s0.shape[0]),
+                s=torch.zeros(real_s0.shape[0]),
                 logger=self.logger,
                 name=f"{stage}_s0",
                 cols=self.data_cols,
@@ -657,6 +659,20 @@ class CycleGan(CommonModel):
                 s=torch.ones(real_s1.shape[0]),
                 logger=self.logger,
                 name=f"{stage}_s1",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=fake_s0,
+                s=torch.ones(fake_s0.shape[0]),
+                logger=self.logger,
+                name=f"{stage}_fake_s0",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=fake_s1,
+                s=torch.ones(fake_s1.shape[0]),
+                logger=self.logger,
+                name=f"{stage}_fake_s1",
                 cols=self.data_cols,
             )
 
