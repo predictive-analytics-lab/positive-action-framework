@@ -50,6 +50,8 @@ class SharedStepOut(NamedTuple):
     recons_1: Tensor
     idt_recon: Tensor
     cyc_recon: Tensor
+    real_s0: Tensor
+    real_s1: Tensor
 
 
 class InitType(Enum):
@@ -101,7 +103,7 @@ class Loss:
     def __init__(
         self,
         loss_type: LossType = LossType.MSE,
-        lambda_: int = 10,
+        lambda_: float = 10,
         feature_groups: dict[str, list[slice]] | None = None,
     ):
         """Init Loss."""
@@ -421,7 +423,7 @@ class CycleGan(CommonModel):
                     :, slice(self.loss.feature_groups["discrete"][-1].stop, z.shape[1])
                 ][:, i].sigmoid()
             for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
-                z[:, group_slice] = torch.nn.funnctional.softmax(z[:, group_slice], dim=-1)
+                z[:, group_slice] = torch.nn.functional.softmax(z[:, group_slice], dim=-1)
         else:
             z = z.sigmoid()
         return z
@@ -533,8 +535,8 @@ class CycleGan(CommonModel):
         raise NotImplementedError("There should only be 3 optimizers.")
 
     def shared_step(self, batch: Batch | CfBatch | TernarySample, *, stage: Stage) -> SharedStepOut:
-        real_s0 = batch.x
-        real_s1 = batch.x
+        real_s0 = batch.x[batch.s == 0]
+        real_s1 = batch.x[batch.s == 1]
 
         cyc_out = self.forward(real_s0=real_s0, real_s1=real_s1)
         gen_fwd = self.forward_gen(
@@ -583,6 +585,8 @@ class CycleGan(CommonModel):
             s=batch.s,
             recon=self.invert(index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s)),
             cf_pred=self.invert(index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s)),
+            real_s0=real_s0,
+            real_s1=real_s1,
             recons_0=self.invert(cyc_out.fake_s0),
             recons_1=self.invert(cyc_out.fake_s1),
             idt_recon=self.invert(index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s)),
@@ -602,6 +606,8 @@ class CycleGan(CommonModel):
         self.all_cf_pred = torch.cat([_r.recon for _r in outputs], 0)
         all_idt = torch.cat([_r.idt_recon for _r in outputs], 0)
         all_cyc = torch.cat([_r.cyc_recon for _r in outputs], 0)
+        real_s0 = torch.cat([_r.real_s0 for _r in outputs], 0)
+        real_s1 = torch.cat([_r.real_s1 for _r in outputs], 0)
 
         if self.debug:
             make_plot(
@@ -637,6 +643,20 @@ class CycleGan(CommonModel):
                 s=self.all_s.clone(),
                 logger=self.logger,
                 name=f"{stage}_cyc_recons",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=real_s0,
+                s=torch.ones_like(real_s0.shape[0]),
+                logger=self.logger,
+                name=f"{stage}_s0",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=real_s1,
+                s=torch.ones_like(real_s1.shape[0]),
+                logger=self.logger,
+                name=f"{stage}_s1",
                 cols=self.data_cols,
             )
 
