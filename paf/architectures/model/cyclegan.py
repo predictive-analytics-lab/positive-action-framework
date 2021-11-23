@@ -522,7 +522,7 @@ class CycleGan(CommonModel):
 
             return gen_loss.tot
 
-        if optimizer_idx == 1:
+        if optimizer_idx == 1 or optimizer_idx == 2:
             self.set_requires_grad([self.d_s0], requires_grad=True)
             fake_s0 = self.fake_pool_s0.push_and_pop(self.invert(cyc_out.fake_s0, cyc_out.fake_s0))
             dis_out = self.forward_dis(dis=self.d_s0, real_data=real_s0, fake_data=fake_s0.detach())
@@ -534,7 +534,7 @@ class CycleGan(CommonModel):
             self.log(f"{Stage.fit}/enc/d_A_loss", d_s0_loss)
             return d_s0_loss
 
-        if optimizer_idx == 2:
+        if optimizer_idx == 3 or optimizer_idx == 4:
             self.set_requires_grad([self.d_s1], requires_grad=True)
             fake_s1 = self.fake_pool_s1.push_and_pop(self.invert(cyc_out.fake_s1, cyc_out.fake_s1))
             dis_s1_out = self.forward_dis(
@@ -703,17 +703,35 @@ class CycleGan(CommonModel):
 
         # define the optimizers here
         g_opt = torch.optim.AdamW(self.g_params, lr=self.g_lr, weight_decay=self.g_weight_decay)
-        d_a_opt = torch.optim.AdamW(self.d_a_params, lr=self.d_lr, weight_decay=self.d_weight_decay)
-        d_b_opt = torch.optim.AdamW(self.d_b_params, lr=self.d_lr, weight_decay=self.d_weight_decay)
+        d_a_opt_1 = torch.optim.AdamW(
+            self.d_a_params, lr=self.d_lr, weight_decay=self.d_weight_decay
+        )
+        d_a_opt_2 = torch.optim.AdamW(
+            self.d_a_params, lr=self.d_lr, weight_decay=self.d_weight_decay
+        )
+        d_b_opt_1 = torch.optim.AdamW(
+            self.d_b_params, lr=self.d_lr, weight_decay=self.d_weight_decay
+        )
+        d_b_opt_2 = torch.optim.AdamW(
+            self.d_b_params, lr=self.d_lr, weight_decay=self.d_weight_decay
+        )
 
         # define the lr_schedulers here
         g_sch = optim.lr_scheduler.ExponentialLR(g_opt, gamma=self.scheduler_rate)
-        d_a_sch = optim.lr_scheduler.ExponentialLR(d_a_opt, gamma=self.scheduler_rate)
-        d_b_sch = optim.lr_scheduler.ExponentialLR(d_b_opt, gamma=self.scheduler_rate)
+        d_a_sch_1 = optim.lr_scheduler.ExponentialLR(d_a_opt_1, gamma=self.scheduler_rate)
+        d_a_sch_2 = optim.lr_scheduler.ExponentialLR(d_a_opt_2, gamma=self.scheduler_rate)
+        d_b_sch_1 = optim.lr_scheduler.ExponentialLR(d_b_opt_1, gamma=self.scheduler_rate)
+        d_b_sch_2 = optim.lr_scheduler.ExponentialLR(d_b_opt_2, gamma=self.scheduler_rate)
 
         # first return value is a list of optimizers and second is a list of lr_schedulers
         # (you can return empty list also)
-        return [g_opt, d_a_opt, d_b_opt], [g_sch, d_a_sch, d_b_sch]
+        return [g_opt, d_a_opt_1, d_a_opt_2, d_b_opt_1, d_b_opt_2], [
+            g_sch,
+            d_a_sch_1,
+            d_a_sch_2,
+            d_b_sch_1,
+            d_b_sch_2,
+        ]
 
     def get_recon(self, dataloader: DataLoader) -> np.ndarray:
         raise NotImplementedError("This shouldn't be called. Only implementing for the abc.")
