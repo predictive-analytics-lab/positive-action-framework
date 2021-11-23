@@ -367,7 +367,7 @@ class CycleGan(CommonModel):
         _ = (num_s, s_dim, cf_available, indices, data)
         self.data_dim = data_dim
         self.loss = Loss(
-            loss_type=LossType.BCE, lambda_=self.lambda_, feature_groups=feature_groups
+            loss_type=LossType.MSE, lambda_=self.lambda_, feature_groups=feature_groups
         )
         self.g_s0_2_s1 = self.init_fn(
             Generator(
