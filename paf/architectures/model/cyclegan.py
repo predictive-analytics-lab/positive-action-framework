@@ -184,9 +184,9 @@ class Loss:
         d_s1_pred_fake_data: Tensor,
     ) -> GenLoss:
         # Cycle loss
-        cyc_loss_a = self.get_gen_cyc_loss(real_data=real_s0, cyc_data=gen_fwd.cyc_s0)
-        cyc_loss_b = self.get_gen_cyc_loss(real_data=real_s1, cyc_data=gen_fwd.cyc_s1)
-        tot_cyc_loss = cyc_loss_a + cyc_loss_b
+        cyc_loss_s0 = self.get_gen_cyc_loss(real_data=real_s0, cyc_data=gen_fwd.cyc_s0)
+        cyc_loss_s1 = self.get_gen_cyc_loss(real_data=real_s1, cyc_data=gen_fwd.cyc_s1)
+        tot_cyc_loss = cyc_loss_s0 + cyc_loss_s1
 
         # GAN loss
         g_s0_2_s1_gan_loss = self.get_gen_gan_loss(d_s1_pred_fake_data)
@@ -201,7 +201,14 @@ class Loss:
         g_s1_2_s0_loss = g_s1_2_s0_gan_loss + g_s1_2_s0_idt_loss + tot_cyc_loss
         g_tot_loss = g_s0_s1_loss + g_s1_2_s0_loss - tot_cyc_loss
         return GenLoss(
-            s0_2_s1=g_s0_s1_loss, s1_2_s0=g_s1_2_s0_loss, tot=g_tot_loss, cycle_loss=tot_cyc_loss
+            s0_2_s1=g_s0_s1_loss,
+            s1_2_s0=g_s1_2_s0_loss,
+            tot=g_tot_loss,
+            cycle_loss=tot_cyc_loss,
+            s0_idt=g_s1_2_s0_idt_loss,
+            s1_idt=g_s0_2_s1_idt_loss,
+            s0_cyc=cyc_loss_s0,
+            s1_cyc=cyc_loss_s1,
         )
 
 
@@ -210,6 +217,10 @@ class GenLoss(NamedTuple):
     s1_2_s0: Tensor
     tot: Tensor
     cycle_loss: Tensor
+    s0_idt: Tensor
+    s1_idt: Tensor
+    s0_cyc: Tensor
+    s1_cyc: Tensor
 
 
 class ResBlock(nn.Module):
@@ -504,6 +515,10 @@ class CycleGan(CommonModel):
             self.log(f"{Stage.fit}/enc/g_A2B_loss", gen_loss.s0_2_s1)
             self.log(f"{Stage.fit}/enc/g_B2A_loss", gen_loss.s1_2_s0)
             self.log(f"{Stage.fit}/enc/cycle_loss", gen_loss.cycle_loss)
+            self.log(f"{Stage.fit}/enc/s0_idt_loss", gen_loss.s0_idt)
+            self.log(f"{Stage.fit}/enc/s1_idt_loss", gen_loss.s1_idt)
+            self.log(f"{Stage.fit}/enc/s0_cyc_loss", gen_loss.s0_cyc)
+            self.log(f"{Stage.fit}/enc/s1_cyc_loss", gen_loss.s1_cyc)
 
             return gen_loss.tot
 
@@ -663,7 +678,7 @@ class CycleGan(CommonModel):
             )
             make_plot(
                 x=fake_s0,
-                s=torch.ones(fake_s0.shape[0]),
+                s=torch.zeros(fake_s0.shape[0]),
                 logger=self.logger,
                 name=f"{stage}_fake_s0",
                 cols=self.data_cols,
