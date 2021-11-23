@@ -369,49 +369,73 @@ class CycleGan(CommonModel):
         self.loss = Loss(
             loss_type=LossType.BCE, lambda_=self.lambda_, feature_groups=feature_groups
         )
-        self.g_s0_2_s1 = nn.Sequential(
-            Encoder(
-                in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
-                latent_dim=self.latent_dims,
-                blocks=self.encoder_blocks,
-                hid_multiplier=self.latent_multiplier,
-            ),
-            Decoder(
-                latent_dim=self.latent_dims,
-                in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
-                blocks=self.decoder_blocks,
-                hid_multiplier=self.latent_multiplier,
-            ),
-        )
-        self.g_s1_2_s0 = nn.Sequential(
-            Encoder(
-                in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
-                latent_dim=self.latent_dims,
-                blocks=self.encoder_blocks,
-                hid_multiplier=self.latent_multiplier,
-            ),
-            Decoder(
-                latent_dim=self.latent_dims,
-                in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
-                blocks=self.decoder_blocks,
-                hid_multiplier=self.latent_multiplier,
-            ),
-        )
-        self.d_s0 = self.init_fn(
-            Decoder(
-                latent_dim=self.data_dim + s_dim if self.s_as_input else self.data_dim,
-                in_size=1,
-                blocks=self.adv_blocks,
-                hid_multiplier=self.latent_multiplier,
+        self.g_s0_2_s1 = self.init_fn(
+            Generator(
+                in_dims=data_dim,
+                latent_multiplier=self.latent_multiplier,
+                nb_resblks=self.encoder_blocks,
             )
+        )
+        # self.g_s0_2_s1 = nn.Sequential(
+        #     Encoder(
+        #         in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
+        #         latent_dim=self.latent_dims,
+        #         blocks=self.encoder_blocks,
+        #         hid_multiplier=self.latent_multiplier,
+        #     ),
+        #     Decoder(
+        #         latent_dim=self.latent_dims,
+        #         in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
+        #         blocks=self.decoder_blocks,
+        #         hid_multiplier=self.latent_multiplier,
+        #     ),
+        # )
+        self.g_s1_2_s0 = self.init_fn(
+            Generator(
+                in_dims=data_dim,
+                latent_multiplier=self.latent_multiplier,
+                nb_resblks=self.encoder_blocks,
+            )
+        )
+        # self.g_s1_2_s0 = nn.Sequential(
+        #     Encoder(
+        #         in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
+        #         latent_dim=self.latent_dims,
+        #         blocks=self.encoder_blocks,
+        #         hid_multiplier=self.latent_multiplier,
+        #     ),
+        #     Decoder(
+        #         latent_dim=self.latent_dims,
+        #         in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
+        #         blocks=self.decoder_blocks,
+        #         hid_multiplier=self.latent_multiplier,
+        #     ),
+        # )
+        self.d_s0 = self.init_fn(
+            Discriminator(
+                in_dims=data_dim,
+                nb_layers=self.adv_blocks,
+                latent_multiplier=self.latent_multiplier,
+            )
+            # Decoder(
+            #     latent_dim=self.data_dim + s_dim if self.s_as_input else self.data_dim,
+            #     in_size=1,
+            #     blocks=self.adv_blocks,
+            #     hid_multiplier=self.latent_multiplier,
+            # )
         )
         self.d_s1 = self.init_fn(
-            Decoder(
-                latent_dim=self.data_dim + s_dim if self.s_as_input else self.data_dim,
-                in_size=1,
-                blocks=self.adv_blocks,
-                hid_multiplier=self.latent_multiplier,
+            Discriminator(
+                in_dims=data_dim,
+                nb_layers=self.adv_blocks,
+                latent_multiplier=self.latent_multiplier,
             )
+            # Decoder(
+            #     latent_dim=self.data_dim + s_dim if self.s_as_input else self.data_dim,
+            #     in_size=1,
+            #     blocks=self.adv_blocks,
+            #     hid_multiplier=self.latent_multiplier,
+            # )
         )
         self.d_a_params = self.d_s0.parameters()
         self.d_b_params = self.d_s1.parameters()
