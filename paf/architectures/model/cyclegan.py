@@ -330,8 +330,8 @@ class CycleGan(CommonModel):
         self.adv_blocks = adv_blocks
         self.latent_multiplier = latent_multiplier
 
-        self.fake_pool_s0 = HistoryPool(pool_size=batch_size // 4)
-        self.fake_pool_s1 = HistoryPool(pool_size=batch_size // 4)
+        self.fake_pool_s0 = HistoryPool(pool_size=batch_size * 2)
+        self.fake_pool_s1 = HistoryPool(pool_size=batch_size * 2)
 
         self.pool_x0 = Stratifier(pool_size=batch_size // 2)
         self.pool_x1 = Stratifier(pool_size=batch_size // 2)
@@ -345,7 +345,7 @@ class CycleGan(CommonModel):
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
-        self.s_as_input = False
+        self.s_as_input = True
         self.latent_dims = latent_dims
 
         self.debug = debug
@@ -419,10 +419,14 @@ class CycleGan(CommonModel):
         )
         self.data_cols = outcome_cols
         self.example_input_array = {
-            "real_s0": torch.rand(33, data_dim, device=self.device),
-            "real_s1": torch.rand(33, data_dim, device=self.device),
+            "real_s0": torch.rand(
+                33, data_dim + s_dim if self.s_as_input else data_dim, device=self.device
+            ),
+            "real_s1": torch.rand(
+                33, data_dim + s_dim if self.s_as_input else data_dim, device=self.device
+            ),
         }
-        self.built = True
+        self.built = False
 
     def soft_invert(self, z: Tensor) -> Tensor:
         """Go from soft to discrete features."""
@@ -473,9 +477,10 @@ class CycleGan(CommonModel):
         self, batch: Batch | CfBatch | TernarySample, batch_idx: int, optimizer_idx: int
     ) -> Tensor:
         _ = (batch_idx,)
-        x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
+        _x = torch.cat([batch.x, batch.s.unsqueeze(dim=-1)], dim=1) if self.s_as_input else batch.x
+        x0 = self.pool_x0.push_and_pop(_x[batch.s == 0])
         s0 = batch.x.new_zeros(x0.shape[0])
-        x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
+        x1 = self.pool_x1.push_and_pop(_x[batch.s == 1])
         s1 = batch.x.new_ones(x1.shape[0])
         x = torch.cat([x0, x1], dim=0)
         s = torch.cat([s0, s1], dim=0)
@@ -551,8 +556,12 @@ class CycleGan(CommonModel):
         raise NotImplementedError("There should only be 3 optimizers.")
 
     def shared_step(self, batch: Batch | CfBatch | TernarySample, *, stage: Stage) -> SharedStepOut:
-        real_s0 = batch.x
-        real_s1 = batch.x
+        real_s0 = (
+            torch.cat([batch.x, batch.s.unsqueeze(dim=-1)], dim=1) if self.s_as_input else batch.x
+        )
+        real_s1 = (
+            torch.cat([batch.x, batch.s.unsqueeze(dim=-1)], dim=1) if self.s_as_input else batch.x
+        )
 
         cyc_out = self.forward(real_s0=real_s0, real_s1=real_s1)
         gen_fwd = self.forward_gen(
