@@ -501,8 +501,8 @@ class CycleGan(CommonModel):
 
             # No need to calculate the gradients for Discriminators' parameters
             self.set_requires_grad([self.d_s0, self.d_s1], requires_grad=False)
-            d_s0_pred_fake_data = self.d_s0(self.invert(cyc_out.fake_s0))
-            d_s1_pred_fake_data = self.d_s1(self.invert(cyc_out.fake_s1))
+            d_s0_pred_fake_data = self.d_s0(self.soft_invert(cyc_out.fake_s0))
+            d_s1_pred_fake_data = self.d_s1(self.soft_invert(cyc_out.fake_s1))
 
             gen_loss = self.loss.get_gen_loss(
                 real_s0=real_s0,
