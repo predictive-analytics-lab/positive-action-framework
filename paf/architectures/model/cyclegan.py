@@ -133,7 +133,7 @@ class Loss:
                 gen_cyc_loss += self._recon_loss_fn(
                     cyc_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
-                    ][:, i],
+                    ][:, i].sigmoid(),
                     real_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i],
@@ -144,7 +144,7 @@ class Loss:
                     torch.argmax(real_data[:, group_slice], dim=-1),
                 )
         else:
-            gen_cyc_loss = self._recon_loss_fn(cyc_data, real_data)
+            gen_cyc_loss = self._recon_loss_fn(cyc_data.sigmoid(), real_data)
         return gen_cyc_loss * self.lambda_
 
     def get_gen_idt_loss(self, real_data: Tensor, *, idt_data: Tensor) -> Tensor:
@@ -158,7 +158,7 @@ class Loss:
                 gen_idt_loss += self._recon_loss_fn(
                     idt_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
-                    ][:, i],
+                    ][:, i].sigmoid(),
                     real_data[
                         :, slice(self.feature_groups["discrete"][-1].stop, real_data.shape[1])
                     ][:, i],
@@ -169,7 +169,7 @@ class Loss:
                     torch.argmax(real_data[:, group_slice], dim=-1),
                 )
         else:
-            gen_idt_loss = self._recon_loss_fn(idt_data, real_data)
+            gen_idt_loss = self._recon_loss_fn(idt_data.sigmoid(), real_data)
         return gen_idt_loss * self.lambda_ * 0.5
 
     def get_gen_loss(
@@ -363,7 +363,6 @@ class CycleGan(CommonModel):
                 blocks=self.decoder_blocks,
                 hid_multiplier=self.latent_multiplier,
             ),
-            nn.Sigmoid(),
         )
         self.g_s1_2_s0 = nn.Sequential(
             Encoder(
@@ -378,7 +377,6 @@ class CycleGan(CommonModel):
                 blocks=self.decoder_blocks,
                 hid_multiplier=self.latent_multiplier,
             ),
-            nn.Sigmoid(),
         )
         self.d_s0 = self.init_fn(
             Decoder(
@@ -408,23 +406,20 @@ class CycleGan(CommonModel):
         }
         self.built = True
 
-    # def invert(self, z: Tensor, x: Tensor) -> Tensor:
-    #     """Go from soft to discrete features."""
-    #     k = z.clone()
-    #     if self.loss.feature_groups["discrete"]:
-    #         for i in range(
-    #             k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
-    #         ):
-    #             k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = k[
-    #                 :, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])
-    #             ][:, i].sigmoid()
-    #         for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
-    #             one_hot = to_discrete(inputs=k[:, group_slice])
-    #             k[:, group_slice] = one_hot
-    #     else:
-    #         k = k.sigmoid()
-    #
-    #     return k
+    def soft_invert(self, z: Tensor) -> Tensor:
+        """Go from soft to discrete features."""
+        if self.loss.feature_groups["discrete"]:
+            for i in range(
+                z[:, slice(self.loss.feature_groups["discrete"][-1].stop, z.shape[1])].shape[1]
+            ):
+                z[:, slice(self.loss.feature_groups["discrete"][-1].stop, z.shape[1])][:, i] = z[
+                    :, slice(self.loss.feature_groups["discrete"][-1].stop, z.shape[1])
+                ][:, i].sigmoid()
+            for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
+                z[:, group_slice] = torch.nn.funnctional.softmax(z[:, group_slice], dim=-1)
+        else:
+            z = z.sigmoid()
+        return z
 
     @staticmethod
     def set_requires_grad(nets: nn.Module | list[nn.Module], requires_grad: bool = False) -> None:
@@ -442,10 +437,10 @@ class CycleGan(CommonModel):
     def forward_gen(
         self, *, real_s0: Tensor, real_s1: Tensor, fake_s0: Tensor, fake_s1: Tensor
     ) -> GenFwd:
-        cyc_s0 = self.g_s1_2_s0(fake_s1)
+        cyc_s0 = self.g_s1_2_s0(self.soft_invert(fake_s1))
         idt_s0 = self.g_s1_2_s0(real_s0)
 
-        cyc_s1 = self.g_s0_2_s1(fake_s0)
+        cyc_s1 = self.g_s0_2_s1(self.soft_invert(fake_s0))
         idt_s1 = self.g_s0_2_s1(real_s1)
         return GenFwd(cyc_s0=cyc_s0, idt_s0=idt_s0, cyc_s1=cyc_s1, idt_s1=idt_s1)
 
@@ -487,8 +482,8 @@ class CycleGan(CommonModel):
 
             # No need to calculate the gradients for Discriminators' parameters
             self.set_requires_grad([self.d_s0, self.d_s1], requires_grad=False)
-            d_s0_pred_fake_data = self.d_s0(cyc_out.fake_s0)
-            d_s1_pred_fake_data = self.d_s1(cyc_out.fake_s1)
+            d_s0_pred_fake_data = self.d_s0(self.invert(cyc_out.fake_s0))
+            d_s1_pred_fake_data = self.d_s1(self.invert(cyc_out.fake_s1))
 
             gen_loss = self.loss.get_gen_loss(
                 real_s0=real_s0,
@@ -581,12 +576,12 @@ class CycleGan(CommonModel):
         return SharedStepOut(
             x=batch.x,
             s=batch.s,
-            recon=index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s),
-            cf_pred=index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s),
-            recons_0=cyc_out.fake_s0,
-            recons_1=cyc_out.fake_s1,
-            idt_recon=index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s),
-            cyc_recon=index_by_s([gen_fwd.cyc_s0, gen_fwd.cyc_s1], batch.s),
+            recon=self.invert(index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s)),
+            cf_pred=self.invert(index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s)),
+            recons_0=self.invert(cyc_out.fake_s0),
+            recons_1=self.invert(cyc_out.fake_s1),
+            idt_recon=self.invert(index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s)),
+            cyc_recon=self.invert(index_by_s([gen_fwd.cyc_s0, gen_fwd.cyc_s1], batch.s)),
         )
 
     def test_epoch_end(self, outputs: list[SharedStepOut]) -> None:

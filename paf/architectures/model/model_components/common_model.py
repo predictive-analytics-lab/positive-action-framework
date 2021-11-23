@@ -64,29 +64,19 @@ class CommonModel(pl.LightningModule):
         """Build the network using data not available in advance."""
 
     @torch.no_grad()
-    def invert(self, z: Tensor, x: Tensor) -> Tensor:
+    def invert(self, z: Tensor, x: Tensor | None = None) -> Tensor:
         """Go from soft to discrete features."""
         k = z.detach().clone()
         if self.loss.feature_groups["discrete"]:
             for i in range(
                 k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
             ):
-                if i in []:  # [0]: Features to transplant to the reconstrcution
-                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ] = x[:, slice(self.loss.feature_groups["discrete"][-1].stop, x.shape[1])][:, i]
-                else:
-                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ] = k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ].sigmoid()
+                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = k[
+                    :, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])
+                ][:, i].sigmoid()
             for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
-                if i in []:  # [2, 4]: Features to transplant
-                    k[:, group_slice] = x[:, group_slice]
-                else:
-                    one_hot = to_discrete(inputs=k[:, group_slice])
-                    k[:, group_slice] = one_hot
+                one_hot = to_discrete(inputs=k[:, group_slice])
+                k[:, group_slice] = one_hot
         else:
             k = k.sigmoid()
 
