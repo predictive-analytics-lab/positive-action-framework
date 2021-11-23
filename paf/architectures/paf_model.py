@@ -85,8 +85,18 @@ class PafModel(pl.LightningModule):
             enc_s_pred = enc_fwd.s
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
-            cyc_fwd = self.enc.forward(real_s0=batch.x, real_s1=batch.x)
-            recons = [cyc_fwd.fake_s0, cyc_fwd.fake_s1]
+            cyc_fwd = self.enc.forward(
+                real_s0=torch.cat([batch.x, batch.s.unsqueeze(dim=-1)], dim=1)
+                if self.enc.s_as_input
+                else batch.x,
+                real_s1=torch.cat([batch.x, batch.s.unsqueeze(dim=-1)], dim=1)
+                if self.enc.s_as_input
+                else batch.x,
+            )
+            recons = [
+                cyc_fwd.fake_s0[:, :-1] if self.enc.s_as_input else cyc_fwd.fake_s0,
+                cyc_fwd.fake_s1[:, :-1] if self.enc.s_as_input else cyc_fwd.fake_s1,
+            ]
             enc_z = torch.ones_like(batch.x)
             enc_s_pred = torch.ones_like(batch.s)
         elif isinstance(self.enc, NearestNeighbour):
@@ -145,16 +155,33 @@ class PafModel(pl.LightningModule):
             _cfx = self.enc.invert(index_by_s(_recons, 1 - s), x).cpu()
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 cf_fwd = self.enc.forward(x=_cfx, s=1 - s.cpu())
+                _og = self.enc.invert(index_by_s(cf_fwd.x, s), x)
             else:
-                cf_fwd = self.enc.forward(real_s0=_cfx, real_s1=_cfx)  # type: ignore[assignment]
-            _og = self.enc.invert(index_by_s(cf_fwd.x, s), x)
+                cf_fwd = self.enc.forward(
+                    real_s0=torch.cat([_cfx, s.unsqueeze(dim=-1)], dim=1)
+                    if self.enc.s_as_input
+                    else _cfx,
+                    real_s1=torch.cat([_cfx, s.unsqueeze(dim=-1)], dim=1)
+                    if self.enc.s_as_input
+                    else _cfx,
+                )
+                recon = index_by_s(cf_fwd.x, s)
+                _og = self.enc.invert(recon[:, :-1] if self.enc.s_as_input else recon)
             cycle_loss = mse_loss_fn(_og, x.cpu())
             cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().mean(dim=-1).cpu().numpy().tolist()
             if isinstance(self.enc, (AE, NearestNeighbour)):
                 _fwd = self.enc.forward(x=_og, s=1 - s.cpu())
+                _recons = _fwd.x
             else:
-                _fwd = self.enc.forward(real_s0=_og, real_s1=_og)  # type: ignore[assignment]
-            _recons = _fwd.x
+                _fwd = self.enc.forward(
+                    real_s0=torch.cat([_og, s.unsqueeze(dim=-1)], dim=1)
+                    if self.enc.s_as_input
+                    else _og,
+                    real_s1=torch.cat([_og, s.unsqueeze(dim=-1)], dim=1)
+                    if self.enc.s_as_input
+                    else _og,
+                )
+                _recons = [_fwd.x[0][:, :-1], _fwd.x[1][:, :-1]] if self.enc.s_as_input else _fwd.x
 
         return PafResults(
             enc_z=torch.cat([_r.enc_z for _r in outputs], 0),

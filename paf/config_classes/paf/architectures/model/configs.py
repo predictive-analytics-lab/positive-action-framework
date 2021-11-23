@@ -25,6 +25,7 @@ class CycleGanConf:
     debug: bool = False
     adv_weight: float = 1.0
     lambda_: float = 10.0
+    s_as_input: bool = False
 
 
 @dataclass

@@ -319,6 +319,7 @@ class CycleGan(CommonModel):
         debug: bool = False,
         adv_weight: float = 1.0,
         lambda_: float = 10.0,
+        s_as_input: bool = False,
     ):
         super().__init__(name="CycleGan")
         self.d_lr = d_lr
@@ -345,7 +346,7 @@ class CycleGan(CommonModel):
 
         self.init_fn = Initializer(init_type=InitType.UNIFORM)
 
-        self.s_as_input = False
+        self.s_as_input = s_as_input
         self.latent_dims = latent_dims
 
         self.debug = debug
@@ -377,7 +378,7 @@ class CycleGan(CommonModel):
             ),
             Decoder(
                 latent_dim=self.latent_dims,
-                in_size=self.data_dim,
+                in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 blocks=self.decoder_blocks,
                 hid_multiplier=self.latent_multiplier,
             ),
@@ -391,14 +392,14 @@ class CycleGan(CommonModel):
             ),
             Decoder(
                 latent_dim=self.latent_dims,
-                in_size=self.data_dim,
+                in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 blocks=self.decoder_blocks,
                 hid_multiplier=self.latent_multiplier,
             ),
         )
         self.d_s0 = self.init_fn(
             Decoder(
-                latent_dim=self.data_dim,
+                latent_dim=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 in_size=1,
                 blocks=self.adv_blocks,
                 hid_multiplier=self.latent_multiplier,
@@ -406,7 +407,7 @@ class CycleGan(CommonModel):
         )
         self.d_s1 = self.init_fn(
             Decoder(
-                latent_dim=self.data_dim,
+                latent_dim=self.data_dim + s_dim if self.s_as_input else self.data_dim,
                 in_size=1,
                 blocks=self.adv_blocks,
                 hid_multiplier=self.latent_multiplier,
@@ -495,6 +496,13 @@ class CycleGan(CommonModel):
             gen_fwd = self.forward_gen(
                 real_s0=real_s0, real_s1=real_s1, fake_s0=cyc_out.fake_s0, fake_s1=cyc_out.fake_s1
             )
+            if self.s_as_input:
+                gen_fwd = GenFwd(
+                    cyc_s0=gen_fwd.cyc_s0[:, :-1],
+                    idt_s0=gen_fwd.idt_s0[:, :-1],
+                    cyc_s1=gen_fwd.cyc_s1[:, :-1],
+                    idt_s1=gen_fwd.idt_s1[:, :-1],
+                )
 
             # mmd_results = self.mmd_reporting(
             #     gen_fwd=gen_fwd, enc_fwd=cyc_out, batch=batch, train=True
@@ -510,8 +518,8 @@ class CycleGan(CommonModel):
             d_s1_pred_fake_data = self.d_s1(self.soft_invert(cyc_out.fake_s1))
 
             gen_loss = self.loss.get_gen_loss(
-                real_s0=real_s0,
-                real_s1=real_s1,
+                real_s0=real_s0[:, :-1] if self.s_as_input else real_s0,
+                real_s1=real_s1[:, :-1] if self.s_as_input else real_s1,
                 gen_fwd=gen_fwd,
                 d_s0_pred_fake_data=d_s0_pred_fake_data,
                 d_s1_pred_fake_data=d_s1_pred_fake_data,
@@ -567,14 +575,21 @@ class CycleGan(CommonModel):
         gen_fwd = self.forward_gen(
             real_s0=real_s0, real_s1=real_s1, fake_s0=cyc_out.fake_s0, fake_s1=cyc_out.fake_s1
         )
+        if self.s_as_input:
+            gen_fwd = GenFwd(
+                cyc_s0=gen_fwd.cyc_s0[:, :-1],
+                idt_s0=gen_fwd.idt_s0[:, :-1],
+                cyc_s1=gen_fwd.cyc_s1[:, :-1],
+                idt_s1=gen_fwd.idt_s1[:, :-1],
+            )
 
         dis_out_a = self.forward_dis(dis=self.d_s0, real_data=real_s0, fake_data=cyc_out.fake_s0)
         dis_out_b = self.forward_dis(dis=self.d_s1, real_data=real_s1, fake_data=cyc_out.fake_s1)
 
         # G_A2B loss, G_B2A loss, G loss
         gen_losses = self.loss.get_gen_loss(
-            real_s0=real_s0,
-            real_s1=real_s1,
+            real_s0=real_s0[:, :-1] if self.s_as_input else real_s0,
+            real_s1=real_s1[:, :-1] if self.s_as_input else real_s1,
             gen_fwd=gen_fwd,
             d_s0_pred_fake_data=dis_out_a.fake,
             d_s1_pred_fake_data=dis_out_b.fake,
@@ -605,15 +620,26 @@ class CycleGan(CommonModel):
         }
         self.log_dict(dict_)
 
+        recon = index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s)
+        cf_recon = index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s)
+
         return SharedStepOut(
             x=batch.x,
             s=batch.s,
-            recon=self.invert(index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s)),
-            cf_pred=self.invert(index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s)),
-            real_s0=real_s0[batch.s == 0],
-            real_s1=real_s1[batch.s == 1],
-            recons_0=self.invert(cyc_out.fake_s0[batch.s == 1]),
-            recons_1=self.invert(cyc_out.fake_s1[batch.s == 0]),
+            recon=self.invert(recon[:, :-1] if self.s_as_input else recon),
+            cf_pred=self.invert(cf_recon[:, :-1] if self.s_as_input else cf_recon),
+            real_s0=real_s0[batch.s == 0][:, :-1] if self.s_as_input else real_s0[batch.s == 0],
+            real_s1=real_s1[batch.s == 1][:, :-1] if self.s_as_input else real_s1[batch.s == 0],
+            recons_0=self.invert(
+                cyc_out.fake_s0[batch.s == 1][:, :-1]
+                if self.s_as_input
+                else cyc_out.fake_s0[batch.s == 1]
+            ),
+            recons_1=self.invert(
+                cyc_out.fake_s1[batch.s == 0][:, :-1]
+                if self.s_as_input
+                else cyc_out.fake_s1[batch.s == 0]
+            ),
             idt_recon=self.invert(index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s)),
             cyc_recon=self.invert(index_by_s([gen_fwd.cyc_s0, gen_fwd.cyc_s1], batch.s)),
         )
