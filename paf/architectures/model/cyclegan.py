@@ -535,8 +535,8 @@ class CycleGan(CommonModel):
         raise NotImplementedError("There should only be 3 optimizers.")
 
     def shared_step(self, batch: Batch | CfBatch | TernarySample, *, stage: Stage) -> SharedStepOut:
-        real_s0 = batch.x[batch.s == 0]
-        real_s1 = batch.x[batch.s == 1]
+        real_s0 = batch.x
+        real_s1 = batch.x
 
         cyc_out = self.forward(real_s0=real_s0, real_s1=real_s1)
         gen_fwd = self.forward_gen(
@@ -585,8 +585,8 @@ class CycleGan(CommonModel):
             s=batch.s,
             recon=self.invert(index_by_s([cyc_out.fake_s0, cyc_out.fake_s1], batch.s)),
             cf_pred=self.invert(index_by_s([cyc_out.fake_s1, cyc_out.fake_s0], batch.s)),
-            real_s0=real_s0,
-            real_s1=real_s1,
+            real_s0=real_s0[batch.s == 0],
+            real_s1=real_s1[batch.s == 1],
             recons_0=self.invert(cyc_out.fake_s0),
             recons_1=self.invert(cyc_out.fake_s1),
             idt_recon=self.invert(index_by_s([gen_fwd.idt_s0, gen_fwd.idt_s1], batch.s)),
