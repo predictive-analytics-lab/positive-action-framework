@@ -525,10 +525,17 @@ class AE(CommonModel):
                 name=f"{stage}_z",
                 cols=[str(i) for i in range(self.latent_dims)],
             )
+            self.cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)  # type: ignore[union-attr]
+            make_plot(
+                x=self.cf_recon.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_cf_recons",
+                cols=self.data_cols,
+            )
 
         if isinstance(output_results[0], CfSharedStepOut):
             self.all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)  # type: ignore[union-attr]
-            self.cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)  # type: ignore[union-attr]
             if self.debug:
                 make_plot(
                     x=self.all_cf_x.clone(),
@@ -537,13 +544,7 @@ class AE(CommonModel):
                     name=f"{stage}_true_counterfactual",
                     cols=self.data_cols,
                 )
-                make_plot(
-                    x=self.cf_recon.clone(),
-                    s=self.all_s.clone(),
-                    logger=self.logger,
-                    name=f"{stage}_cf_recons",
-                    cols=self.data_cols,
-                )
+
 
     @implements(pl.LightningModule)
     def configure_optimizers(

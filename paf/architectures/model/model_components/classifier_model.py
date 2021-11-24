@@ -453,23 +453,23 @@ class Clf(CommonModel):
                 name="z",
                 cols=[str(i) for i in range(self.latent_dims)],
             )
+            cf_preds = torch.cat([_r.cf_preds for _r in outputs if _r.cf_preds is not None], 0)
+            make_plot(
+                x=cf_preds,
+                s=all_s,
+                logger=self.logger,
+                name=f"{stage}/cf_preds",
+                cols=["preds"],
+            )
 
         if self.cf_model:
             all_cf_y = torch.cat([_r.cf_y for _r in outputs if _r.cf_y is not None], 0)
-            cf_preds = torch.cat([_r.cf_preds for _r in outputs if _r.cf_preds is not None], 0)
             if self.debug:
                 make_plot(
                     x=all_cf_y.unsqueeze(-1),
                     s=all_s,
                     logger=self.logger,
                     name=f"{stage}/true_counterfactual_outcome",
-                    cols=["preds"],
-                )
-                make_plot(
-                    x=cf_preds,
-                    s=all_s,
-                    logger=self.logger,
-                    name=f"{stage}/cf_preds",
                     cols=["preds"],
                 )
 
