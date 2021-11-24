@@ -503,7 +503,7 @@ class AE(CommonModel):
         self.all_recon = torch.cat([_r.recon for _r in output_results], 0)
         self.all_cf_pred = torch.cat([_r.cf_pred for _r in output_results], 0)
 
-        if self.debug:
+        if self.debug and self.current_epoch % 25 == 0:
             make_plot(
                 x=self.all_recon.clone(),
                 s=self.all_s.clone(),

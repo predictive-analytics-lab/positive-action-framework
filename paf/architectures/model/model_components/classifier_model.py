@@ -429,7 +429,7 @@ class Clf(CommonModel):
         preds_0 = torch.cat([_r.preds_0 for _r in outputs], 0)
         preds_1 = torch.cat([_r.preds_1 for _r in outputs], 0)
 
-        if self.debug:
+        if self.debug and self.current_epoch % 25 == 0:
             make_plot(
                 x=all_y.unsqueeze(-1),
                 s=all_s,

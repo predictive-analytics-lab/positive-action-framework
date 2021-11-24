@@ -3,7 +3,7 @@ defaults:
   - em_base
   - _self_
 
-train_batch_size: 128
+train_batch_size: 256
 bin_nationality: true
 bin_race: true
 sens_feat: "sex"

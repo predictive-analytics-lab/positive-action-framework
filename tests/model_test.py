@@ -1,12 +1,17 @@
 from __future__ import annotations
 from typing import Final
 
+if 1:
+    import faiss  # noqa
 import ethicml as em
+import torch
+from conduit.fair.data import AdultDataModule
 from hydra import compose, initialize
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 import pytest
 
+from paf.architectures.model.nearestneighbour import KnnExact
 from paf.main import Config, run_paf
 
 CFG_PTH: Final[str] = "../paf/configs"
@@ -100,6 +105,35 @@ def test_clf(dm_schema: str) -> None:
 #
 # cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
 # run_paf(cfg, raw_config=OmegaConf.to_container(hydra_cfg, resolve=True, enum_to_str=True))
+
+
+def test_knn() -> None:
+    data = AdultDataModule(test_prop=0.7)
+    data.prepare_data()
+    data.setup()
+
+    train_features = torch.as_tensor(data.train_datatuple.x.values, dtype=torch.float32)
+    train_sens = torch.as_tensor(data.train_datatuple.s.values, dtype=torch.long)
+
+    knn = KnnExact(k=1, normalize=False)
+
+    batch = next(iter(data.train_dataloader()))
+    x = batch.x
+    s = batch.s
+
+    features = torch.empty_like(x)
+    sens = torch.empty_like(s, dtype=torch.long)
+    for s_val in range(2):
+        mask = (train_sens != s_val).squeeze()
+        mask_inds = mask.nonzero(as_tuple=False).squeeze()
+        knn_inds = knn(x=x[(s_val == s).squeeze()], y=train_features[mask_inds])
+        abs_indices = mask_inds[knn_inds].squeeze()
+        features[(s_val == s).squeeze()] = train_features[abs_indices]
+        sens[(s_val == s).squeeze()] = train_sens[abs_indices].squeeze()
+
+    with pytest.raises(AssertionError):
+        assert (sens == s).all()
+        assert torch.allclose(x, features)
 
 
 @pytest.mark.parametrize("model", ["ERM_DP", "EQ_DP", "ERM_KAM", "EQ_KAM"])
