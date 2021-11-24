@@ -26,7 +26,7 @@ class L1Logger(pl.callbacks.Callback):
                 value=round(feature_l1.item(), 5),
                 logger=True,
             )
-        if hasattr(pl_module, "cf_recon"):
+        if hasattr(pl_module, "cf_recon") and hasattr(pl_module, "all_cf_x"):
             recon_l1 = (pl_module.all_cf_x - pl_module.cf_recon).abs().mean(dim=0)
             for i, feature_l1 in enumerate(recon_l1):
                 feature_name = pl_module.data_cols[i]
