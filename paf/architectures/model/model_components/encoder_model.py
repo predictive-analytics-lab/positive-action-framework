@@ -525,7 +525,7 @@ class AE(CommonModel):
                 name=f"{stage}_z",
                 cols=[str(i) for i in range(self.latent_dims)],
             )
-            self.cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)  # type: ignore[union-attr]
+            self.cf_recon = torch.cat([_r.cf_pred for _r in output_results], 0)  # type: ignore[union-attr]
             make_plot(
                 x=self.cf_recon.clone(),
                 s=self.all_s.clone(),
@@ -544,7 +544,6 @@ class AE(CommonModel):
                     name=f"{stage}_true_counterfactual",
                     cols=self.data_cols,
                 )
-
 
     @implements(pl.LightningModule)
     def configure_optimizers(
