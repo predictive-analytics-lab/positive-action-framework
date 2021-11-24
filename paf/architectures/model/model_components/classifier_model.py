@@ -408,9 +408,7 @@ class Clf(CommonModel):
             preds_0=clf_out.y[0].sigmoid(),
             preds_1=clf_out.y[1].sigmoid(),
             cf_y=batch.cfy if isinstance(batch, CfBatch) else None,
-            cf_preds=index_by_s(clf_out.y, 1 - batch.s).sigmoid()
-            if isinstance(batch, CfBatch)
-            else None,
+            cf_preds=index_by_s(clf_out.y, 1 - batch.s).sigmoid(),
         )
 
     @implements(pl.LightningModule)
@@ -453,7 +451,7 @@ class Clf(CommonModel):
                 name="z",
                 cols=[str(i) for i in range(self.latent_dims)],
             )
-            cf_preds = torch.cat([_r.cf_preds for _r in outputs if _r.cf_preds is not None], 0)
+            cf_preds = torch.cat([_r.cf_preds for _r in outputs], 0)
             make_plot(
                 x=cf_preds,
                 s=all_s,
