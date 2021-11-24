@@ -94,24 +94,24 @@ class Loss:
         self._proxy_weight = proxy_weight
         self._cycle_loss_fn = nn.L1Loss(reduction="mean")
         self._proxy_loss_fn = nn.L1Loss(reduction="none")
-        self._disc_loss_fn = nn.L1Loss(reduction="mean")
+        self._disc_loss_fn = nn.CrossEntropyLoss(reduction="mean")
 
     def recon_loss(self, recons: list[Tensor], *, x: Tensor, s: Tensor) -> Tensor:
+        z = index_by_s(recons, s)
         if self.feature_groups["discrete"]:
             recon_loss = x.new_tensor(0.0)
             for i in range(
                 x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]
             ):
                 recon_loss += self._recon_loss_fn(
-                    index_by_s(recons, s)[
-                        :, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])
-                    ][:, i].sigmoid(),
+                    z[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])][
+                        :, i
+                    ].sigmoid(),
                     x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])][:, i],
                 )
             for group_slice in self.feature_groups["discrete"]:
                 recon_loss += self._disc_loss_fn(
-                    index_by_s(recons, s)[:, group_slice],
-                    x[:, group_slice],  # torch.argmax(x[:, group_slice], dim=-1),
+                    z[:, group_slice], torch.argmax(x[:, group_slice], dim=-1)
                 )
         else:
             recon_loss = self._recon_loss_fn(index_by_s(recons, s).sigmoid(), x)
