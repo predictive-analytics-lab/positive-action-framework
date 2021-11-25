@@ -1,0 +1,15 @@
+defaults:
+  - /schema/enc: cyclegan
+  - _self_
+
+d_lr:  1e-3
+g_lr:  1e-3
+encoder_blocks: 5
+decoder_blocks: 5
+latent_dims: 3
+adv_blocks: 2
+latent_multiplier: 5
+batch_size: ${data.train_batch_size}
+g_weight_decay: 1e-6
+d_weight_decay: 1e-6
+s_as_input: true
