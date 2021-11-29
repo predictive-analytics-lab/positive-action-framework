@@ -2,8 +2,8 @@ defaults:
   - /schema/enc: cyclegan
   - _self_
 
-d_lr:  1e-3
-g_lr:  1e-3
+d_lr:  3e-4
+g_lr:  3e-4
 encoder_blocks: 5
 decoder_blocks: 5
 latent_dims: 3
@@ -12,4 +12,6 @@ latent_multiplier: 5
 batch_size: ${data.train_batch_size}
 g_weight_decay: 1e-6
 d_weight_decay: 1e-6
-s_as_input: true
+s_as_input: false
+lambda_: 1.0
+scheduler_rate: 0.99
