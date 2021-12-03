@@ -3,8 +3,6 @@ from __future__ import annotations
 from conduit.types import Stage
 from ranzen import implements
 
-from paf.plotting import make_plot
-
 if 1:
     import faiss  # noqa
 
@@ -87,7 +85,7 @@ class Knn(nn.Module):
     def _build_index(self, d: int) -> faiss.IndexFlat:
         ...
 
-    def _index_to_gpu(self, index: faiss.IndexFlat) -> faiss.GpuIndexFlat:  # type: ignore
+    def _index_to_gpu(self, x: Tensor, index: faiss.IndexFlat) -> faiss.GpuIndexFlat:  # type: ignore
         # use a single GPU
         res = faiss.StandardGpuResources()  # type: ignore
         # make it a flat GPU index
@@ -135,7 +133,7 @@ class Knn(nn.Module):
 
         index = self._build_index(d=x.size(1))
         if x.is_cuda or y.is_cuda:
-            index = self._index_to_gpu(index=index)
+            index = self._index_to_gpu(x=x, index=index)
 
         if not index.is_trained:
             index.train(x=x_np)  # type: ignore
