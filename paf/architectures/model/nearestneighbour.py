@@ -220,6 +220,7 @@ class NearestNeighbour(CommonModel):
 
         features = torch.empty_like(x)
         for s_val in range(2):
+            s_val *= torch.ones_like(s)
             mask = (self.train_sens != s_val).squeeze()
             mask_inds = mask.nonzero(as_tuple=False).squeeze()
             knn_inds = knn(x=x[(s_val == s).squeeze()], y=self.train_features[mask_inds])
