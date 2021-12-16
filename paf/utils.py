@@ -4,10 +4,10 @@ import collections
 from typing import Any, MutableMapping
 import warnings
 
+import numpy as np
 import pandas as pd
 import torch
 from torch import Tensor
-import numpy as np
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=UserWarning)
@@ -131,8 +131,8 @@ class Stratifier:
                 rand_int = np.random.randint(0, self.pool_sz)
                 self.history_pool[rand_int] = sample
         while self.nb_samples < self.pool_sz:
+            self.nb_samples += 1
             rand_int = np.random.randint(0, self.nb_samples)
             temp_img = self.history_pool[rand_int].clone()
             self.history_pool.append(temp_img)
-            self.nb_samples += 1
         return torch.cat(self.history_pool, 0)
