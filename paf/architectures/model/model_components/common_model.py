@@ -2,18 +2,20 @@
 from __future__ import annotations
 from abc import abstractmethod
 
+from conduit.fair.data import EthicMlDataModule
 import numpy as np
 import pytorch_lightning as pl
 from ranzen import implements
-from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 
 __all__ = ["CommonModel", "BaseModel", "Encoder", "Adversary", "Decoder"]
 
+from paf.base_templates import BaseDataModule
+
 from .blocks import block, mid_blocks
-from .model_utils import grad_reverse, to_discrete
+from .model_utils import grad_reverse, init_weights, to_discrete
 
 
 class CommonModel(pl.LightningModule):
@@ -56,34 +58,25 @@ class CommonModel(pl.LightningModule):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
-        scaler: MinMaxScaler | None,
+        data: BaseDataModule | EthicMlDataModule,
+        indices: list[str],
     ) -> None:
         """Build the network using data not available in advance."""
 
     @torch.no_grad()
-    def invert(self, z: Tensor, x: Tensor) -> Tensor:
+    def invert(self, z: Tensor, x: Tensor | None = None) -> Tensor:
         """Go from soft to discrete features."""
         k = z.detach().clone()
         if self.loss.feature_groups["discrete"]:
             for i in range(
                 k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])].shape[1]
             ):
-                if i in []:  # [0]: Features to transplant to the reconstrcution
-                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ] = x[:, slice(self.loss.feature_groups["discrete"][-1].stop, x.shape[1])][:, i]
-                else:
-                    k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ] = k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][
-                        :, i
-                    ].sigmoid()
+                k[:, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])][:, i] = k[
+                    :, slice(self.loss.feature_groups["discrete"][-1].stop, k.shape[1])
+                ][:, i].sigmoid()
             for i, group_slice in enumerate(self.loss.feature_groups["discrete"]):
-                if i in []:  # [2, 4]: Features to transplant
-                    k[:, group_slice] = x[:, group_slice]
-                else:
-                    one_hot = to_discrete(inputs=k[:, group_slice])
-                    k[:, group_slice] = one_hot
+                one_hot = to_discrete(inputs=k[:, group_slice])
+                k[:, group_slice] = one_hot
         else:
             k = k.sigmoid()
 
@@ -107,7 +100,8 @@ class BaseModel(nn.Module):
             )
             self.hid = nn.Sequential(*_blocks)
             self.out = nn.Linear(hid_size, out_size)
-        # nn.init.xavier_normal_(self.out.weight)
+        self.apply(init_weights)
+        # nn.init.xavier_uniform_(self.out.weight)
 
     @implements(nn.Module)
     def forward(self, input_: Tensor) -> Tensor:
@@ -130,17 +124,26 @@ class Encoder(BaseModel):
 class Adversary(BaseModel):
     """AE Adversary head."""
 
-    def __init__(self, *, latent_dim: int, out_size: int, blocks: int, hid_multiplier: int):
+    def __init__(
+        self,
+        *,
+        latent_dim: int,
+        out_size: int,
+        blocks: int,
+        hid_multiplier: int,
+        weight: float = 1.0,
+    ):
         super().__init__(
             in_size=latent_dim,
             hid_size=latent_dim * hid_multiplier,
             out_size=out_size,
             blocks=blocks,
         )
+        self.weight = weight
 
     @implements(nn.Module)
     def forward(self, input_: Tensor) -> Tensor:
-        z_rev = grad_reverse(input_)
+        z_rev = grad_reverse(input_, lambda_=self.weight)
         return super().forward(z_rev)
 
 

@@ -4,12 +4,30 @@
 # isort:skip_file
 # flake8: noqa
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from omegaconf import MISSING
 
 
 @dataclass
 class CycleGanConf:
     _target_: str = "paf.architectures.model.CycleGan"
+    encoder_blocks: int = MISSING
+    decoder_blocks: int = MISSING
+    adv_blocks: int = MISSING
+    latent_multiplier: int = MISSING
+    batch_size: int = MISSING
+    g_weight_decay: float = MISSING
+    d_weight_decay: float = MISSING
+    latent_dims: int = MISSING
+    scheduler_rate: float = 0.99
     d_lr: float = 0.0002
     g_lr: float = 0.0002
-    epoch_decay: int = 200
+    debug: bool = False
+    adv_weight: float = 1.0
+    lambda_: float = 10.0
+    s_as_input: bool = False
+
+
+@dataclass
+class NearestNeighbourConf:
+    _target_: str = "paf.architectures.model.NearestNeighbour"

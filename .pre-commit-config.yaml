@@ -44,25 +44,25 @@ repos:
       - id: check-yaml
       - id: name-tests-test
       - id: debug-statements
-  - repo: local
-    hooks:
-      - id: pylint
-        name: pylint
-        entry: pylint
-        language: system
-        types: [ python ]
-        args:
-          [
-              "-rn",
-              "-sn",
-              "--rcfile=.pylintrc",
-          ]
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.910
-    hooks:
-      - id: mypy
-        name: mypy
-        entry: mypy
-        language: python
-        types: [ python ]
+#  - repo: local
+#    hooks:
+#      - id: pylint
+#        name: pylint
+#        entry: pylint
+#        language: system
+#        types: [ python ]
+#        args:
+#          [
+#              "-rn",
+#              "-sn",
+#              "--rcfile=.pylintrc",
+#          ]
+#  - repo: https://github.com/pre-commit/mirrors-mypy
+#    rev: v0.910
+#    hooks:
+#      - id: mypy
+#        name: mypy
+#        entry: mypy
+#        language: python
+#        types: [ python ]
 

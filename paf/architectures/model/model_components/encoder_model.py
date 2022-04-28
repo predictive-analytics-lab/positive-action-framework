@@ -5,6 +5,7 @@ import logging
 from typing import Any, NamedTuple
 
 from conduit.data import TernarySample
+from conduit.fair.data import EthicMlDataModule
 from conduit.types import Stage
 import numpy as np
 import pytorch_lightning as pl
@@ -14,12 +15,15 @@ import torch
 from torch import Tensor, nn, no_grad, optim
 from torch.nn.functional import binary_cross_entropy_with_logits, cross_entropy, l1_loss
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 from torchmetrics import MeanSquaredError
 
+from paf.base_templates import BaseDataModule
 from paf.base_templates.dataset_utils import Batch, CfBatch
 from paf.mmd import KernelType, mmd2
 from paf.plotting import make_plot
+from paf.utils import HistoryPool, Stratifier
 
 from .common_model import Adversary, BaseModel, CommonModel, Decoder, Encoder
 from .model_utils import index_by_s
@@ -79,61 +83,62 @@ class Loss:
         mmd_weight: float = 1.0,
         cycle_weight: float = 1.0,
         recon_weight: float = 1.0,
-        recon_indices: list[int] | None = None,
+        proxy_weight: float = 1.0,
     ):
-        self._recon_loss_fn = nn.MSELoss(reduction="mean")
+        self._recon_loss_fn = nn.L1Loss(reduction="mean")
         self.feature_groups = feature_groups if feature_groups is not None else {}
         self._adv_weight = adv_weight
         self._mmd_weight = mmd_weight
         self._cycle_weight = cycle_weight
         self._recon_weight = recon_weight
-        self._cycle_loss_fn = nn.MSELoss(reduction="mean")
-        self._proxy_loss_fn = nn.MSELoss(reduction="none")
-        self.indices = recon_indices
+        self._proxy_weight = proxy_weight
+        self._cycle_loss_fn = nn.L1Loss(reduction="mean")
+        self._proxy_loss_fn = nn.L1Loss(reduction="none")
+        self._disc_loss_fn = nn.CrossEntropyLoss(reduction="mean")
 
-    def recon_loss(self, recons: list[Tensor], *, batch: Batch | CfBatch | TernarySample) -> Tensor:
+    def recon_loss(self, recons: list[Tensor], *, x: Tensor, s: Tensor) -> Tensor:
+        z = index_by_s(recons, s)
         if self.feature_groups["discrete"]:
-            recon_loss = batch.x.new_tensor(0.0)
+            recon_loss = x.new_tensor(0.0)
             for i in range(
-                batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])].shape[
-                    1
-                ]
+                x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])].shape[1]
             ):
                 recon_loss += self._recon_loss_fn(
-                    index_by_s(recons, batch.s)[
-                        :, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])
-                    ][:, i].sigmoid(),
-                    batch.x[:, slice(self.feature_groups["discrete"][-1].stop, batch.x.shape[1])][
+                    z[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])][
                         :, i
-                    ],
+                    ].sigmoid(),
+                    x[:, slice(self.feature_groups["discrete"][-1].stop, x.shape[1])][:, i],
                 )
             for group_slice in self.feature_groups["discrete"]:
-                recon_loss += cross_entropy(
-                    index_by_s(recons, batch.s)[:, group_slice],
-                    torch.argmax(batch.x[:, group_slice], dim=-1),
-                    reduction="mean",
+                recon_loss += self._disc_loss_fn(
+                    z[:, group_slice], torch.argmax(x[:, group_slice], dim=-1)
                 )
         else:
-            recon_loss = self._recon_loss_fn(index_by_s(recons, batch.s).sigmoid(), batch.x)
+            recon_loss = self._recon_loss_fn(index_by_s(recons, s).sigmoid(), x)
 
-        _w = torch.zeros_like(batch.x)
-        _w[:, self.indices] += 1
+        return recon_loss * self._recon_weight
 
-        proxy_loss = (_w * self._proxy_loss_fn(recons[0], recons[1])).mean()
-
-        return recon_loss * self._recon_weight + proxy_loss
-
-    def adv_loss(self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample) -> Tensor:
-        return (
-            binary_cross_entropy_with_logits(enc_fwd.s.squeeze(-1), batch.s, reduction="mean")
-        ) * self._adv_weight
-
-    def mmd_loss(
-        self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, kernel: KernelType
+    def proxy_loss(
+        self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample, mask: Tensor | None
     ) -> Tensor:
-        return (
-            mmd2(enc_fwd.z[batch.s == 0], enc_fwd.z[batch.s == 1], kernel=kernel) * self._mmd_weight
+        _ = (batch,)
+        proxy_loss = (
+            (mask * self._proxy_loss_fn(enc_fwd.x[0], enc_fwd.x[1])).mean()
+            if mask is not None
+            else torch.tensor(0.0)
         )
+        return self._proxy_weight * proxy_loss
+
+    def adv_loss(self, enc_fwd: EncFwd, *, s: Tensor) -> Tensor:
+        return binary_cross_entropy_with_logits(
+            enc_fwd.s.squeeze(-1), s, reduction="mean"
+        )  # * self._adv_weight
+
+    def mmd_loss(self, enc_fwd: EncFwd, *, s: Tensor, kernel: KernelType) -> Tensor:
+        if self._mmd_weight == 0.0:
+            return torch.tensor(0.0)
+
+        return mmd2(enc_fwd.z[s == 0], enc_fwd.z[s == 1], kernel=kernel) * self._mmd_weight
 
     def cycle_loss(
         self, cyc_x: list[Tensor], *, batch: Batch | CfBatch | TernarySample
@@ -154,8 +159,11 @@ class AE(CommonModel):
     all_s: Tensor
     all_recon: Tensor
     all_cf_pred: Tensor
-    decoders: nn.ModuleList
+    decoders: Decoder  # nn.ModuleList
     loss: Loss
+    indices: Tensor
+    feature_groups: dict[str, list[slice]]
+    data_dim: int
 
     @parsable
     def __init__(
@@ -170,11 +178,13 @@ class AE(CommonModel):
         mmd_weight: float,
         cycle_weight: float,
         target_weight: float,
+        proxy_weight: float,
         lr: float,
         mmd_kernel: KernelType,
         scheduler_rate: float,
         weight_decay: float,
         debug: bool,
+        batch_size: int,
     ):
         super().__init__(name="Enc")
 
@@ -182,6 +192,7 @@ class AE(CommonModel):
         self._mmd_weight = mmd_weight
         self._cycle_weight = cycle_weight
         self._recon_weight = target_weight
+        self._proxy_weight = proxy_weight
         self.learning_rate = lr
         self.s_as_input = s_as_input
         self.latent_dims = latent_dims
@@ -199,6 +210,9 @@ class AE(CommonModel):
         self.val_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
 
+        self.pool_x0 = Stratifier(pool_size=batch_size // 2)
+        self.pool_x1 = Stratifier(pool_size=batch_size // 2)
+
     @implements(CommonModel)
     def build(
         self,
@@ -209,20 +223,39 @@ class AE(CommonModel):
         cf_available: bool,
         feature_groups: dict[str, list[slice]],
         outcome_cols: list[str],
-        scaler: MinMaxScaler,
+        data: BaseDataModule | EthicMlDataModule,
         indices: list[int],
     ) -> None:
-        _ = (scaler, cf_available)
+        _ = (cf_available, data)
         self.data_cols = outcome_cols
+        self.indices = indices
+        self.feature_groups = feature_groups
+        self.data_dim = data_dim
 
         self.adv = Adversary(
             latent_dim=self.latent_dims,
             out_size=1,
             blocks=self.adv_blocks,
             hid_multiplier=self.latent_multiplier,
+            weight=self._adv_weight,
+        )
+
+        self.in_adv0 = Adversary(
+            latent_dim=self.data_dim,
+            out_size=1,
+            blocks=self.adv_blocks,
+            hid_multiplier=self.latent_multiplier,
+            weight=0.1,
+        )
+        self.in_adv1 = Adversary(
+            latent_dim=self.data_dim,
+            out_size=1,
+            blocks=self.adv_blocks,
+            hid_multiplier=self.latent_multiplier,
+            weight=0.1,
         )
         self.enc = Encoder(
-            in_size=data_dim + s_dim if self.s_as_input else data_dim,
+            in_size=self.data_dim + s_dim if self.s_as_input else self.data_dim,
             latent_dim=self.latent_dims,
             blocks=self.encoder_blocks,
             hid_multiplier=self.latent_multiplier,
@@ -230,32 +263,40 @@ class AE(CommonModel):
         self.decoders = nn.ModuleList(
             [
                 Decoder(
-                    latent_dim=self.latent_dims + s_dim,
-                    in_size=data_dim,
+                    latent_dim=self.latent_dims,
+                    in_size=self.data_dim,
                     blocks=self.decoder_blocks,
                     hid_multiplier=self.latent_multiplier,
                 )
                 for _ in range(num_s)
             ]
         )
+        # self.decoders = Decoder(
+        #     latent_dim=self.latent_dims + s_dim,
+        #     in_size=self.data_dim,
+        #     blocks=self.decoder_blocks,
+        #     hid_multiplier=self.latent_multiplier,
+        # )
         self.loss = Loss(
-            feature_groups=feature_groups,
+            feature_groups=self.feature_groups,
             adv_weight=self._adv_weight,
             mmd_weight=self._mmd_weight,
             cycle_weight=self._cycle_weight,
             recon_weight=self._recon_weight,
-            recon_indices=indices,
+            proxy_weight=self._proxy_weight,
         )
         self.built = True
 
     @implements(nn.Module)
-    def forward(self, x: Tensor, *, s: Tensor) -> EncFwd:
+    def forward(self, x: Tensor, *, s: Tensor, constraint_mask: Tensor | None = None) -> EncFwd:
         assert self.built
         _x = torch.cat([x, s[..., None]], dim=1) if self.s_as_input else x
         z = self.enc.forward(_x)
+
         s_pred = self.adv.forward(z)
+        # _mask = torch.zeros_like(x) if constraint_mask is None else constraint_mask
         recons = [
-            dec(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
+            dec(z)  # self.decoders(torch.cat([z, torch.ones_like(s[..., None]) * i], dim=1))
             for i, dec in enumerate(self.decoders)
         ]
 
@@ -268,48 +309,116 @@ class AE(CommonModel):
         # cycle_dec = [dec(cycle_z) for dec in self.decoders]
         return EncFwd(z=z, s=s_pred, x=recons)  # , cyc_z=cycle_z, cyc_x=cycle_dec)
 
+    def make_mask(self, x: Tensor) -> Tensor:
+
+        mask = []
+        if self.feature_groups["discrete"]:
+            for group in self.feature_groups["discrete"]:
+                prob = torch.bernoulli(torch.rand((x.shape[0], 1), device=self.device))
+                probs = torch.cat([prob for _ in range(group.start, group.stop)], dim=1)
+                mask.append(probs)
+            mask.append(
+                torch.bernoulli(
+                    torch.rand(
+                        (
+                            x.shape[0],
+                            self.data_dim - self.feature_groups["discrete"][-1].stop,
+                        ),
+                        device=self.device,
+                    )
+                )
+            )
+        else:
+            mask.append(torch.bernoulli(torch.rand_like(x)))
+        return torch.cat(mask, dim=1)
+
     @implements(pl.LightningModule)
     def training_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> Tensor:
         assert self.built
-        enc_fwd = self.forward(x=batch.x, s=batch.s)
 
-        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
-        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
-        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
+        x0 = self.pool_x0.push_and_pop(batch.x[batch.s == 0])
+        s0 = batch.x.new_zeros((x0.shape[0]))
+        x1 = self.pool_x1.push_and_pop(batch.x[batch.s == 1])
+        s1 = batch.x.new_ones((x1.shape[0]))
+        x = torch.cat([x0, x1], dim=0)
+        s = torch.cat([s0, s1], dim=0)
+        # x = batch.x
+        # s = batch.s
+
+        # constraint_mask = torch.ones_like(batch.x) * torch.bernoulli(torch.rand_like(batch.x[0]))
+        constraint_mask = self.make_mask(x) if self._proxy_weight > 0.0 else None
+        # constraint_mask = torch.zeros_like(batch.x)
+        # constraint_mask[:, self.indices] += 1
+        enc_fwd = self.forward(x=x, s=s, constraint_mask=constraint_mask)
+
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, x=x, s=s)
+        # proxy_loss = self.loss.proxy_loss(enc_fwd, batch=batch, mask=constraint_mask)
+        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, s=s)
+        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, s=s, kernel=self.mmd_kernel)
         # report_of_cyc_loss, cycle_loss = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
-        loss = recon_loss + adv_loss + mmd_loss  # + cycle_loss
+        loss = recon_loss + adv_loss + mmd_loss  # + proxy_loss  # + cycle_loss
+        # x0_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+        #     torch.cat(
+        #         [
+        #             self.in_adv0(enc_fwd.x[0][s == 0].detach()).squeeze(-1),
+        #             self.in_adv0(enc_fwd.x[0][s == 1]).squeeze(-1),
+        #         ],
+        #         dim=0,
+        #     ),
+        #     torch.cat([s[s == 0], s[s == 1]], dim=0),
+        # )
+        # x0_adv += mmd2(
+        #     enc_fwd.x[0][s == 0].detach(),
+        #     enc_fwd.x[0][s == 1],
+        #     kernel=KernelType.RBF,
+        # )
+        # x1_adv = torch.nn.functional.binary_cross_entropy_with_logits(
+        #     torch.cat(
+        #         [
+        #             self.in_adv1(enc_fwd.x[1][s == 0]).squeeze(-1),
+        #             self.in_adv1(enc_fwd.x[1][s == 1].detach()).squeeze(-1),
+        #         ],
+        #         dim=0,
+        #     ),
+        #     torch.cat([s[s == 0], s[s == 1]], dim=0),
+        # )
+        # x1_adv += mmd2(
+        #     enc_fwd.x[1][s == 0],
+        #     enc_fwd.x[1][s == 1].detach(),
+        #     kernel=KernelType.RBF,
+        # )
 
-        mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
+        # loss += x0_adv + x1_adv
+        # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         to_log = {
             f"{Stage.fit}/enc/loss": loss,
             f"{Stage.fit}/enc/recon_loss": recon_loss,
             f"{Stage.fit}/enc/mmd_loss": mmd_loss,
             f"{Stage.fit}/enc/adv_loss": adv_loss,
-            f"{Stage.fit}/enc/mse": self.fit_mse(
-                self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x
-            ),
+            # f"{Stage.fit}/enc/x0_adv_loss": x0_adv,
+            # f"{Stage.fit}/enc/x1_adv_loss": x1_adv,
+            # f"{Stage.fit}/enc/proxy_loss": proxy_loss,
+            f"{Stage.fit}/enc/mse": self.fit_mse(self.invert(index_by_s(enc_fwd.x, s), x), x),
             f"{Stage.fit}/enc/z_norm": enc_fwd.z.detach().norm(dim=1).mean(),
             f"{Stage.fit}/enc/z_mean_abs_diff": (
-                enc_fwd.z[batch.s <= 0].detach().mean() - enc_fwd.z[batch.s > 0].detach().mean()
+                enc_fwd.z[s <= 0].detach().mean() - enc_fwd.z[s > 0].detach().mean()
             ).abs(),
             # f"{Stage.fit}/enc/cycle_loss": report_of_cyc_loss,
-            f"{Stage.fit}/enc/recon_mmd": mmd_results.recon,
-            f"{Stage.fit}/enc/cf_recon_mmd": mmd_results.cf_recon,
-            f"{Stage.fit}/enc/s0_dist_mmd": mmd_results.s0_dist,
-            f"{Stage.fit}/enc/s1_dist_mmd": mmd_results.s1_dist,
+            # f"{Stage.fit}/enc/recon_mmd": mmd_results.recon,
+            # f"{Stage.fit}/enc/cf_recon_mmd": mmd_results.cf_recon,
+            # f"{Stage.fit}/enc/s0_dist_mmd": mmd_results.s0_dist,
+            # f"{Stage.fit}/enc/s1_dist_mmd": mmd_results.s1_dist,
         }
 
-        if isinstance(batch, CfBatch):
-            with no_grad():
-                enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
-                cf_recon_loss = l1_loss(
-                    index_by_s(enc_fwd.x, batch.cfs), batch.cfx, reduction="mean"
-                )
-                cf_loss = cf_recon_loss - 1e-6
-                to_log[f"{Stage.fit}/enc/cf_loss"] = cf_loss
-                to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
+        # if isinstance(batch, CfBatch):
+        #     with no_grad():
+        # enc_fwd = self.forward(x=batch.cfx, s=batch.cfs)
+        # cf_recon_loss = l1_loss(
+        #     index_by_s(enc_fwd.x, batch.cfs).sigmoid(), batch.cfx, reduction="mean"
+        # )
+        # to_log[f"{Stage.fit}/enc/cf_recon_loss"] = cf_recon_loss
 
         self.log_dict(to_log, logger=True)
 
@@ -331,16 +440,18 @@ class AE(CommonModel):
         self, batch: Batch | CfBatch | TernarySample, *, stage: Stage
     ) -> SharedStepOut | CfSharedStepOut:
         assert self.built
-        enc_fwd = self.forward(x=batch.x, s=batch.s)
+        constraint_mask = torch.zeros_like(batch.x)
+        constraint_mask[:, self.indices] += 1
+        enc_fwd = self.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
 
-        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, batch=batch)
-        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, batch=batch)
-        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, batch=batch, kernel=self.mmd_kernel)
+        recon_loss = self.loss.recon_loss(recons=enc_fwd.x, x=batch.x, s=batch.s)
+        adv_loss = self.loss.adv_loss(enc_fwd=enc_fwd, s=batch.s)
+        mmd_loss = self.loss.mmd_loss(enc_fwd=enc_fwd, s=batch.s, kernel=self.mmd_kernel)
         # cycle_loss, _ = self.loss.cycle_loss(cyc_x=enc_fwd.cyc_x, batch=batch)
 
         loss = recon_loss + adv_loss + mmd_loss  # + cycle_loss
 
-        mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
+        # mmd_results = self.mmd_reporting(enc_fwd=enc_fwd, batch=batch)
 
         mse = self.val_mse if stage is Stage.validate else self.test_mse
 
@@ -351,10 +462,10 @@ class AE(CommonModel):
         self.log(
             f"{stage}/enc/mse", mse(self.invert(index_by_s(enc_fwd.x, batch.s), batch.x), batch.x)
         )
-        self.log(f"{stage}/enc/recon_mmd", mmd_results.recon)
-        self.log(f"{stage}/enc/cf_recon_mmd", mmd_results.cf_recon)
-        self.log(f"{stage}/enc/s0_dist_mmd", mmd_results.s0_dist)
-        self.log(f"{stage}/enc/s1_dist_mmd", mmd_results.s1_dist)
+        # self.log(f"{stage}/enc/recon_mmd", mmd_results.recon)
+        # self.log(f"{stage}/enc/cf_recon_mmd", mmd_results.cf_recon)
+        # self.log(f"{stage}/enc/s0_dist_mmd", mmd_results.s0_dist)
+        # self.log(f"{stage}/enc/s1_dist_mmd", mmd_results.s1_dist)
 
         to_return = SharedStepOut(
             x=batch.x,
@@ -392,7 +503,21 @@ class AE(CommonModel):
         self.all_recon = torch.cat([_r.recon for _r in output_results], 0)
         self.all_cf_pred = torch.cat([_r.cf_pred for _r in output_results], 0)
 
-        if self.debug:
+        if self.debug and self.current_epoch % 25 == 0:
+            make_plot(
+                x=self.all_recon.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_recon",
+                cols=self.data_cols,
+            )
+            make_plot(
+                x=self.all_x.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_true_x",
+                cols=self.data_cols,
+            )
             make_plot(
                 x=all_z.clone(),
                 s=self.all_s.clone(),
@@ -400,32 +525,32 @@ class AE(CommonModel):
                 name=f"{stage}_z",
                 cols=[str(i) for i in range(self.latent_dims)],
             )
+            self.cf_recon = torch.cat([_r.cf_pred for _r in output_results], 0)  # type: ignore[union-attr]
+            make_plot(
+                x=self.cf_recon.clone(),
+                s=self.all_s.clone(),
+                logger=self.logger,
+                name=f"{stage}_cf_recons",
+                cols=self.data_cols,
+            )
 
         if isinstance(output_results[0], CfSharedStepOut):
-            all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)  # type: ignore[union-attr]
-            cf_recon = torch.cat([_r.cf_recon for _r in output_results], 0)  # type: ignore[union-attr]
+            self.all_cf_x = torch.cat([_r.cf_x for _r in output_results], 0)  # type: ignore[union-attr]
             if self.debug:
                 make_plot(
-                    x=all_cf_x.clone(),
+                    x=self.all_cf_x.clone(),
                     s=self.all_s.clone(),
                     logger=self.logger,
                     name=f"{stage}_true_counterfactual",
-                    cols=self.data_cols,
-                )
-                make_plot(
-                    x=cf_recon.clone(),
-                    s=self.all_s.clone(),
-                    logger=self.logger,
-                    name=f"{stage}_cf_recons",
                     cols=self.data_cols,
                 )
 
     @implements(pl.LightningModule)
     def configure_optimizers(
         self,
-    ) -> tuple[list[optim.Optimizer], list[optim.lr_scheduler.ExponentialLR]]:
+    ) -> tuple[list[optim.Optimizer], list[ExponentialLR]]:
         opt = AdamW(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
-        sched = optim.lr_scheduler.ExponentialLR(opt, gamma=0.999)
+        sched = ExponentialLR(opt, gamma=self.scheduler_rate)
         return [opt], [sched]
 
     @implements(CommonModel)
@@ -476,34 +601,37 @@ class AE(CommonModel):
         _labels = torch.cat(labels, dim=0)
         return RunThroughOut(x=_recons.detach(), s=_sens.detach(), y=_labels.detach())
 
-    def mmd_reporting(
-        self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample
-    ) -> MmdReportingResults:
-        with torch.no_grad():
-            recon_mmd = mmd2(
-                batch.x,
-                self.invert(index_by_s(enc_fwd.x, batch.s), batch.x),
-                kernel=self.mmd_kernel,
-            )
-
-            cf_mmd = mmd2(
-                batch.x,
-                self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.x),
-                kernel=self.mmd_kernel,
-            )
-
-            s0_dist_mmd = mmd2(
-                batch.x[batch.s == 0],
-                self.invert(index_by_s(enc_fwd.x, torch.zeros_like(batch.s)), batch.x),
-                kernel=self.mmd_kernel,
-                biased=True,
-            )
-            s1_dist_mmd = mmd2(
-                batch.x[batch.s == 1],
-                self.invert(index_by_s(enc_fwd.x, torch.ones_like(batch.s)), batch.x),
-                kernel=self.mmd_kernel,
-                biased=True,
-            )
-        return MmdReportingResults(
-            recon=recon_mmd, cf_recon=cf_mmd, s0_dist=s0_dist_mmd, s1_dist=s1_dist_mmd
-        )
+    # def mmd_reporting(
+    #     self, enc_fwd: EncFwd, *, batch: Batch | CfBatch | TernarySample
+    # ) -> MmdReportingResults:
+    #     with torch.no_grad():
+    #         recon_mmd = mmd2(
+    #             batch.x,
+    #             self.invert(index_by_s(enc_fwd.x, batch.s), batch.x),
+    #             kernel=self.mmd_kernel,
+    #         )
+    #
+    #         if isinstance(batch, CfBatch):
+    #             cf_mmd = mmd2(
+    #                 batch.x,
+    #                 self.invert(index_by_s(enc_fwd.x, 1 - batch.s), batch.cfx),
+    #                 kernel=self.mmd_kernel,
+    #             )
+    #         else:
+    #             cf_mmd = torch.tensor(-10)
+    #
+    #         s0_dist_mmd = mmd2(
+    #             batch.x[batch.s == 0],
+    #             self.invert(enc_fwd.x[0], batch.x),
+    #             kernel=self.mmd_kernel,
+    #             biased=True,
+    #         )
+    #         s1_dist_mmd = mmd2(
+    #             batch.x[batch.s == 1],
+    #             self.invert(enc_fwd.x[1], batch.x),
+    #             kernel=self.mmd_kernel,
+    #             biased=True,
+    #         )
+    #     return MmdReportingResults(
+    #         recon=recon_mmd, cf_recon=cf_mmd, s0_dist=s0_dist_mmd, s1_dist=s1_dist_mmd
+    #     )

@@ -2,20 +2,20 @@ defaults:
   - /schema/enc: enc_schema
   - _self_
 
-encoder_blocks: 0
-adv_blocks: 0
-decoder_blocks: 0
-latent_dims: 5
-latent_multiplier: 1
-lr: 1e-3
+encoder_blocks: 3
+adv_blocks: 2
+decoder_blocks: 3
+latent_dims: 4
+latent_multiplier: 15
+lr: 3e-4
 adv_weight: 1.0
 mmd_weight: 1.0
-target_weight: 1.0
+target_weight: 2.0
 cycle_weight: 0.0
-proxy_weight: 1.0
+proxy_weight: 0.0
 s_as_input: true
-mmd_kernel: "LINEAR"
-scheduler_rate: 0.999
+mmd_kernel: "RBF"
+scheduler_rate: 0.99
 weight_decay: 1e-6
 debug: false
 batch_size: ${data.train_batch_size}

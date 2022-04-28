@@ -32,9 +32,22 @@ SCHEMAS: Final[list[str]] = [
 ]
 
 
-@pytest.mark.parametrize(
-    "dm_schema", ["ad", "adm", "law", "semi", "lill", "synth"]  # "crime", "health"
-)
+@pytest.mark.parametrize("seed", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+def test_get_value_counts(seed: int):
+    with initialize(config_path="../paf/configs"):
+        # config is relative to a module
+        hydra_cfg = compose(
+            config_name="base_conf",
+            overrides=["data=lill", f"exp.seed={seed}"] + SCHEMAS,
+        )
+        cfg: Config = instantiate(hydra_cfg, _recursive_=True, _convert_="partial")
+        pl.seed_everything(seed)
+
+        cfg.data.prepare_data()
+        cfg.data.setup()
+
+
+@pytest.mark.parametrize("dm_schema", ["ad", "adm", "law", "lill"])  # "crime", "health"
 def test_with_initialize(dm_schema: str) -> None:
     """Quick run on models to check nothing's broken."""
     with initialize(config_path=CFG_PTH):
@@ -50,9 +63,7 @@ def test_with_initialize(dm_schema: str) -> None:
 @pytest.mark.parametrize(
     "dm_schema,cf_available",
     [
-        ("third", True),
         ("lill", True),
-        ("synth", True),
         ("ad", False),
         ("adm", False),
         # ("crime", False),
@@ -91,7 +102,7 @@ def test_data(dm_schema: str, cf_available: bool) -> None:
                 torch.testing.assert_allclose(batch.y, batch.cfy)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
+@pytest.mark.parametrize("dm_schema", ["lill", "ad"])
 def test_datamods(dm_schema: str) -> None:
     """Test the flip dataset function."""
     with initialize(config_path=CFG_PTH):
@@ -114,7 +125,7 @@ def test_datamods(dm_schema: str) -> None:
             torch.testing.assert_allclose(tr_batch.x, te_batch.x)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "adm", "ad"])
+@pytest.mark.parametrize("dm_schema", ["lill", "adm", "ad"])
 def test_enc(dm_schema: str) -> None:
     """Test the encoder network runs."""
     with initialize(config_path=CFG_PTH):
@@ -136,13 +147,14 @@ def test_enc(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
-            scaler=cfg.data.scaler,
+            indices=None,
+            data=cfg.data,
         )
         cfg.enc_trainer.fit(model=encoder, datamodule=cfg.data)
         cfg.enc_trainer.test(model=encoder, ckpt_path=None, datamodule=cfg.data)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
+@pytest.mark.parametrize("dm_schema", ["lill", "ad"])
 def test_clf(dm_schema: str) -> None:
     """Test the classifier network runs."""
     with initialize(config_path=CFG_PTH):
@@ -164,13 +176,13 @@ def test_clf(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=cfg.data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
-            scaler=cfg.data.scaler,
+            data=cfg.data,
         )
         cfg.clf_trainer.fit(model=classifier, datamodule=cfg.data)
         cfg.clf_trainer.test(model=classifier, ckpt_path=None, datamodule=cfg.data)
 
 
-@pytest.mark.parametrize("dm_schema", ["third", "lill", "synth", "ad"])
+@pytest.mark.parametrize("dm_schema", ["lill", "ad"])
 def test_clfmod(dm_schema: str) -> None:
     """Test the end to end."""
     with initialize(config_path=CFG_PTH):
@@ -195,7 +207,8 @@ def test_clfmod(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
-            scaler=cfg.data.scaler,
+            indices=None,
+            data=data,
         )
         cfg.enc_trainer.fit(model=encoder, datamodule=data)
         cfg.enc_trainer.test(model=encoder, ckpt_path=None, datamodule=data)
@@ -208,7 +221,7 @@ def test_clfmod(dm_schema: str) -> None:
             cf_available=cfg.data.cf_available if hasattr(cfg.data, "cf_available") else False,
             feature_groups=data.feature_groups,
             outcome_cols=cfg.data.disc_features + cfg.data.cont_features,
-            scaler=cfg.data.scaler,
+            data=data,
         )
         cfg.clf_trainer.fit(model=classifier, datamodule=data)
         cfg.clf_trainer.test(model=classifier, ckpt_path=None, datamodule=data)

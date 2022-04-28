@@ -1,0 +1,7 @@
+defaults:
+  - /schema/data: sqf-bolt
+  - em_base
+  - _self_
+
+sens_feat: "sex"
+train_batch_size: 256

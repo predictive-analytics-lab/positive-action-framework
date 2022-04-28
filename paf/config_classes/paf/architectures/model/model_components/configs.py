@@ -4,7 +4,7 @@
 # isort:skip_file
 # flake8: noqa
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from omegaconf import MISSING
 from paf.mmd import KernelType
 from typing import Any
@@ -23,11 +23,13 @@ class AEConf:
     mmd_weight: float = MISSING
     cycle_weight: float = MISSING
     target_weight: float = MISSING
+    proxy_weight: float = MISSING
     lr: float = MISSING
     mmd_kernel: KernelType = MISSING
     scheduler_rate: float = MISSING
     weight_decay: float = MISSING
     debug: bool = MISSING
+    batch_size: int = MISSING
 
 
 @dataclass
@@ -47,4 +49,5 @@ class ClfConf:
     adv_blocks: int = MISSING
     decoder_blocks: int = MISSING
     latent_multiplier: int = MISSING
+    batch_size: int = MISSING
     debug: bool = MISSING

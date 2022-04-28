@@ -45,18 +45,18 @@ def baseline_selection_rules(
     conditions = [
         (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 0),
         (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 1),
-        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 0),
-        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 1),
         (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 0),
         (outcomes["s1_0_s2_0"] == 0) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 1),
         (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 0),
         (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 0) & (outcomes["true_s"] == 1),
+        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 0),
+        (outcomes["s1_0_s2_0"] == 1) & (outcomes["s1_1_s2_1"] == 1) & (outcomes["true_s"] == 1),
     ]
 
     values = [0, 1, 2, 3, 4, 5, 6, 7]
     outcomes[GROUP_1] = np.select(conditions, values, -1)
 
-    lookup = {0: 0, 1: 0, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 7: 0}
+    lookup = {0: 0, 1: 0, 2: 2, 3: 0, 4: 1, 5: 1, 6: 1, 7: 1}
     outcomes[GROUP_2] = pd.Series({i: lookup[d] for i, d in enumerate(outcomes[GROUP_1])})
 
     outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
@@ -80,6 +80,7 @@ def produce_selection_groups(
     recon_1: Tensor | None = None,
     logger: pll.WandbLogger | None = None,
     fair: bool = False,
+    debug: bool = False,
 ) -> Prediction:
     """Follow Selection rules."""
     # if logger is not None:
@@ -100,23 +101,25 @@ def produce_selection_groups(
     #     )
 
     outcomes[GROUP_1] = facct_mapper(pd.Series(outcomes[GROUP_0]))
-
-    # if recon_1 is not None:
-    #     assert recon_0 is not None
-    #     assert recon_1 is not None
-    #     assert data is not None
-    #     analyse_selection_groups(
-    #         data=data,
-    #         selected=_to_return,
-    #         recon_0=recon_0,
-    #         recon_1=recon_1,
-    #         data_name=data_name,
-    #         logger=logger,
-    #     )
+    print(outcomes[GROUP_1].value_counts())
 
     outcomes[GROUP_2] = facct_mapper_2(pd.Series(outcomes[GROUP_1]))
 
     outcomes[GROUP_3] = facct_mapper_outcomes(pd.Series(outcomes[GROUP_2]), fair=fair)
+
+    if recon_1 is not None and debug:
+        assert recon_0 is not None
+        assert recon_1 is not None
+        assert data is not None
+        analyse_selection_groups(
+            data=data,
+            selected=Prediction(hard=pd.Series(outcomes[GROUP_1])),
+            recon_0=recon_0,
+            recon_1=recon_1,
+            data_name=data_name,
+            logger=logger,
+        )
+
     if logger is not None:
         logger.experiment.log(
             {
@@ -140,7 +143,7 @@ def analyse_selection_groups(
     reconstructed_0 = pd.DataFrame(recon_0.cpu().numpy(), columns=data.test_datatuple.x.columns)
     reconstructed_1 = pd.DataFrame(recon_1.cpu().numpy(), columns=data.test_datatuple.x.columns)
 
-    for selection_group in range(selected.hard.min(), selected.hard.max()):
+    for selection_group in range(selected.hard.min(), selected.hard.max() + 1):
         try:
             selected_data = data.test_datatuple.x.iloc[
                 selected.hard[selected.hard == selection_group].index  # type: ignore[call-overload]
@@ -149,20 +152,28 @@ def analyse_selection_groups(
             continue
 
         for group_slice in data.feature_groups["discrete"]:
-            if selection_group % 2 == 0:
-                (
-                    reconstructed_0.iloc[selected_data.index].sum(axis=0)
-                    - reconstructed_1.iloc[selected_data.index].sum(axis=0)
-                )[data.test_datatuple.x.columns[group_slice]].plot(kind="bar", rot=90)
-            else:
-                (
-                    reconstructed_1.iloc[selected_data.index].sum(axis=0)
-                    - reconstructed_0.iloc[selected_data.index].sum(axis=0)
-                )[data.test_datatuple.x.columns[group_slice]].plot(kind="bar", rot=90)
+            (
+                reconstructed_0.iloc[selected_data.index].sum(axis=0)
+                - reconstructed_1.iloc[selected_data.index].sum(axis=0)
+            )[data.test_datatuple.x.columns[group_slice]].plot(kind="bar", rot=90)
             plt.xticks(rotation=90)
             plt.tight_layout()
             do_log(
-                f"{data_name}_selection_group_{selection_group}_feature_groups_0-1/{data.test_datatuple.x.columns[group_slice][0].split('_')[0]}",
+                f"{data_name}_selection_group_{selection_group}_feature_groups_0-1"
+                f"/{data.test_datatuple.x.columns[group_slice][0].split('_')[0]}",
+                wandb.Image(plt),
+                logger,
+            )
+            plt.clf()
+            (
+                reconstructed_1.iloc[selected_data.index].sum(axis=0)
+                - reconstructed_0.iloc[selected_data.index].sum(axis=0)
+            )[data.test_datatuple.x.columns[group_slice]].plot(kind="bar", rot=90)
+            plt.xticks(rotation=90)
+            plt.tight_layout()
+            do_log(
+                f"{data_name}_selection_group_{selection_group}_feature_groups_1-0"
+                f"/{data.test_datatuple.x.columns[group_slice][0].split('_')[0]}",
                 wandb.Image(plt),
                 logger,
             )

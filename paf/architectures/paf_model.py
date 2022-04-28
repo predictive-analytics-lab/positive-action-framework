@@ -1,7 +1,7 @@
 """AIES Model."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 from conduit.data import TernarySample
 import pandas as pd
@@ -13,10 +13,12 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 __all__ = ["PafModel", "TestStepOut"]
 
+from tqdm import tqdm
+
 from paf.base_templates import Batch, CfBatch
 
 from . import PafResults
-from .model import CycleGan
+from .model import CycleGan, NearestNeighbour
 from .model.model_components import AE, Clf, augment_recons, index_by_s
 
 
@@ -34,7 +36,6 @@ class TestStepOut:
     recons_0: Tensor
     recons_1: Tensor
     preds: Tensor
-    cycle_loss: Tensor
     preds_0_0: Tensor
     preds_0_1: Tensor
     preds_1_0: Tensor
@@ -54,14 +55,15 @@ class PafModel(pl.LightningModule):
         return f"PAF_{self.enc.name}"
 
     @implements(nn.Module)
+    @torch.no_grad()
     def forward(self, *, x: Tensor, s: Tensor) -> dict[str, tuple[Tensor, ...]]:
         recons: list[Tensor] | None = None
         if isinstance(self.enc, AE):
             enc_fwd = self.enc.forward(x=x, s=s)
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
-            cyc_fwd = self.enc.forward(real_a=x, real_b=x)
-            recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
+            cyc_fwd = self.enc.forward(real_s0=x, real_s1=x)
+            recons = [cyc_fwd.fake_s0, cyc_fwd.fake_s1]
         assert recons is not None
         return self.clf.from_recons(recons)
 
@@ -76,13 +78,29 @@ class PafModel(pl.LightningModule):
     @implements(pl.LightningModule)
     def predict_step(self, batch: Batch | CfBatch | TernarySample, *_: Any) -> TestStepOut:
         if isinstance(self.enc, AE):
-            enc_fwd = self.enc.forward(x=batch.x, s=batch.s)
+            constraint_mask = torch.zeros_like(batch.x)
+            constraint_mask[:, self.enc.indices] += 1
+            enc_fwd = self.enc.forward(x=batch.x, s=batch.s, constraint_mask=constraint_mask)
             enc_z = enc_fwd.z
             enc_s_pred = enc_fwd.s
             recons = enc_fwd.x
         elif isinstance(self.enc, CycleGan):
-            cyc_fwd = self.enc.forward(real_a=batch.x, real_b=batch.x)
-            recons = [cyc_fwd.fake_a, cyc_fwd.fake_b]
+            cyc_fwd = self.enc.forward(
+                real_s0=torch.cat([batch.x, batch.s.unsqueeze(dim=-1)], dim=1)
+                if self.enc.s_as_input
+                else batch.x,
+                real_s1=torch.cat([batch.x, batch.s.unsqueeze(dim=-1)], dim=1)
+                if self.enc.s_as_input
+                else batch.x,
+            )
+            recons = [
+                cyc_fwd.fake_s0[:, :-1] if self.enc.s_as_input else cyc_fwd.fake_s0,
+                cyc_fwd.fake_s1[:, :-1] if self.enc.s_as_input else cyc_fwd.fake_s1,
+            ]
+            enc_z = torch.ones_like(batch.x)
+            enc_s_pred = torch.ones_like(batch.s)
+        elif isinstance(self.enc, NearestNeighbour):
+            recons = self.enc.forward(x=batch.x, s=batch.s).x
             enc_z = torch.ones_like(batch.x)
             enc_s_pred = torch.ones_like(batch.s)
         else:
@@ -91,27 +109,7 @@ class PafModel(pl.LightningModule):
             batch.x, self.enc.invert(index_by_s(recons, 1 - batch.s), batch.x), batch.s
         )
 
-        mse_loss_fn = nn.MSELoss(reduction="mean")
-        _recons = recons.copy()
-        _cyc_loss = torch.tensor(0.0)
-        for i in range(1):
-            _cfx = self.enc.invert(index_by_s(_recons, 1 - batch.s), batch.x)
-            if isinstance(self.enc, AE):
-                cf_fwd = self.enc.forward(x=_cfx, s=1 - batch.s)
-            else:
-                cf_fwd = self.enc.forward(real_a=_cfx, real_b=_cfx)  # type: ignore[assignment]
-            _og = self.enc.invert(index_by_s(cf_fwd.x, batch.s), batch.x)
-            cycle_loss = mse_loss_fn(_og, batch.x)
-            if i == 0:
-                _cyc_loss = cycle_loss
-            # self.log(f"Cycle_loss_{i}", cycle_loss)
-            if isinstance(self.enc, AE):
-                _fwd = self.enc.forward(x=_og, s=1 - batch.s)
-            else:
-                _fwd = self.enc.forward(real_a=_og, real_b=_og)  # type: ignore[assignment]
-            _recons = _fwd.x
-
-        vals: Dict[str, Tensor] = {
+        vals: dict[str, Tensor | dict[str, Tensor]] = {
             "enc_z": enc_z,
             "enc_s_pred": enc_s_pred,
             "x": batch.x,
@@ -124,25 +122,66 @@ class PafModel(pl.LightningModule):
             "preds": self.clf.threshold(
                 index_by_s(self.clf.forward(x=batch.x, s=batch.s)[-1], batch.s)
             ),
-            "cycle_loss": _cyc_loss,
         }
 
         for i, recon in enumerate(augmented_recons):
             clf_out = self.clf.forward(x=recon, s=torch.ones_like(batch.s) * i)
-            vals.update({f"clf_z{i}": clf_out.z})
+            vals[f"clf_z{i}"] = clf_out.z
             vals.update({f"preds_{i}_{j}": self.clf.threshold(clf_out.y[j]) for j in range(2)})
         return TestStepOut(**vals)
 
-    @staticmethod
-    def collate_results(outputs: list[TestStepOut]) -> PafResults:
+    def collate_results(self, outputs: list[TestStepOut], *, cycle_steps: int = 0) -> PafResults:
         preds_0_0 = torch.cat([_r.preds_0_0 for _r in outputs], 0)
         preds_0_1 = torch.cat([_r.preds_0_1 for _r in outputs], 0)
         preds_1_0 = torch.cat([_r.preds_1_0 for _r in outputs], 0)
         preds_1_1 = torch.cat([_r.preds_1_1 for _r in outputs], 0)
+        x = torch.cat([_r.x for _r in outputs], 0)
         s = torch.cat([_r.s for _r in outputs], 0)
         preds = torch.cat([_r.preds for _r in outputs], 0)
         clf_z0 = torch.cat([_r.clf_z0 for _r in outputs], 0)
         clf_z1 = torch.cat([_r.clf_z1 for _r in outputs], 0)
+
+        recons = torch.cat([_r.recon for _r in outputs], 0)
+        recons_0 = torch.cat([_r.recons_0 for _r in outputs], 0)
+        recons_1 = torch.cat([_r.recons_1 for _r in outputs], 0)
+
+        mse_loss_fn = nn.MSELoss(reduction="none")
+        _recons = [recons_0.clone(), recons_1.clone()]
+        torch.tensor(0.0)
+        cyc_dict = {}
+
+        cycle_loss = None
+        for i in tqdm(range(cycle_steps), desc="Cycle Measure"):
+            _cfx = self.enc.invert(index_by_s(_recons, 1 - s), x).cpu()
+            if isinstance(self.enc, (AE, NearestNeighbour)):
+                cf_fwd = self.enc.forward(x=_cfx, s=1 - s.cpu())
+                _og = self.enc.invert(index_by_s(cf_fwd.x, s), x)
+            else:
+                cf_fwd = self.enc.forward(
+                    real_s0=torch.cat([_cfx, s.unsqueeze(dim=-1)], dim=1)
+                    if self.enc.s_as_input
+                    else _cfx,
+                    real_s1=torch.cat([_cfx, s.unsqueeze(dim=-1)], dim=1)
+                    if self.enc.s_as_input
+                    else _cfx,
+                )
+                recon = index_by_s(cf_fwd.x, s)
+                _og = self.enc.invert(recon[:, :-1] if self.enc.s_as_input else recon)
+            cycle_loss = mse_loss_fn(_og, x.cpu())
+            cyc_dict[f"Cycle_loss/{i}"] = cycle_loss.detach().mean(dim=-1).cpu().numpy().tolist()
+            if isinstance(self.enc, (AE, NearestNeighbour)):
+                _fwd = self.enc.forward(x=_og, s=1 - s.cpu())
+                _recons = _fwd.x
+            else:
+                _fwd = self.enc.forward(
+                    real_s0=torch.cat([_og, s.unsqueeze(dim=-1)], dim=1)
+                    if self.enc.s_as_input
+                    else _og,
+                    real_s1=torch.cat([_og, s.unsqueeze(dim=-1)], dim=1)
+                    if self.enc.s_as_input
+                    else _og,
+                )
+                _recons = [_fwd.x[0][:, :-1], _fwd.x[1][:, :-1]] if self.enc.s_as_input else _fwd.x
 
         return PafResults(
             enc_z=torch.cat([_r.enc_z for _r in outputs], 0),
@@ -151,12 +190,12 @@ class PafModel(pl.LightningModule):
             clf_z1=clf_z1,
             clf_z=torch.cat([clf_z0, clf_z1], dim=0),
             s=s,
-            x=torch.cat([_r.x for _r in outputs], 0),
+            x=x,
             y=torch.cat([_r.y for _r in outputs], 0),
-            recon=torch.cat([_r.recon for _r in outputs], 0),
+            recon=recons,
             cf_x=torch.cat([_r.cf_recon for _r in outputs], 0),
-            recons_0=torch.cat([_r.recons_0 for _r in outputs], 0),
-            recons_1=torch.cat([_r.recons_1 for _r in outputs], 0),
+            recons_0=recons_0,
+            recons_1=recons_1,
             preds=preds,
             preds_0_0=preds_0_0,
             preds_0_1=preds_0_1,
@@ -179,5 +218,6 @@ class PafModel(pl.LightningModule):
                 .numpy(),
                 columns=["s1_0_s2_0", "s1_0_s2_1", "s1_1_s2_0", "s1_1_s2_1", "true_s", "actual"],
             ),
-            cycle_loss=torch.tensor(sum(_r.cycle_loss for _r in outputs) / s.shape[0]),
+            cycle_loss=cycle_loss,
+            cyc_vals=pd.DataFrame.from_dict(cyc_dict),
         )

@@ -25,21 +25,23 @@ class LilliputDataModule(BaseDataModule):
         seed: int,
         num_samples: int,
         num_workers: int,
-        batch_size: int,
+        train_batch_size: int,
+        eval_batch_size: int,
         cf_available: bool = True,
         train_dims: Optional[Tuple[int, ...]] = None,
     ):
         super().__init__(
             cf_available=cf_available,
             seed=seed,
-            scaler=MinMaxScaler(),
+            scaler=MinMaxScaler(clip=True),
         )
         self.alpha = alpha
         self.gamma = gamma
         self.num_samples = num_samples
         self.train_dims = train_dims
         self.num_workers = num_workers
-        self.batch_size = batch_size
+        self.train_batch_size = train_batch_size
+        self.eval_batch_size = eval_batch_size
 
     @implements(pl.LightningDataModule)
     def prepare_data(self) -> None:
@@ -79,7 +81,7 @@ class LilliputDataModule(BaseDataModule):
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
-            batch_size=self.batch_size,
+            batch_size=self.train_batch_size,
             num_workers=self.num_workers,
             shuffle=shuffle,
             drop_last=drop_last,
@@ -95,7 +97,7 @@ class LilliputDataModule(BaseDataModule):
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
-            batch_size=self.batch_size,
+            batch_size=self.eval_batch_size,
             num_workers=self.num_workers,
             shuffle=shuffle,
             drop_last=drop_last,
@@ -111,7 +113,7 @@ class LilliputDataModule(BaseDataModule):
                 disc_features=self.dataset.discrete_features,
                 cont_features=self.dataset.continuous_features,
             ),
-            batch_size=self.batch_size,
+            batch_size=self.eval_batch_size,
             num_workers=self.num_workers,
             shuffle=shuffle,
             drop_last=drop_last,

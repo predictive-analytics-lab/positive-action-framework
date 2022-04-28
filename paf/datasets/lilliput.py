@@ -1,5 +1,6 @@
 """The hand crafted synthetic data."""
 from __future__ import annotations
+import logging
 from typing import NamedTuple
 
 from ethicml import Dataset, DataTuple, Prediction
@@ -12,6 +13,8 @@ from scipy import stats
 from paf.selection import produce_selection_groups
 
 __all__ = ["CfData", "lilliput"]
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CfData(NamedTuple):
@@ -237,14 +240,16 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         0.4 * ((data["potions_bane"] + data["potions_wolf"]) / 2)
         + 0.4 * ((data["video_bane"] + data["video_wolf"]) / 2)
         + 0.2 * ((data["essay_bane"] + data["essay_wolf"]) / 2)
-        + gamma * ((2 * data["sens"]) - 1)
+        # + gamma * ((2 * data["sens"]) - 1)
+        # + gamma * data["sens"]
     ).round(2)
 
     cf_data["admittance_score"] = (
         0.4 * ((cf_data["potions_bane"] + cf_data["potions_wolf"]) / 2)
         + 0.4 * ((cf_data["video_bane"] + cf_data["video_wolf"]) / 2)
         + 0.2 * ((cf_data["essay_bane"] + cf_data["essay_wolf"]) / 2)
-        + gamma * ((2 * cf_data["sens"]) - 1)
+        # + gamma * ((2 * cf_data["sens"]) - 1)
+        # + gamma * cf_data["sens"]
     ).round(2)
     SY0_AD_SCORE = "Sy=0_admittance_score"
     SY1_AD_SCORE = "Sy=1_admittance_score"
@@ -253,6 +258,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         + 0.4 * ((data_all_0["video_bane"] + data_all_0["video_wolf"]) / 2)
         + 0.2 * ((data_all_0["essay_bane"] + data_all_0["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_0["sens"]) - 1)
+        # + gamma * data_all_0["sens"]
     ).round(2)
 
     data_all_0[SY1_AD_SCORE] = (
@@ -260,6 +266,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         + 0.4 * ((data_all_0["video_bane"] + data_all_0["video_wolf"]) / 2)
         + 0.2 * ((data_all_0["essay_bane"] + data_all_0["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_1["sens"]) - 1)
+        # + gamma * data_all_1["sens"]
     ).round(2)
 
     data_all_1[SY0_AD_SCORE] = (
@@ -267,6 +274,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         + 0.4 * ((data_all_1["video_bane"] + data_all_1["video_wolf"]) / 2)
         + 0.2 * ((data_all_1["essay_bane"] + data_all_1["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_0["sens"]) - 1)
+        # + gamma * data_all_0["sens"]
     ).round(2)
 
     data_all_1[SY1_AD_SCORE] = (
@@ -274,12 +282,14 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         + 0.4 * ((data_all_1["video_bane"] + data_all_1["video_wolf"]) / 2)
         + 0.2 * ((data_all_1["essay_bane"] + data_all_1["essay_wolf"]) / 2)
         + gamma * ((2 * data_all_1["sens"]) - 1)
+        # + gamma * data_all_1["sens"]
     ).round(2)
 
     graduation = []
     for (c, p, v, e) in zip(
         data["sens"], data["potions_score"], data["video_score"], data["essay_score"]
     ):
+        # graduation.append(round(0.4 * p + 0.25 * v + 0.45 * e, 2))
         if c == 0:
             graduation.append(round(0.3 * p + 0.25 * v + 0.45 * e, 2))
         else:
@@ -315,12 +325,12 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
     data_all_1 = pd.concat([data_all_1, g_all_1], axis=1)
     cf_data = pd.concat([cf_data, cf_g], axis=1)
 
-    passed_initial_screening = data.nlargest(n=int(data.shape[0] * 0.2), columns='admittance_score')
+    passed_initial_screening = data.nlargest(n=int(data.shape[0] * 0.2), columns="admittance_score")
     cf_passed_initial_screening = cf_data.nlargest(
-        n=int(cf_data.shape[0] * 0.2), columns='admittance_score'
+        n=int(cf_data.shape[0] * 0.2), columns="admittance_score"
     )
 
-    passed_threshold = data.nlargest(n=int(data.shape[0] * 0.2), columns='admittance_score')[
+    passed_threshold = data.nlargest(n=int(data.shape[0] * 0.2), columns="admittance_score")[
         "admittance_score"
     ].min()
 
@@ -408,6 +418,11 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         discrete_only=False,
     )
 
+    print(f"OT/DATA P(Y=1|Sx=0,Sy=0): {gt_results['s1_0_s2_0'].mean()}")
+    print(f"OT/DATA P(Y=1|Sx=0,Sy=1): {gt_results['s1_0_s2_1'].mean()}")
+    print(f"OT/DATA P(Y=1|Sx=1,Sy=0): {gt_results['s1_1_s2_0'].mean()}")
+    print(f"OT/DATA P(Y=1|Sx=1,Sy=1): {gt_results['s1_1_s2_1'].mean()}")
+
     return CfData(
         dataset=dataset,
         data=DataTuple(
@@ -423,7 +438,7 @@ def lilliput(*, seed: int, num_samples: int, alpha: float, gamma: float) -> CfDa
         data_true_outcome=DataTuple(
             x=data[dataset.discrete_features + dataset.continuous_features],
             s=data[dataset.sens_attrs],
-            y=data[[GRAD_MT_60]],
+            y=data_all_0[[GRAD_MT_60]],  # data[[GRAD_MT_60]],
         ),
         cf_groups=best_aim,
         data_xs0_ys0=DataTuple(

@@ -1,0 +1,10 @@
+defaults:
+  - base
+  - _self_
+
+encoder_blocks: 5
+adv_blocks: 2
+decoder_blocks: 2
+latent_dims: 40
+latent_multiplier: 10
+lr: 1e-3

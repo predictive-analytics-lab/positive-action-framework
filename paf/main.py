@@ -1,6 +1,10 @@
 """Main script."""
 from __future__ import annotations
-import copy
+from copy import copy
+
+if 1:
+    import faiss  # noqa
+
 from dataclasses import dataclass
 from enum import Enum, auto
 import logging
@@ -11,9 +15,11 @@ from conduit.hydra.conduit.fair.data.datamodules.conf import (  # type: ignore[i
     AdmissionsDataModuleConf,
     AdultDataModuleConf,
     CompasDataModuleConf,
+    CreditDataModuleConf,
     CrimeDataModuleConf,
     HealthDataModuleConf,
     LawDataModuleConf,
+    SqfDataModuleConf,
 )
 import ethicml as em
 import hydra
@@ -30,9 +36,7 @@ from sklearn.preprocessing import StandardScaler
 import umap
 
 from paf.architectures import PafModel, PafResults, Results
-from paf.architectures.model import CycleGan, NearestNeighbourModel
 from paf.architectures.model.model_components import AE
-from paf.architectures.model.naive import NaiveModel
 from paf.base_templates.base_module import BaseDataModule
 from paf.callbacks.callbacks import L1Logger
 from paf.config_classes.ethicml.configs import (  # type: ignore[import]
@@ -46,6 +50,7 @@ from paf.config_classes.ethicml.configs import (  # type: ignore[import]
 )
 from paf.config_classes.paf.architectures.model.configs import (  # type: ignore[import]
     CycleGanConf,
+    NearestNeighbourConf,
 )
 from paf.config_classes.paf.architectures.model.model_components.configs import (  # type: ignore[import]
     AEConf,
@@ -62,7 +67,7 @@ from paf.config_classes.pytorch_lightning.trainer.configs import (  # type: igno
 )
 from paf.log_progress import do_log
 from paf.mmd import KernelType, mmd2
-from paf.plotting import label_plot
+from paf.plotting import label_plot, make_data_plots
 from paf.scoring import get_full_breakdown, produce_baselines
 from paf.selection import baseline_selection_rules, produce_selection_groups
 import wandb
@@ -75,6 +80,12 @@ class ModelType(Enum):
     NN = auto()
     ERM_DP = auto()
     EQ_DP = auto()
+    ERM_KAM = auto()
+    EQ_KAM = auto()
+    ERM_SHI = auto()
+    EQ_SHI = auto()
+    ERM_ZAF = auto()
+    EQ_ZAF = auto()
 
 
 @dataclass
@@ -128,19 +139,28 @@ ENC_PKG: Final[str] = "enc"
 ENC_GROUP: Final[str] = "schema/enc"
 CS.store(name="enc_schema", node=AEConf, package=ENC_PKG, group=ENC_GROUP)
 CS.store(name="cyclegan", node=CycleGanConf, package=ENC_PKG, group=ENC_GROUP)
+CS.store(name="nearestneighbour", node=NearestNeighbourConf, package=ENC_PKG, group=ENC_GROUP)
 
 DATA_PKG: Final[str] = "data"  # package:dir_within_config_path
 DATA_GROUP: Final[str] = "schema/data"  # group
 CS.store(name="adult-bolt", node=AdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="admiss-bolt", node=AdmissionsDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="compas-bolt", node=CompasDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="credit-bolt", node=CreditDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="crime-bolt", node=CrimeDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="health-bolt", node=HealthDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="law-bolt", node=LawDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="semi-synth", node=SemiAdultDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+CS.store(name="sqf-bolt", node=SqfDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="lilliput", node=LilliputDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="synth", node=SimpleXDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
 CS.store(name="third", node=ThirdWayDataModuleConf, package=DATA_PKG, group=DATA_GROUP)
+
+
+PS: Final[str] = "PostSelection"
+TL: Final[str] = "Truelabels"
+RW: Final[str] = "RealWorld"
+EVAL_KERNEL: Final[KernelType] = KernelType.LINEAR
 
 
 @hydra.main(config_path="configs", config_name="base_conf")
@@ -190,139 +210,100 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
     cfg.enc_trainer.logger = wandb_logger
     cfg.clf_trainer.logger = wandb_logger
 
-    model_trainer: pl.Trainer = copy.deepcopy(cfg.enc_trainer)
-    _model_trainer: pl.Trainer = copy.deepcopy(cfg.enc_trainer)
+    pred_trainer = copy(cfg.enc_trainer)
 
-    # make_data_plots(data, cfg.trainer.logger)
+    if cfg.exp.debug:
+        make_data_plots(data, wandb_logger)
 
     if isinstance(cfg.clf, em.InAlgorithm):
         baseline_models(cfg.clf, data=data, logger=wandb_logger, debug=cfg.exp.debug)
         return
 
-    if cfg.exp.model in (ModelType.ERM_DP, ModelType.EQ_DP):
-        if cfg.exp.model is ModelType.ERM_DP:
-            first_model = em.LRCV(seed=cfg.exp.seed)
-            first_results = first_model.run(data.train_datatuple, data.test_datatuple)
-        else:
-            erm_model = em.LRCV(seed=cfg.exp.seed)
-            first_model = em.Hardt(seed=cfg.exp.seed)
-            first_results = first_model.run(
-                train_predictions=erm_model.run(data.train_datatuple, data.train_datatuple),
-                train=data.train_datatuple,
-                test_predictions=erm_model.run(data.train_datatuple, data.test_datatuple),
-                test=data.test_datatuple,
-            )
-        dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
-        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
-
-        matches = {
-            f"{c}": first_results.hard[
-                pd.concat([dp_results.hard, first_results.hard], axis=1).sum(axis=1) == c
-            ].count()
-            for c in range(3)
-        }
-        print(matches)
-        df = pd.DataFrame.from_dict(
-            {
-                "s1_0_s2_0": first_results.hard.values,
-                "s1_1_s2_1": dp_results.hard.values,
-                "true_s": data.test_datatuple.s.copy().values[:, 0],
-            }
-        )
-
-        for fair_bool in (True, False):
-            preds = baseline_selection_rules(
-                outcomes=df,
-                logger=wandb_logger,
-                fair=fair_bool,
-                data_name="Outcomes",
-            )
-            multiple_metrics(
-                preds=preds,
-                target=data.test_datatuple,
-                name=f"Post-Selection-{fair_bool=}",
-                logger=wandb_logger,
-                debug=cfg.exp.debug,
-            )
+    if cfg.exp.model in (
+        ModelType.ERM_DP,
+        ModelType.EQ_DP,
+        ModelType.ERM_SHI,
+        ModelType.EQ_SHI,
+        ModelType.ERM_ZAF,
+        ModelType.EQ_ZAF,
+        ModelType.ERM_KAM,
+        ModelType.EQ_KAM,
+    ):
+        two_model_approach(cfg=cfg, data=data, logger=wandb_logger)
         return
 
-    encoder: AE | CycleGan | None = None
-    if cfg.exp.model is ModelType.PAF:
-        encoder = cfg.enc
-        assert encoder is not None
-        encoder.build(
-            num_s=data.card_s,
-            data_dim=data.size()[0],
-            s_dim=data.dim_s[0],
-            cf_available=data.cf_available if hasattr(data, "cf_available") else False,
-            feature_groups=data.feature_groups,
-            outcome_cols=data.disc_features + data.cont_features,
-            scaler=data.scaler,
-            indices=indices,
-        )
+    encoder = cfg.enc
+    assert encoder is not None
+    encoder.build(
+        num_s=data.card_s,
+        data_dim=data.size()[0],
+        s_dim=data.dim_s[0],
+        cf_available=data.cf_available if hasattr(data, "cf_available") else False,
+        feature_groups=data.feature_groups,
+        outcome_cols=data.disc_features + data.cont_features,
+        indices=indices,
+        data=data,
+    )
 
-        cfg.enc_trainer.callbacks += [
-            L1Logger(),
-            # MmdLogger(),
-            # FeaturePlots()
-        ]
-        cfg.enc_trainer.fit(
-            model=encoder,
-            train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
-            val_dataloaders=data.val_dataloader(),
-        )
-        cfg.enc_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
+    cfg.enc_trainer.callbacks += [
+        L1Logger(),
+        # MmdLogger(),
+        # FeaturePlots()
+    ]
+    cfg.enc_trainer.fit(
+        model=encoder,
+        train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
+        val_dataloaders=data.val_dataloader(),
+    )
+    cfg.enc_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
 
-        classifier = cfg.clf
-        classifier.build(
-            num_s=data.card_s,
-            data_dim=data.size()[0],
-            s_dim=data.dim_s[0],
-            cf_available=data.cf_available if hasattr(data, "cf_available") else False,
-            feature_groups=data.feature_groups,
-            outcome_cols=data.disc_features + data.cont_features,
-            scaler=None,
-        )
-        cfg.clf_trainer.fit(
-            model=classifier,
-            train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
-            val_dataloaders=data.val_dataloader(),
-        )
-        cfg.clf_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
+    classifier = cfg.clf
+    classifier.build(
+        num_s=data.card_s,
+        data_dim=data.size()[0],
+        s_dim=data.dim_s[0],
+        cf_available=data.cf_available if hasattr(data, "cf_available") else False,
+        feature_groups=data.feature_groups,
+        outcome_cols=data.disc_features + data.cont_features,
+        scaler=None,
+    )
+    cfg.clf_trainer.fit(
+        model=classifier,
+        train_dataloaders=data.train_dataloader(shuffle=True, drop_last=True),
+        val_dataloaders=data.val_dataloader(),
+    )
+    cfg.clf_trainer.test(dataloaders=data.test_dataloader(), ckpt_path=None)
 
-        model = PafModel(encoder=encoder, classifier=classifier)
+    model = PafModel(encoder=encoder, classifier=classifier)
 
-    elif cfg.exp.model == ModelType.NN:
-        classifier = NaiveModel(in_size=cfg.data.size()[0])
-        cfg.clf_trainer.tune(model=classifier, datamodule=data)
-        cfg.clf_trainer.fit(model=classifier, datamodule=data)
-
-        model = NearestNeighbourModel(clf_model=classifier, data=data)
-
-    model_trainer.fit(model=model, datamodule=data)
+    # cfg.enc_trainer.fit(model=model, datamodule=data)
     results = model.collate_results(
-        model_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None)
+        cfg.enc_trainer.predict(model=model, dataloaders=data.test_dataloader(), ckpt_path=None),
+        cycle_steps=100,
     )
 
     if isinstance(results, PafResults):
-        _s = data.test_datatuple.s.copy().to_numpy()
-        _y = data.test_datatuple.y.copy().to_numpy()
+        wandb_logger.experiment.log(results.cyc_vals.mean(axis="rows").to_dict())
 
-        for arr, name in [
-            (results.x.detach().cpu().numpy(), "Input"),
-            (results.enc_z.detach().cpu().numpy(), "Enc Embedding"),
-            (results.recon.detach().cpu().numpy(), "Enc Recon"),
-            (results.clf_z0.detach().cpu().numpy(), "Clf Xs=0 Embedding"),
-            (results.clf_z1.detach().cpu().numpy(), "Clf Xs=1 Embedding"),
-        ]:
-            make_umap(
-                arr,
-                data_name=name,
-                cfg=cfg,
-                s=_s,
-                y=_y,
-                logger=wandb_logger,
-            )
+        if cfg.exp.debug:
+            _s = data.test_datatuple.s.copy().to_numpy()
+            _y = data.test_datatuple.y.copy().to_numpy()
+
+            for arr, name in [
+                (results.x.detach().cpu().numpy(), "Input"),
+                (results.enc_z.detach().cpu().numpy(), "Enc Embedding"),
+                (results.recon.detach().cpu().numpy(), "Enc Recon"),
+                (results.clf_z0.detach().cpu().numpy(), "Clf Xs=0 Embedding"),
+                (results.clf_z1.detach().cpu().numpy(), "Clf Xs=1 Embedding"),
+            ]:
+                make_umap(
+                    arr,
+                    data_name=name,
+                    cfg=cfg,
+                    s=_s,
+                    y=_y,
+                    logger=wandb_logger,
+                )
 
     evaluate(
         cfg=cfg,
@@ -331,7 +312,7 @@ def run_paf(cfg: Config, raw_config: Any) -> None:
         data=data,
         encoder=encoder,
         classifier=classifier,
-        _model_trainer=_model_trainer,
+        _model_trainer=pred_trainer,
     )
 
     if not cfg.exp.log_offline and wandb_logger is not None:
@@ -363,10 +344,15 @@ def make_umap(
         (embedding["s"] == 1) & (embedding["y"] == 0),
         (embedding["s"] == 1) & (embedding["y"] == 1),
     ]
-    values = ["s0y0", "s0y1", "s1y0", "s1y1"]
-    embedding["group"] = np.select(conditions, values, -1)
+    values = ["S=0,Y=0", "S=0,Y=1", "S=1,Y=0", "S=1,Y=1"]
+    embedding["Labels"] = np.select(conditions, values, -1)
 
-    sns.scatterplot(data=embedding, x="x1", y="x2", hue="group")
+    sns.set_theme(style="whitegrid", palette="tab10")
+    fig = sns.scatterplot(data=embedding, x="x1", y="x2", hue="Labels", style="Labels")
+    fig.set(xlabel=None)
+    fig.tick_params(bottom=False)
+    fig.set(ylabel=None)
+    fig.tick_params(left=False)
     logger.experiment.log({f"{data_name}": wandb.Image(plt)})
     plt.clf()
 
@@ -382,38 +368,32 @@ def evaluate(
     _model_trainer: pl.Trainer,
 ) -> None:
 
-    if isinstance(results, PafResults):
-        do_log("eval/cycle_loss", results.cycle_loss, wandb_logger)
-
-    recon_mmd = mmd2(results.x, results.cf_x, kernel=KernelType.LINEAR)
+    baseline_mmd = mmd2(results.x.clone(), results.x.clone(), kernel=EVAL_KERNEL)
+    x2cf_mmd = mmd2(results.recon.clone(), results.cf_x.clone(), kernel=EVAL_KERNEL)
+    recon_mmd = mmd2(results.recon.clone(), results.x.clone(), kernel=EVAL_KERNEL)
     s0_dist_mmd = mmd2(
-        results.x[results.s == 0],
-        results.cf_x[results.s == 1],
-        kernel=KernelType.LINEAR,
+        results.x[results.s == 0].clone(), results.recons_0.clone(), kernel=EVAL_KERNEL, biased=True
     )
     s1_dist_mmd = mmd2(
-        results.x[results.s == 1],
-        results.cf_x[results.s == 0],
-        kernel=KernelType.LINEAR,
+        results.x[results.s == 1].clone(), results.recons_1.clone(), kernel=EVAL_KERNEL, biased=True
     )
 
-    do_log(
-        name="Logging/MMD",
-        val=round(recon_mmd.item(), 5),
-        logger=wandb_logger,
-    )
-
-    do_log(
-        name="Logging/MMD S0 vs Cf",
-        val=round(s0_dist_mmd.item(), 5),
-        logger=wandb_logger,
-    )
-
-    do_log(
-        name="Logging/MMD S1 vs Cf",
-        val=round(s1_dist_mmd.item(), 5),
-        logger=wandb_logger,
-    )
+    for title, val in [
+        ("MMD X vs X", baseline_mmd.item()),
+        ("MMD X vs Cf", x2cf_mmd.item()),
+        ("MMD X vs X^", recon_mmd.item()),
+        ("MMD S0 vs Cf", s0_dist_mmd.item()),
+        ("MMD S1 vs Cf", s1_dist_mmd.item()),
+        ("P(Y=1|Sx=0,Sy=0", results.pd_results["s1_0_s2_0"].mean()),
+        ("P(Y=1|Sx=0,Sy=1", results.pd_results["s1_0_s2_1"].mean()),
+        ("P(Y=1|Sx=1,Sy=0", results.pd_results["s1_1_s2_0"].mean()),
+        ("P(Y=1|Sx=1,Sy=1", results.pd_results["s1_1_s2_1"].mean()),
+    ]:
+        do_log(
+            name="Logging/" + title,
+            val=round(val, 5),
+            logger=wandb_logger,
+        )
 
     for fair_bool in (True, False):
         if cfg.exp.model == ModelType.PAF:
@@ -425,6 +405,7 @@ def evaluate(
                 logger=wandb_logger,
                 data_name="Outcomes",
                 fair=fair_bool,
+                debug=cfg.exp.debug,
             )
         else:
             preds = baseline_selection_rules(
@@ -433,79 +414,59 @@ def evaluate(
                 fair=fair_bool,
                 data_name="Outcomes",
             )
-        multiple_metrics(
+        metrics_and_breakdown(
             preds=preds,
             target=data.test_datatuple,
-            name=f"Post-Selection-{fair_bool=}",
+            name=f"{PS}/{fair_bool=}",
             logger=wandb_logger,
             debug=cfg.exp.debug,
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=preds.hard.to_frame().copy(),
+            graduated=None,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
             assert data.true_data_group is not None
-            multiple_metrics(
+
+            metrics_and_breakdown(
                 preds=preds,
                 target=data.true_test_datatuple,
-                name=f"TrueLabels-{fair_bool=}",
+                name=f"{PS}/{TL}/{fair_bool=}",
                 logger=wandb_logger,
                 debug=cfg.exp.debug,
-            )
-            get_full_breakdown(
-                target_info=f"Stats/{fair_bool=}",
-                acceptance=em.DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=preds.hard.to_frame().copy(),
-                ),
+                x=data.test_datatuple.x.copy(),
+                s=data.test_datatuple.s.copy(),
+                y=preds.hard.to_frame().copy(),
                 graduated=data.true_test_datatuple,
-                logger=wandb_logger,
             )
 
     if cfg.exp.model == ModelType.PAF:
-        # === This is only for reporting ====
-        _model = PafModel(encoder=encoder, classifier=classifier)
-        _results = _model.collate_results(
-            _model_trainer.predict(
-                model=_model, ckpt_path=None, dataloaders=data.train_dataloader()
-            )
-        )
-        produce_selection_groups(
-            outcomes=_results.pd_results,
-            data=data,
-            recon_0=_results.recons_0,
-            recon_1=_results.recons_1,
-            logger=wandb_logger,
-            data_name="Train",
-        )
-        # === === ===
-
         our_clf_preds = em.Prediction(
             hard=pd.Series(results.preds.squeeze(-1).detach().cpu().numpy())
         )
-        multiple_metrics(
+        metrics_and_breakdown(
             preds=our_clf_preds,
             target=data.test_datatuple,
-            name="Real-World-Preds",
+            name=f"{RW}",
             logger=wandb_logger,
             debug=cfg.exp.debug,
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=our_clf_preds.hard.to_frame().copy(),
+            graduated=None,
         )
         if isinstance(data, BaseDataModule) and data.cf_available:
-            multiple_metrics(
+            assert data.true_data_group is not None
+            metrics_and_breakdown(
                 preds=our_clf_preds,
-                target=data.test_datatuple,
-                name="Real-World-Preds",
+                target=data.true_test_datatuple,
+                name=f"{RW}/{TL}",
                 logger=wandb_logger,
                 debug=cfg.exp.debug,
-            )
-            assert data.true_test_datatuple is not None
-            get_full_breakdown(
-                target_info="Stats/Real-World-Preds",
-                acceptance=em.DataTuple(
-                    x=data.test_datatuple.x.copy(),
-                    s=data.test_datatuple.s.copy(),
-                    y=our_clf_preds.hard.to_frame(),
-                ),
+                x=data.test_datatuple.x.copy(),
+                s=data.test_datatuple.s.copy(),
+                y=our_clf_preds.hard.to_frame().copy(),
                 graduated=data.true_test_datatuple,
-                logger=wandb_logger,
             )
         if isinstance(cfg.enc, AE) and cfg.enc_trainer.max_epochs > 1:
             produce_baselines(
@@ -521,35 +482,57 @@ def evaluate(
                 test_mode=cfg.clf_trainer.fast_dev_run,
             )
 
+        # # === This is only for reporting ====
+        # _model = PafModel(encoder=encoder, classifier=classifier)
+        # _results = _model.collate_results(
+        #     _model_trainer.predict(
+        #         model=_model, ckpt_path=None, dataloaders=data.train_dataloader()
+        #     )
+        # )
+        # produce_selection_groups(
+        #     outcomes=_results.pd_results,
+        #     data=data,
+        #     recon_0=_results.recons_0,
+        #     recon_1=_results.recons_1,
+        #     logger=wandb_logger,
+        #     data_name="Train",
+        #     debug=cfg.exp.debug,
+        # )
+        # # === === ===
+
 
 def baseline_models(
     model: em.InAlgorithm, *, data: BaseDataModule, logger: pll.WandbLogger, debug: bool
 ) -> None:
     LOGGER.info(f"=== {model.name} ===")
     results = model.run(data.train_datatuple, data.test_datatuple)
-    multiple_metrics(
-        preds=results, target=data.test_datatuple, name="Results", logger=logger, debug=debug
+    metrics_and_breakdown(
+        preds=results,
+        target=data.test_datatuple,
+        name=f"{RW}",
+        logger=logger,
+        debug=debug,
+        x=data.test_datatuple.x.copy(),
+        s=data.test_datatuple.s.copy(),
+        y=results.hard.to_frame().copy(),
+        graduated=None,
     )
+
     if isinstance(data, BaseDataModule):
         LOGGER.info(f"=== {model.name} and 'True' Data ===")
         results = model.run(data.train_datatuple, data.test_datatuple)
         assert data.true_test_datatuple is not None
-        multiple_metrics(
+
+        metrics_and_breakdown(
             preds=results,
             target=data.true_test_datatuple,
-            name="Results-TrueLabels",
+            name=f"{RW}/{TL}",
             logger=logger,
             debug=debug,
-        )
-        get_full_breakdown(
-            target_info="Stats",
-            acceptance=em.DataTuple(
-                x=data.test_datatuple.x.copy(),
-                s=data.test_datatuple.s.copy(),
-                y=results.hard.to_frame(),
-            ),
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=results.hard.to_frame().copy(),
             graduated=data.true_test_datatuple,
-            logger=logger,
         )
 
 
@@ -576,6 +559,128 @@ def multiple_metrics(
     )
     for key, value in results.items():
         do_log(f"{name}/{key.replace('/', '%')}", value, logger)
+
+
+def two_model_approach(cfg: Config, data: BaseDataModule, logger: pll.WandbLogger) -> None:
+    if cfg.exp.model in (ModelType.ERM_DP, ModelType.ERM_KAM, ModelType.ERM_ZAF, ModelType.ERM_SHI):
+        first_model = em.LRCV(seed=cfg.exp.seed)
+        first_results = first_model.run(data.train_datatuple, data.test_datatuple)
+    else:
+        erm_model = em.LRCV(seed=cfg.exp.seed)
+        first_model = em.Hardt(seed=cfg.exp.seed)
+        first_results = first_model.run(
+            train_predictions=erm_model.run(data.train_datatuple, data.train_datatuple),
+            train=data.train_datatuple,
+            test_predictions=erm_model.run(data.train_datatuple, data.test_datatuple),
+            test=data.test_datatuple,
+        )
+    if cfg.exp.model in (ModelType.ERM_DP, ModelType.EQ_DP):
+        dp_model = em.Agarwal(fairness="DP", seed=cfg.exp.seed)
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    elif cfg.exp.model in (ModelType.ERM_ZAF, ModelType.EQ_ZAF):
+        dp_model = em.ZafarFairness()
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    elif cfg.exp.model in (ModelType.ERM_KAM, ModelType.EQ_KAM):
+        dp_model = em.Kamiran(seed=cfg.exp.seed)
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    elif cfg.exp.model in (ModelType.ERM_SHI, ModelType.EQ_SHI):
+        dp_model = em.Kamishima()
+        dp_results = dp_model.run(data.train_datatuple, data.test_datatuple)
+    else:
+        raise NotImplementedError(f"{cfg.exp.model} not implemented")
+
+    matches = {
+        f"{c}": first_results.hard[
+            pd.concat([dp_results.hard, first_results.hard], axis=1).sum(axis=1) == c
+        ].count()
+        for c in range(3)
+    }
+    print(matches)
+    df = pd.DataFrame.from_dict(
+        {
+            "s1_0_s2_0": first_results.hard.values,
+            "s1_1_s2_1": dp_results.hard.values,
+            "true_s": data.test_datatuple.s.copy().values[:, 0],
+        }
+    )
+
+    for fair_bool in (True, False):
+        preds = baseline_selection_rules(
+            outcomes=df,
+            logger=logger,
+            fair=fair_bool,
+            data_name="Outcomes",
+        )
+        metrics_and_breakdown(
+            preds=preds,
+            target=data.test_datatuple,
+            name=f"{PS}/{fair_bool=}",
+            logger=logger,
+            debug=cfg.exp.debug,
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=preds.hard.to_frame().copy(),
+            graduated=None,
+        )
+        if isinstance(data, BaseDataModule) and data.cf_available:
+            assert data.true_data_group is not None
+            metrics_and_breakdown(
+                preds=preds,
+                target=data.true_test_datatuple,
+                name=f"{PS}/{TL}/{fair_bool=}",
+                logger=logger,
+                debug=cfg.exp.debug,
+                x=data.test_datatuple.x.copy(),
+                s=data.test_datatuple.s.copy(),
+                y=preds.hard.to_frame().copy(),
+                graduated=data.true_test_datatuple,
+            )
+
+    metrics_and_breakdown(
+        preds=first_results,
+        target=data.test_datatuple,
+        name=f"{RW}",
+        logger=logger,
+        debug=cfg.exp.debug,
+        x=data.test_datatuple.x.copy(),
+        s=data.test_datatuple.s.copy(),
+        y=first_results.hard.to_frame().copy(),
+        graduated=None,
+    )
+    if isinstance(data, BaseDataModule) and data.cf_available:
+        assert data.true_data_group is not None
+        metrics_and_breakdown(
+            preds=first_results,
+            target=data.true_test_datatuple,
+            name=f"{RW}/{TL}",
+            logger=logger,
+            debug=cfg.exp.debug,
+            x=data.test_datatuple.x.copy(),
+            s=data.test_datatuple.s.copy(),
+            y=first_results.hard.to_frame().copy(),
+            graduated=data.true_test_datatuple,
+        )
+
+
+def metrics_and_breakdown(
+    preds: em.Prediction,
+    *,
+    target: em.DataTuple,
+    name: str,
+    logger: pll.WandbLogger,
+    debug: bool,
+    x: pd.DataFrame,
+    s: pd.DataFrame,
+    y: pd.DataFrame,
+    graduated: em.DataTuple | None,
+) -> None:
+    multiple_metrics(preds=preds, target=target, name=name, logger=logger, debug=debug)
+    get_full_breakdown(
+        target_info="Stats/" + name,
+        acceptance=em.DataTuple(x=x, s=s, y=y),
+        graduated=graduated,
+        logger=logger,
+    )
 
 
 if __name__ == "__main__":
